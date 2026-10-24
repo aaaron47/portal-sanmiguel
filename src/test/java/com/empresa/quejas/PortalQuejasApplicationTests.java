@@ -49,20 +49,20 @@ class PortalQuejasApplicationTests {
 
     @Test
     void loginCorrectoYErroneo() throws Exception {
-        mvc.perform(formLogin().user("jhuaman").password("Admin2026!"))
-                .andExpect(authenticated().withUsername("jhuaman"));
-        mvc.perform(formLogin().user("jhuaman").password("incorrecta"))
+        mvc.perform(formLogin().user("admin2").password("admin"))
+                .andExpect(authenticated().withUsername("admin2"));
+        mvc.perform(formLogin().user("admin2").password("incorrecta"))
                 .andExpect(unauthenticated())
                 .andExpect(redirectedUrl("/login?error"));
     }
 
     @Test
     void supervisorVeTodasLasPantallas() throws Exception {
-        var supervisor = user("lparedes").roles("SUPERVISOR");
+        var supervisor = user("admin").roles("SUPERVISOR");
         String[] rutas = {
                 "/", "/tickets", "/tickets?estado=EN_ATENCION&mios=true", "/tickets?estado=RESPONDIDO&q=cobro",
                 "/tickets/1", "/historial", "/historial?canal=WEB", "/auditoria/clicks", "/auditoria/logs",
-                "/auditoria/logs?tipo=LOGIN_FALLIDO", "/metadata", "/metadata/admin/jhuaman"};
+                "/auditoria/logs?tipo=LOGIN_FALLIDO", "/metadata", "/metadata/admin/admin2"};
         for (String ruta : rutas) {
             mvc.perform(get(ruta).with(supervisor))
                     .andExpect(status().isOk());
@@ -71,7 +71,7 @@ class PortalQuejasApplicationTests {
 
     @Test
     void adminNoVeAuditoria() throws Exception {
-        mvc.perform(get("/auditoria/clicks").with(user("jhuaman").roles("ADMIN")))
+        mvc.perform(get("/auditoria/clicks").with(user("admin2").roles("ADMIN")))
                 .andExpect(status().isForbidden());
     }
 
@@ -83,7 +83,7 @@ class PortalQuejasApplicationTests {
         String url = "/tickets/" + ticket.getId() + "/tomar";
 
         mvc.perform(post(url).param("version", ticket.getVersion().toString())
-                        .with(user("cmendoza").roles("ADMIN")).with(csrf()))
+                        .with(user("admin3").roles("ADMIN")).with(csrf()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attributeExists("ok"));
 
@@ -92,14 +92,14 @@ class PortalQuejasApplicationTests {
 
         // Misma versión antigua: debe rechazarse por conflicto
         mvc.perform(post(url).param("version", ticket.getVersion().toString())
-                        .with(user("jhuaman").roles("ADMIN")).with(csrf()))
+                        .with(user("admin2").roles("ADMIN")).with(csrf()))
                 .andExpect(flash().attributeExists("error"));
     }
 
     @Test
     void registraClicksDesdeElNavegador() throws Exception {
         mvc.perform(post("/api/auditoria/clicks")
-                        .with(user("jhuaman").roles("ADMIN")).with(csrf())
+                        .with(user("admin2").roles("ADMIN")).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"tipo\":\"CLICK\",\"ruta\":\"/tickets\",\"elemento\":\"tomar-ticket\",\"texto\":\"Tomar ticket\"}"))
                 .andExpect(status().isAccepted());
