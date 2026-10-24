@@ -1,0 +1,16 @@
+# Perfil para la base de datos compartida en la nube.
+# Actívalo con: SPRING_PROFILES_ACTIVE=cloud
+# Las credenciales llegan por variables de entorno (en GitHub: Secrets), nunca en el repo.
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    hibernate:
+      # La BD es compartida con la app móvil y reportes: nunca crear ni alterar tablas desde aquí.
+      ddl-auto: validate
+  thymeleaf:
+    cache: true

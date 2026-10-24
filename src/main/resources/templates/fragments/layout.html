@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<!-- Cabecera común: estilos, token CSRF y script de registro de clicks -->
+<head th:fragment="head(titulo)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="_csrf" th:content="${_csrf?.token}">
+    <meta name="_csrf_header" th:content="${_csrf?.headerName}">
+    <meta name="tracker-url" th:content="@{/api/auditoria/clicks}">
+    <title th:text="|${titulo} – Portal de quejas|">Portal de quejas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <script sec:authorize="isAuthenticated()" th:src="@{/js/tracker.js}" defer></script>
+</head>
+
+<body>
+
+<!-- Menú lateral -->
+<aside th:fragment="sidebar" class="lateral">
+    <a class="marca" th:href="@{/}" data-track="menu-inicio">
+        <span class="marca-sello" aria-hidden="true">Q</span>
+        <span>
+            <strong>Portal de quejas</strong>
+            <small>Administración</small>
+        </span>
+    </a>
+
+    <nav class="menu" aria-label="Menú principal">
+        <p class="menu-grupo">Atención</p>
+        <a th:href="@{/}" data-track="menu-inicio"
+           th:classappend="${rutaActual == '/'} ? 'activo'">Inicio</a>
+        <a th:href="@{/tickets}" data-track="menu-bandeja"
+           th:classappend="${#strings.startsWith(rutaActual, '/tickets')} ? 'activo'">
+            Bandeja
+            <span class="menu-conteo" th:if="${abiertosNav != null}" th:text="${abiertosNav}"
+                  title="Pendientes y por contestar">0</span>
+        </a>
+        <a th:href="@{/historial}" data-track="menu-historial"
+           th:classappend="${rutaActual == '/historial'} ? 'activo'">Historial</a>
+
+        <th:block sec:authorize="hasRole('SUPERVISOR')">
+            <p class="menu-grupo">Auditoría</p>
+            <a th:href="@{/auditoria/clicks}" data-track="menu-clicks"
+               th:classappend="${rutaActual == '/auditoria/clicks'} ? 'activo'">Clicks de usuarios</a>
+            <a th:href="@{/auditoria/logs}" data-track="menu-logs"
+               th:classappend="${rutaActual == '/auditoria/logs'} ? 'activo'">Logs de metadata</a>
+        </th:block>
+
+        <p class="menu-grupo">Cuenta</p>
+        <a th:href="@{/metadata}" data-track="menu-metadata"
+           th:classappend="${#strings.startsWith(rutaActual, '/metadata')} ? 'activo'">Mi metadata</a>
+    </nav>
+
+    <div class="sesion" th:if="${usuarioActual != null}">
+        <span class="avatar" th:text="${usuarioActual.iniciales}" aria-hidden="true">LP</span>
+        <span class="sesion-datos">
+            <strong th:text="${usuarioActual.nombreCompleto}">Nombre</strong>
+            <small th:text="${usuarioActual.rol.etiqueta}">Rol</small>
+        </span>
+        <form th:action="@{/logout}" method="post">
+            <button type="submit" class="boton-texto" data-track="cerrar-sesion">Salir</button>
+        </form>
+    </div>
+</aside>
+
+<!-- Mensajes después de una acción -->
+<div th:fragment="avisos" class="avisos">
+    <p class="aviso aviso-ok" th:if="${ok}" th:text="${ok}" role="status">Listo.</p>
+    <p class="aviso aviso-error" th:if="${error}" th:text="${error}" role="alert">Error.</p>
+</div>
+
+<!-- Paginación: usa las variables pagina, urlBase y filtros del modelo -->
+<nav th:fragment="paginacion" class="paginacion" aria-label="Paginación"
+     th:if="${pagina.totalElements > 0}">
+    <span class="pag-info"
+          th:text="|${pagina.number * pagina.size + 1} a ${pagina.number * pagina.size + pagina.numberOfElements} de ${pagina.totalElements}|">1 a 12 de 40</span>
+    <span class="pag-enlaces">
+        <a th:if="${pagina.hasPrevious()}" class="boton boton-sec boton-chico" data-track="pagina-anterior"
+           th:href="@{${urlBase + '?page=' + (pagina.number - 1) + filtros}}">Anterior</a>
+        <span class="pag-actual" th:if="${pagina.totalPages > 1}"
+              th:text="|Página ${pagina.number + 1} de ${pagina.totalPages}|">Página 1 de 4</span>
+        <a th:if="${pagina.hasNext()}" class="boton boton-sec boton-chico" data-track="pagina-siguiente"
+           th:href="@{${urlBase + '?page=' + (pagina.number + 1) + filtros}}">Siguiente</a>
+    </span>
+</nav>
+
+<!-- Celda de antigüedad con barra: se llena a medida que el ticket se acerca a las 72 h sin respuesta -->
+<td th:fragment="antiguedad(t)" class="celda-edad">
+    <span class="edad-texto" th:text="${t.fechaPrimeraRespuesta == null} ? ${t.antiguedadTexto} : |Respondido en ${t.tiempoRespuestaTexto}|">12 h</span>
+    <span class="edad-pista" aria-hidden="true">
+        <span class="edad-relleno" th:classappend="${t.nivelAntiguedad}"
+              th:style="|width: ${t.porcentajeAntiguedad}%|"></span>
+    </span>
+</td>
+
+<!-- Etiquetas de estado y prioridad -->
+<span th:fragment="estado(t)" class="etiqueta" th:classappend="|estado-${t.estado.clase}|"
+      th:text="${t.estado.etiqueta}">Pendiente</span>
+
+<span th:fragment="prioridad(t)" class="prioridad" th:classappend="|prioridad-${#strings.toLowerCase(t.prioridad.name())}|"
+      th:text="${t.prioridad.etiqueta}">Alta</span>
+
+</body>
+</html>

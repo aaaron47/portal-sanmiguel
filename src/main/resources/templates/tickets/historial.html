@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Historial')}"></head>
+<body>
+<div class="app">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+
+    <main class="principal">
+        <header class="encabezado">
+            <div>
+                <h1>Historial de tickets archivados</h1>
+                <p class="texto-sec">Quejas ya resueltas y cerradas. Son de solo lectura.</p>
+            </div>
+        </header>
+
+        <form class="filtros" th:action="@{/historial}" method="get" role="search">
+            <div class="campo campo-ancho">
+                <label for="q">Buscar</label>
+                <input id="q" name="q" type="search" th:value="${q}" placeholder="Código, cliente, DNI o asunto">
+            </div>
+            <div class="campo">
+                <label for="canal">Canal</label>
+                <select id="canal" name="canal">
+                    <option value="">Todos</option>
+                    <option th:each="c : ${canales}" th:value="${c}" th:text="${c.etiqueta}"
+                            th:selected="${c == canal}">App móvil</option>
+                </select>
+            </div>
+            <div class="campo">
+                <label for="desde">Archivado desde</label>
+                <input id="desde" name="desde" type="date" th:value="${desde}">
+            </div>
+            <div class="campo">
+                <label for="hasta">Hasta</label>
+                <input id="hasta" name="hasta" type="date" th:value="${hasta}">
+            </div>
+            <div class="filtros-acciones">
+                <button type="submit" class="boton boton-prim" data-track="buscar-historial">Buscar</button>
+                <a th:href="@{/historial}" class="boton boton-sec" data-track="limpiar-historial">Limpiar</a>
+            </div>
+        </form>
+
+        <div class="vacio-grande" th:if="${pagina.empty}">
+            <p><strong>No hay tickets archivados con estos filtros.</strong></p>
+            <p class="texto-sec">Amplía el rango de fechas o quita el canal.</p>
+        </div>
+
+        <div class="tabla-scroll" th:unless="${pagina.empty}">
+            <table class="tabla">
+                <thead>
+                <tr>
+                    <th scope="col">Ticket</th>
+                    <th scope="col">Cliente</th>
+                    <th scope="col">Canal</th>
+                    <th scope="col">Atendido por</th>
+                    <th scope="col" class="num">Primera respuesta</th>
+                    <th scope="col" class="num">Archivado</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="t : ${pagina.content}">
+                    <td>
+                        <a th:href="@{/tickets/{id}(id=${t.id})}" class="enlace-fuerte" data-track="abrir-archivado"
+                           th:text="${t.asunto}">Asunto</a>
+                        <small class="texto-sec" th:text="|${t.codigo}, ${t.categoria}|">Q-2026-0001</small>
+                    </td>
+                    <td>
+                        <span th:text="${t.clienteNombre}">Cliente</span>
+                        <small class="texto-sec" th:text="|DNI ${t.clienteDocumento}|">DNI</small>
+                    </td>
+                    <td th:text="${t.canal.etiqueta}">Web</td>
+                    <td th:text="${t.asignadoA}">jhuaman</td>
+                    <td class="num" th:text="${t.tiempoRespuestaTexto}">5 h</td>
+                    <td class="num" th:text="${#temporals.format(t.fechaArchivado, 'dd/MM/yyyy')}">01/10/2026</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <nav th:replace="~{fragments/layout :: paginacion}"></nav>
+    </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Error')}"></head>
+<body class="pagina-login">
+<main class="error-pagina">
+    <p class="codigo" th:text="${status}">404</p>
+    <h1 th:if="${status == 404}">No encontramos esa página o ese ticket.</h1>
+    <h1 th:if="${status == 403}">No tienes permiso para ver esta sección.</h1>
+    <h1 th:if="${status != 404 and status != 403}">Algo falló al procesar la solicitud.</h1>
+    <p class="texto-sec" th:if="${status == 403}">Las pantallas de auditoría son solo para supervisores.</p>
+    <p><a th:href="@{/}" class="boton boton-prim">Ir al inicio</a></p>
+</main>
+</body>
+</html>

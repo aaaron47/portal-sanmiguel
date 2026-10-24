@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Inicio')}"></head>
+<body>
+<div class="app">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+
+    <main class="principal">
+        <header class="encabezado">
+            <div>
+                <h1 th:text="|Hola, ${#strings.arraySplit(usuarioActual.nombreCompleto, ' ')[0]}|">Hola</h1>
+                <p class="texto-sec" th:if="${usuarioActual.accesoAnterior != null}"
+                   th:text="|Tu acceso anterior fue el ${#temporals.format(usuarioActual.accesoAnterior, 'dd/MM/yyyy')} a las ${#temporals.format(usuarioActual.accesoAnterior, 'HH:mm')}.|">
+                    Tu acceso anterior fue...</p>
+            </div>
+        </header>
+
+        <!-- Franja de distribución: cuántos tickets activos hay en cada estado -->
+        <section class="bloque" aria-labelledby="t-estado">
+            <h2 id="t-estado" th:text="|${resumen.totalActivos} tickets activos|">40 tickets activos</h2>
+            <div class="franja" role="img"
+                 th:attr="aria-label=|${resumen.conteo()[estados[0]]} pendientes, ${resumen.conteo()[estados[1]]} por contestar, ${resumen.conteo()[estados[2]]} respondidos|">
+                <a th:each="e : ${estados}" th:href="@{/tickets(estado=${e})}"
+                   class="franja-tramo" th:classappend="|estado-${e.clase}|"
+                   th:style="|flex-grow: ${resumen.conteo().get(e) > 0 ? resumen.conteo().get(e) : 0}|"
+                   th:title="|${e.plural}: ${resumen.conteo().get(e)}|" data-track="franja-estado"></a>
+            </div>
+            <ul class="franja-leyenda">
+                <li th:each="e : ${estados}">
+                    <a th:href="@{/tickets(estado=${e})}" data-track="leyenda-estado">
+                        <span class="punto" th:classappend="|estado-${e.clase}|"></span>
+                        <strong th:text="${resumen.conteo().get(e)}">10</strong>
+                        <span th:text="${#strings.toLowerCase(e.plural)}">pendientes</span>
+                        <span class="texto-sec" th:text="|${resumen.porcentaje(e)}%|">25%</span>
+                    </a>
+                </li>
+            </ul>
+
+            <p class="alerta-linea" th:if="${resumen.vencidos() > 0}">
+                <span class="punto vencido"></span>
+                <span th:text="|${resumen.vencidos()} tickets llevan más de 72 horas sin respuesta y ${resumen.enAlerta() - resumen.vencidos()} más de 24 horas.|">
+                    3 tickets...</span>
+                <a th:href="@{/tickets(estado='PENDIENTE')}" data-track="ver-vencidos">Ver pendientes</a>
+            </p>
+            <p class="texto-sec" th:text="|Archivados hoy: ${resumen.archivadosHoy()}|">Archivados hoy: 2</p>
+        </section>
+
+        <div class="columnas">
+            <section class="bloque" aria-labelledby="t-antiguos">
+                <div class="bloque-cabeza">
+                    <h2 id="t-antiguos">Pendientes más antiguos</h2>
+                    <a th:href="@{/tickets(estado='PENDIENTE')}" data-track="ver-pendientes">Ver todos</a>
+                </div>
+                <p class="vacio" th:if="${resumen.pendientesAntiguos().isEmpty()}">No hay tickets pendientes. Buen trabajo.</p>
+                <table class="tabla tabla-compacta" th:unless="${resumen.pendientesAntiguos().isEmpty()}">
+                    <tbody>
+                    <tr th:each="t : ${resumen.pendientesAntiguos()}" th:classappend="|fila-${t.nivelAntiguedad}|">
+                        <td>
+                            <a th:href="@{/tickets/{id}(id=${t.id})}" class="enlace-fuerte" data-track="abrir-ticket"
+                               th:text="${t.asunto}">Asunto</a>
+                            <small class="texto-sec" th:text="|${t.codigo}, ${t.clienteNombre}|">Q-2026-0001</small>
+                        </td>
+                        <td th:replace="~{fragments/layout :: antiguedad(${t})}"></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="bloque" aria-labelledby="t-mios">
+                <div class="bloque-cabeza">
+                    <h2 id="t-mios">Tus tickets por contestar</h2>
+                    <a th:href="@{/tickets(estado='EN_ATENCION', mios=true)}" data-track="ver-mios">Ver todos</a>
+                </div>
+                <p class="vacio" th:if="${resumen.misTickets().isEmpty()}">
+                    No tienes tickets asignados. Toma uno desde la
+                    <a th:href="@{/tickets(estado='PENDIENTE')}" data-track="ir-pendientes">bandeja de pendientes</a>.
+                </p>
+                <table class="tabla tabla-compacta" th:unless="${resumen.misTickets().isEmpty()}">
+                    <tbody>
+                    <tr th:each="t : ${resumen.misTickets()}" th:classappend="|fila-${t.nivelAntiguedad}|">
+                        <td>
+                            <a th:href="@{/tickets/{id}(id=${t.id})}" class="enlace-fuerte" data-track="abrir-ticket"
+                               th:text="${t.asunto}">Asunto</a>
+                            <small class="texto-sec" th:text="|${t.codigo}, ${t.clienteNombre}|">Q-2026-0001</small>
+                        </td>
+                        <td th:replace="~{fragments/layout :: antiguedad(${t})}"></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </section>
+        </div>
+    </main>
+</div>
+</body>
+</html>

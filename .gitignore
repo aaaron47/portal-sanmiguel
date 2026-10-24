@@ -1,0 +1,28 @@
+# Compilados y empaquetado
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse / STS
+.settings/
+.classpath
+.project
+.factorypath
+bin/
+
+# VS Code
+.vscode/
+
+# Logs y temporales
+*.log
+*.tmp
+
+# Sistema operativo
+.DS_Store
+Thumbs.db

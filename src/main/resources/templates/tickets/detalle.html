@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${ticket.codigo})}"></head>
+<body>
+<div class="app">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+
+    <main class="principal">
+        <p class="miga">
+            <a th:if="${ticket.estado.name() != 'ARCHIVADO'}" th:href="@{/tickets(estado=${ticket.estado})}"
+               data-track="volver-bandeja" th:text="|Volver a ${#strings.toLowerCase(ticket.estado.plural)}|">Volver</a>
+            <a th:if="${ticket.estado.name() == 'ARCHIVADO'}" th:href="@{/historial}"
+               data-track="volver-historial">Volver al historial</a>
+        </p>
+
+        <header class="encabezado encabezado-ticket" th:classappend="|borde-${ticket.nivelAntiguedad}|">
+            <div>
+                <p class="ticket-meta">
+                    <span class="codigo" th:text="${ticket.codigo}">Q-2026-0001</span>
+                    <span th:replace="~{fragments/layout :: estado(${ticket})}"></span>
+                    <span th:replace="~{fragments/layout :: prioridad(${ticket})}"></span>
+                </p>
+                <h1 th:text="${ticket.asunto}">Asunto del ticket</h1>
+                <p class="texto-sec"
+                   th:text="|${ticket.categoria}. Recibido por ${#strings.toLowerCase(ticket.canal.etiqueta)} el ${#temporals.format(ticket.fechaCreacion, 'dd/MM/yyyy')} a las ${#temporals.format(ticket.fechaCreacion, 'HH:mm')}.|">
+                    Categoría...</p>
+            </div>
+        </header>
+
+        <div th:replace="~{fragments/layout :: avisos}"></div>
+
+        <div class="detalle">
+            <div class="detalle-principal">
+
+                <!-- Conversación: la queja original y las respuestas en orden -->
+                <section class="conversacion" aria-label="Conversación">
+                    <article class="mensaje mensaje-cliente">
+                        <p class="mensaje-autor">
+                            <strong th:text="${ticket.clienteNombre}">Cliente</strong>
+                            <time th:text="${#temporals.format(ticket.fechaCreacion, 'dd/MM/yyyy HH:mm')}">fecha</time>
+                        </p>
+                        <p th:text="${ticket.descripcion}">Descripción de la queja.</p>
+                    </article>
+
+                    <article th:each="r : ${ticket.respuestas}" class="mensaje"
+                             th:classappend="${r.notaInterna} ? 'mensaje-nota' : 'mensaje-admin'">
+                        <p class="mensaje-autor">
+                            <strong th:text="${r.autor}">admin</strong>
+                            <span class="etiqueta etiqueta-nota" th:if="${r.notaInterna}">Nota interna</span>
+                            <time th:text="${#temporals.format(r.fecha, 'dd/MM/yyyy HH:mm')}">fecha</time>
+                        </p>
+                        <p th:text="${r.mensaje}">Respuesta.</p>
+                    </article>
+                </section>
+
+                <!-- Formulario de respuesta: solo cuando el ticket está en atención o ya respondido -->
+                <section class="bloque" th:if="${ticket.estado.name() == 'EN_ATENCION' or ticket.estado.name() == 'RESPONDIDO'}"
+                         aria-labelledby="t-responder">
+                    <h2 id="t-responder">Responder</h2>
+                    <form th:action="@{/tickets/{id}/responder(id=${ticket.id})}" method="post" class="formulario">
+                        <input type="hidden" name="version" th:value="${ticket.version}">
+                        <label for="mensaje" class="solo-lector">Mensaje</label>
+                        <textarea id="mensaje" name="mensaje" rows="5" required maxlength="4000"
+                                  placeholder="Escribe la respuesta para el cliente"></textarea>
+                        <div class="formulario-pie">
+                            <label class="check">
+                                <input type="checkbox" name="notaInterna" value="true" data-track="marcar-nota-interna">
+                                Guardar como nota interna (el cliente no la ve)
+                            </label>
+                            <button type="submit" class="boton boton-prim" data-track="enviar-respuesta">Enviar respuesta</button>
+                        </div>
+                    </form>
+                </section>
+
+                <p class="aviso aviso-info" th:if="${ticket.estado.name() == 'PENDIENTE'}">
+                    Toma el ticket para poder responderlo. Así nadie más lo atiende al mismo tiempo.
+                </p>
+            </div>
+
+            <aside class="detalle-lateral">
+                <section class="bloque" aria-labelledby="t-acciones">
+                    <h2 id="t-acciones">Acciones</h2>
+
+                    <form th:if="${ticket.estado.name() == 'PENDIENTE'}"
+                          th:action="@{/tickets/{id}/tomar(id=${ticket.id})}" method="post">
+                        <input type="hidden" name="version" th:value="${ticket.version}">
+                        <button type="submit" class="boton boton-prim boton-ancho" data-track="tomar-ticket">Tomar ticket</button>
+                    </form>
+
+                    <th:block th:if="${ticket.estado.name() == 'EN_ATENCION'}">
+                        <p class="texto-sec" th:if="${ticket.asignadoA != usuarioActual.username}"
+                           th:text="|Lo está atendiendo ${ticket.asignadoA}.|">Lo está atendiendo...</p>
+                        <form th:action="@{/tickets/{id}/liberar(id=${ticket.id})}" method="post">
+                            <input type="hidden" name="version" th:value="${ticket.version}">
+                            <button type="submit" class="boton boton-sec boton-ancho" data-track="liberar-ticket">Devolver a pendientes</button>
+                        </form>
+                    </th:block>
+
+                    <form th:if="${ticket.estado.name() == 'RESPONDIDO'}"
+                          th:action="@{/tickets/{id}/archivar(id=${ticket.id})}" method="post">
+                        <input type="hidden" name="version" th:value="${ticket.version}">
+                        <button type="submit" class="boton boton-prim boton-ancho" data-track="archivar-ticket">Archivar</button>
+                    </form>
+
+                    <p class="texto-sec" th:if="${ticket.estado.name() == 'ARCHIVADO'}"
+                       th:text="|Archivado el ${#temporals.format(ticket.fechaArchivado, 'dd/MM/yyyy HH:mm')}. No admite más cambios.|">
+                        Archivado.</p>
+                </section>
+
+                <section class="bloque" aria-labelledby="t-cliente">
+                    <h2 id="t-cliente">Cliente</h2>
+                    <dl class="datos">
+                        <dt>Nombre</dt><dd th:text="${ticket.clienteNombre}">Nombre</dd>
+                        <dt>DNI</dt><dd th:text="${ticket.clienteDocumento}">00000000</dd>
+                        <dt>Correo</dt><dd th:text="${ticket.clienteEmail}">correo</dd>
+                        <dt>Teléfono</dt><dd th:text="${ticket.clienteTelefono}">999</dd>
+                        <dt>Canal</dt><dd th:text="${ticket.canal.etiqueta}">App</dd>
+                    </dl>
+                </section>
+
+                <section class="bloque" aria-labelledby="t-tiempos">
+                    <h2 id="t-tiempos">Tiempos</h2>
+                    <dl class="datos">
+                        <dt>Abierto hace</dt><dd th:text="${ticket.antiguedadTexto}">3 días</dd>
+                        <dt>Primera respuesta</dt><dd th:text="${ticket.tiempoRespuestaTexto}">Sin respuesta</dd>
+                        <dt>Asignado a</dt><dd th:text="${ticket.asignadoA ?: 'Sin asignar'}">jhuaman</dd>
+                        <dt>Última actualización</dt>
+                        <dd th:text="${#temporals.format(ticket.fechaActualizacion, 'dd/MM/yyyy HH:mm')}">fecha</dd>
+                        <dt>Versión</dt>
+                        <dd><span th:text="${ticket.version}">0</span>
+                            <small class="texto-sec">evita pisar cambios de otros sistemas</small></dd>
+                    </dl>
+                </section>
+            </aside>
+        </div>
+    </main>
+</div>
+</body>
+</html>

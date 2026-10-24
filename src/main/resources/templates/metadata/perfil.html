@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${esPropio} ? 'Mi metadata' : ${admin.nombreCompleto})}"></head>
+<body>
+<div class="app">
+    <aside th:replace="~{fragments/layout :: sidebar}"></aside>
+
+    <main class="principal">
+        <header class="encabezado">
+            <div>
+                <h1 th:text="${esPropio} ? 'Mi metadata' : |Metadata de ${admin.nombreCompleto}|">Mi metadata</h1>
+                <p class="texto-sec">Datos de la cuenta, desde dónde se conecta y qué ha hecho en el portal.</p>
+            </div>
+        </header>
+
+        <!-- Solo supervisores: cambiar de administrador -->
+        <nav class="selector-admin" th:if="${admins != null}" aria-label="Ver metadata de otro administrador">
+            <a th:each="a : ${admins}" th:href="@{/metadata/admin/{u}(u=${a.username})}"
+               th:classappend="${a.username == admin.username} ? 'activo'" data-track="cambiar-admin">
+                <span class="avatar avatar-chico" th:text="${a.iniciales}" aria-hidden="true">JH</span>
+                <span th:text="${a.nombreCompleto}">Nombre</span>
+            </a>
+        </nav>
+
+        <section class="bloque ficha">
+            <span class="avatar avatar-grande" th:text="${admin.iniciales}" aria-hidden="true">LP</span>
+            <div class="ficha-datos">
+                <h2 th:text="${admin.nombreCompleto}">Nombre completo</h2>
+                <p class="texto-sec" th:text="|${admin.username}, ${admin.rol.etiqueta}, ${admin.email}|">usuario</p>
+                <p class="texto-sec"
+                   th:text="|Cuenta creada el ${#temporals.format(admin.fechaCreacion, 'dd/MM/yyyy')}|">Cuenta creada</p>
+                <p class="aviso aviso-error" th:if="${admin.estaBloqueado()}"
+                   th:text="|Cuenta bloqueada hasta las ${#temporals.format(admin.bloqueadoHasta, 'HH:mm')} por intentos fallidos.|">
+                    Bloqueada</p>
+            </div>
+        </section>
+
+        <dl class="cifras">
+            <div><dt>Accesos registrados</dt><dd th:text="${totalAccesos}">20</dd></div>
+            <div th:classappend="${fallidos30d > 0} ? 'cifra-alerta'">
+                <dt>Intentos fallidos (30 días)</dt><dd th:text="${fallidos30d}">1</dd>
+            </div>
+            <div><dt>Respuestas enviadas</dt><dd th:text="${respuestasEnviadas}">15</dd></div>
+            <div><dt>Clicks hoy</dt><dd th:text="${clicksHoy}">40</dd></div>
+        </dl>
+
+        <div class="columnas">
+            <section class="bloque" aria-labelledby="t-acceso">
+                <h2 id="t-acceso">Último acceso</h2>
+                <p class="vacio" th:if="${accesoActual == null}">Todavía no hay accesos registrados.</p>
+                <dl class="datos" th:if="${accesoActual != null}">
+                    <dt>Fecha</dt>
+                    <dd th:text="${#temporals.format(accesoActual.fecha, 'dd/MM/yyyy HH:mm:ss')}">fecha</dd>
+                    <dt>IP</dt><dd th:text="${accesoActual.ip}">10.0.0.1</dd>
+                    <dt>Navegador</dt><dd th:text="${accesoActual.navegador}">Chrome</dd>
+                    <dt>Sistema</dt><dd th:text="${accesoActual.sistemaOperativo}">Windows</dd>
+                    <dt>Sesión</dt><dd th:text="${accesoActual.sesion ?: '-'}">A1B2C3D4</dd>
+                    <dt>Acceso anterior</dt>
+                    <dd th:text="${admin.accesoAnterior != null} ? ${#temporals.format(admin.accesoAnterior, 'dd/MM/yyyy HH:mm')} : 'Sin registro'">fecha</dd>
+                </dl>
+
+                <h3>Accesos recientes</h3>
+                <table class="tabla tabla-compacta">
+                    <tbody>
+                    <tr th:each="l : ${ultimosAccesos}">
+                        <td class="num" th:text="${#temporals.format(l.fecha, 'dd/MM/yyyy HH:mm')}">fecha</td>
+                        <td class="num" th:text="${l.ip}">ip</td>
+                        <td th:text="|${l.navegador} en ${l.sistemaOperativo}|">Chrome en Windows</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="bloque" aria-labelledby="t-actividad">
+                <h2 id="t-actividad">Actividad reciente</h2>
+                <p class="vacio" th:if="${actividad.isEmpty()}">Sin actividad registrada.</p>
+                <ol class="linea-tiempo" th:unless="${actividad.isEmpty()}">
+                    <li th:each="l : ${actividad}" th:classappend="|evento-${l.tipo.clase}|">
+                        <time th:text="${#temporals.format(l.fecha, 'dd/MM HH:mm')}">fecha</time>
+                        <span>
+                            <strong th:text="${l.tipo.etiqueta}">Evento</strong>
+                            <small class="texto-sec" th:text="${l.detalle}">detalle</small>
+                        </span>
+                    </li>
+                </ol>
+            </section>
+        </div>
+    </main>
+</div>
+</body>
+</html>

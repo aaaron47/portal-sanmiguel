@@ -1,0 +1,26 @@
+# Configuración del prototipo: base de datos H2 en memoria con datos de ejemplo.
+# Para la BD real en la nube usa el perfil "cloud" (application-cloud.yml).
+spring:
+  application:
+    name: portal-quejas-admin
+  datasource:
+    url: jdbc:h2:mem:quejas;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+  thymeleaf:
+    cache: false
+
+server:
+  port: 8080
+  servlet:
+    session:
+      timeout: 30m
+
+portal:
+  login:
+    max-intentos: 5
+    minutos-bloqueo: 15
