@@ -1,6 +1,7 @@
 package com.empresa.quejas.tickets;
 
 import com.empresa.quejas.metadata.RequestInfo;
+import com.empresa.quejas.notificaciones.NotificacionService;
 import com.empresa.quejas.web.Filtros;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -17,9 +18,11 @@ import java.time.LocalDate;
 public class TicketController {
 
     private final TicketService ticketService;
+    private final NotificacionService notificacionService;
 
-    public TicketController(TicketService ticketService) {
+    public TicketController(TicketService ticketService, NotificacionService notificacionService) {
         this.ticketService = ticketService;
+        this.notificacionService = notificacionService;
     }
 
     // ---------- Bandeja: pendientes, por contestar y respondidos ----------
@@ -71,6 +74,7 @@ public class TicketController {
     @GetMapping("/tickets/{id}")
     public String detalle(@PathVariable("id") Long id, Model model) {
         model.addAttribute("ticket", ticketService.detalle(id));
+        model.addAttribute("correos", notificacionService.porRespuesta(id));
         return "tickets/detalle";
     }
 
@@ -94,7 +98,8 @@ public class TicketController {
     public String responder(@PathVariable("id") Long id, @RequestParam(name = "version") Long version, @RequestParam(name = "mensaje") String mensaje,
                             @RequestParam(name = "notaInterna", defaultValue = "false") boolean notaInterna,
                             Authentication auth, HttpServletRequest request, RedirectAttributes flash) {
-        String ok = notaInterna ? "Nota interna guardada." : "Respuesta enviada al cliente.";
+        String ok = notaInterna ? "Nota interna guardada."
+                : "Respuesta guardada. Debajo del mensaje verás el estado del correo al cliente.";
         return ejecutar(id, flash, ok,
                 () -> ticketService.responder(id, version, auth.getName(), mensaje, notaInterna, RequestInfo.de(request)));
     }

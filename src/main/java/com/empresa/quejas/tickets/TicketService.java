@@ -3,6 +3,8 @@ package com.empresa.quejas.tickets;
 import com.empresa.quejas.metadata.MetadataService;
 import com.empresa.quejas.metadata.RequestInfo;
 import com.empresa.quejas.metadata.TipoEvento;
+import com.empresa.quejas.notificaciones.DatosRespuesta;
+import com.empresa.quejas.notificaciones.NotificacionService;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -26,12 +28,14 @@ public class TicketService {
     private final TicketRepository repository;
     private final TicketRespuestaRepository respuestaRepository;
     private final MetadataService metadataService;
+    private final NotificacionService notificacionService;
 
     public TicketService(TicketRepository repository, TicketRespuestaRepository respuestaRepository,
-                         MetadataService metadataService) {
+                         MetadataService metadataService, NotificacionService notificacionService) {
         this.repository = repository;
         this.respuestaRepository = respuestaRepository;
         this.metadataService = metadataService;
+        this.notificacionService = notificacionService;
     }
 
     // ---------- Consultas ----------
@@ -152,9 +156,16 @@ public class TicketService {
             throw new IllegalStateException("Escribe un mensaje antes de enviarlo.");
         }
         Ticket ticket = cargarVerificandoVersion(id, version, usuario, info);
-        ticket.responder(usuario, mensaje.trim(), notaInterna, LocalDateTime.now());
+        TicketRespuesta respuesta = ticket.responder(usuario, mensaje.trim(), notaInterna, LocalDateTime.now());
         metadataService.registrar(TipoEvento.TICKET_RESPONDIDO, usuario, info,
                 ticket.getCodigo() + (notaInterna ? " (nota interna)" : " (respuesta al cliente)"));
+        if (!notaInterna) {
+            // Se guarda ya para conocer su id; el correo sale recién cuando se confirma la transacción.
+            respuestaRepository.save(respuesta);
+            notificacionService.programarRespuesta(new DatosRespuesta(ticket.getId(), ticket.getCodigo(),
+                    ticket.getAsunto(), ticket.getClienteNombre(), ticket.getClienteEmail(), respuesta.getId(),
+                    respuesta.getMensaje(), usuario));
+        }
         return ticket;
     }
 

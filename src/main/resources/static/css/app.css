@@ -24,6 +24,8 @@
     --nota: #FFF7E3;
     --nota-borde: #EBD7A1;
 
+    --error-texto: #8A2A21;
+
     --radio: 6px;
     --fuente: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
@@ -232,7 +234,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--acento); ou
     margin-bottom: 1rem;
 }
 .aviso-ok { background: #EAF5EE; border-color: #B9DCC5; color: #1F5A37; }
-.aviso-error { background: #FBECEA; border-color: #EBC0BA; color: #8A2A21; }
+.aviso-error { background: #FBECEA; border-color: #EBC0BA; color: var(--error-texto); }
 .aviso-info { background: var(--acento-suave); border-color: #BCD8DB; color: var(--acento-hover); }
 
 /* ---------- Pestañas ---------- */
@@ -379,12 +381,22 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--acento); ou
     background: var(--superficie); border: 1px solid var(--linea); border-radius: 8px;
     padding: 1rem 1.2rem; max-width: 72ch;
 }
-.mensaje p:last-child { margin-bottom: 0; white-space: pre-line; }
+.mensaje p:last-child { margin-bottom: 0; }
+.mensaje-texto { white-space: pre-line; }
 .mensaje-autor { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; font-size: 0.88rem; }
 .mensaje-autor time { color: var(--tinta-3); margin-left: auto; font-variant-numeric: tabular-nums; }
 .mensaje-cliente { border-left: 3px solid var(--tinta-3); }
 .mensaje-admin { margin-left: 2rem; border-left: 3px solid var(--acento); }
 .mensaje-nota { margin-left: 2rem; background: var(--nota); border-color: var(--nota-borde); }
+
+/* Estado del correo enviado al cliente, al pie de cada respuesta */
+.correo {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem 0.75rem;
+    margin-top: 0.75rem; padding-top: 0.6rem; border-top: 1px solid var(--linea-suave);
+    font-size: 0.85rem; color: var(--tinta-2);
+}
+.correo form { margin: 0; }
+.correo-fallido, .correo-sin_correo { color: var(--error-texto); }
 
 .datos { display: grid; grid-template-columns: auto 1fr; gap: 0.45rem 1rem; margin: 0; font-size: 0.9rem; }
 .datos dt { color: var(--tinta-2); }

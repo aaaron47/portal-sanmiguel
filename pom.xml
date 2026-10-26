@@ -46,6 +46,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
+        <!-- Envío de correos por SMTP (JavaMailSender) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
 
         <!-- Base de datos en memoria para el prototipo -->
         <dependency>
@@ -77,6 +82,19 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Servidor SMTP falso dentro de las pruebas: recibe los correos sin enviarlos a nadie -->
+        <dependency>
+            <groupId>com.icegreen</groupId>
+            <artifactId>greenmail-junit5</artifactId>
+            <version>2.1.15</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Esperar en las pruebas a que termine el envío en segundo plano -->
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

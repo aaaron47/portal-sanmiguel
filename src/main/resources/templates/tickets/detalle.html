@@ -39,7 +39,7 @@
                             <strong th:text="${ticket.clienteNombre}">Cliente</strong>
                             <time th:text="${#temporals.format(ticket.fechaCreacion, 'dd/MM/yyyy HH:mm')}">fecha</time>
                         </p>
-                        <p th:text="${ticket.descripcion}">Descripción de la queja.</p>
+                        <p class="mensaje-texto" th:text="${ticket.descripcion}">Descripción de la queja.</p>
                     </article>
 
                     <article th:each="r : ${ticket.respuestas}" class="mensaje"
@@ -49,7 +49,14 @@
                             <span class="etiqueta etiqueta-nota" th:if="${r.notaInterna}">Nota interna</span>
                             <time th:text="${#temporals.format(r.fecha, 'dd/MM/yyyy HH:mm')}">fecha</time>
                         </p>
-                        <p th:text="${r.mensaje}">Respuesta.</p>
+                        <p class="mensaje-texto" th:text="${r.mensaje}">Respuesta.</p>
+
+                        <!-- Estado del correo que avisa al cliente de esta respuesta -->
+                        <th:block th:with="c=${correos.get(r.id)}, ticketId=${ticket.id}">
+                            <th:block th:if="${c != null}">
+                                <div th:replace="~{tickets/correo :: estado}"></div>
+                            </th:block>
+                        </th:block>
                     </article>
                 </section>
 
@@ -135,5 +142,6 @@
         </div>
     </main>
 </div>
+<script th:src="@{/js/correos.js}" defer></script>
 </body>
 </html>

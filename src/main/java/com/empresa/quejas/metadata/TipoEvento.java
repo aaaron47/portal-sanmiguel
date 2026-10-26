@@ -9,7 +9,10 @@ public enum TipoEvento {
     TICKET_LIBERADO("Liberó un ticket", "accion"),
     TICKET_RESPONDIDO("Respondió un ticket", "accion"),
     TICKET_ARCHIVADO("Archivó un ticket", "accion"),
-    CONFLICTO_VERSION("Cambio rechazado por conflicto", "error");
+    CONFLICTO_VERSION("Cambio rechazado por conflicto", "error"),
+    CORREO_ENVIADO("Correo enviado al cliente", "ok"),
+    CORREO_FALLIDO("Correo no enviado", "error"),
+    CORREO_REENVIADO("Reenvió un correo", "accion");
 
     private final String etiqueta;
     private final String clase;

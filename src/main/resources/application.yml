@@ -13,6 +13,16 @@ spring:
     open-in-view: false
   thymeleaf:
     cache: false
+  mail:
+    # Sin el perfil "smtp" apunta a un servidor local que normalmente no existe: los correos quedan como
+    # "no se pudo enviar" y nunca salen a internet. Las pruebas automáticas levantan GreenMail en su lugar.
+    host: localhost
+    port: 1025
+    properties:
+      # Si el servidor de correo no contesta, no esperar más de 5 segundos.
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
 
 server:
   port: 8080
@@ -24,3 +34,9 @@ portal:
   login:
     max-intentos: 5
     minutos-bloqueo: 15
+  correo:
+    remitente: ${CORREO_REMITENTE:portal@example.com}
+    nombre-remitente: ${CORREO_NOMBRE_REMITENTE:Atención al cliente}
+    # Si se llena, todos los correos van a esta dirección en lugar de la del cliente.
+    # Sirve para probar con un servidor real sin escribirle a nadie más.
+    redirigir-a: ${CORREO_REDIRIGIR_A:}

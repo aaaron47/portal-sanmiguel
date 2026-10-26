@@ -190,7 +190,8 @@ public class DatosDemo implements CommandLineRunner {
     private static String correo(String nombre) {
         String[] partes = java.text.Normalizer.normalize(nombre.toLowerCase(), java.text.Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "").split(" ");
-        return partes[0] + "." + partes[partes.length - 1] + "@correo.pe";
+        // example.com está reservado para ejemplos: nunca llega a un buzón real.
+        return partes[0] + "." + partes[partes.length - 1] + "@example.com";
     }
 
     // ---------- Metadata: accesos de los últimos días ----------
