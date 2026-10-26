@@ -1,0 +1,21 @@
+# Perfil para enviar correos reales a través de un servidor SMTP (por ejemplo Gmail).
+# Actívalo junto con los demás perfiles: SPRING_PROFILES_ACTIVE=smtp  o  SPRING_PROFILES_ACTIVE=cloud,smtp
+# Las credenciales llegan por variables de entorno (en GitHub: Secrets), nunca en el repo.
+#
+# Gmail: MAIL_HOST=smtp.gmail.com, MAIL_PORT=587, MAIL_USERNAME=la cuenta y MAIL_PASSWORD=una
+# "contraseña de aplicación" (requiere verificación en dos pasos). Gmail exige que el remitente
+# sea la misma cuenta, por eso CORREO_REMITENTE toma MAIL_USERNAME si no se indica otro.
+spring:
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+
+portal:
+  correo:
+    remitente: ${CORREO_REMITENTE:${MAIL_USERNAME}}
