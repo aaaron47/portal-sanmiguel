@@ -44,6 +44,9 @@ class RedireccionCorreoTests {
     @Autowired
     TicketRepository ticketRepository;
 
+    @Autowired
+    NotificacionRepository notificacionRepository;
+
     @Test
     void conRedireccionElCorreoVaALaDireccionDePruebas() throws Exception {
         Ticket ticket = new Ticket("T-REDIR-1", "Cliente real", "40000000", "cliente.real@example.com", "900000000",
@@ -52,14 +55,28 @@ class RedireccionCorreoTests {
         ticket.tomar("admin2", LocalDateTime.now().minusHours(1));
         ticket = ticketRepository.save(ticket);
 
-        mvc.perform(post("/tickets/" + ticket.getId() + "/responder")
-                .param("version", ticket.getVersion().toString())
-                .param("mensaje", "Respuesta de prueba.")
-                .with(user("admin2").roles("ADMIN")).with(csrf()));
-
+        responder(ticket, "Respuesta de prueba.");
         await().atMost(Duration.ofSeconds(10)).until(() -> servidorCorreo.getReceivedMessages().length == 1);
         MimeMessage correo = servidorCorreo.getReceivedMessages()[0];
         assertThat(correo.getAllRecipients()).extracting(Object::toString).containsExactly("pruebas@example.com");
-        assertThat(correo.getSubject()).startsWith("[Prueba, para cliente.real@example.com] ");
+        assertThat(correo.getSubject())
+                .isEqualTo("[Prueba, para cliente.real@example.com] [T-REDIR-1] Cargo que no reconozco");
+
+        // El segundo correo debe seguir en el mismo hilo: "Re: " al inicio y el resto del asunto idéntico
+        await().atMost(Duration.ofSeconds(10)).until(() -> notificacionRepository.findAll().stream()
+                .allMatch(n -> n.getEstado() == EstadoNotificacion.ENVIADO));
+        responder(ticket, "Segunda respuesta.");
+        await().atMost(Duration.ofSeconds(10)).until(() -> servidorCorreo.getReceivedMessages().length == 2);
+        MimeMessage segundo = servidorCorreo.getReceivedMessages()[1];
+        assertThat(segundo.getSubject()).isEqualTo("Re: " + correo.getSubject());
+        assertThat(segundo.getHeader("In-Reply-To")[0]).isEqualTo(correo.getMessageID());
+    }
+
+    private void responder(Ticket ticket, String mensaje) throws Exception {
+        Long version = ticketRepository.findById(ticket.getId()).orElseThrow().getVersion();
+        mvc.perform(post("/tickets/" + ticket.getId() + "/responder")
+                .param("version", version.toString())
+                .param("mensaje", mensaje)
+                .with(user("admin2").roles("ADMIN")).with(csrf()));
     }
 }

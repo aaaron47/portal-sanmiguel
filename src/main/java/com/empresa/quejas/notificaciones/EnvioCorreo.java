@@ -72,15 +72,16 @@ public class EnvioCorreo {
         return messageId;
     }
 
+    /**
+     * El "Re: " va siempre al inicio: Gmail y otros clientes agrupan el hilo comparando el asunto
+     * sin ese prefijo, así que todo lo demás debe ser idéntico en cada correo del ticket.
+     */
     private String asunto(Notificacion n, boolean continuaHilo) {
         String asunto = "[" + n.getTicketCodigo() + "] " + n.getTicketAsunto();
-        if (continuaHilo) {
-            asunto = "Re: " + asunto;
-        }
         if (redirigirA != null) {
             asunto = "[Prueba, para " + n.getDestinatario() + "] " + asunto;
         }
-        return asunto;
+        return continuaHilo ? "Re: " + asunto : asunto;
     }
 
     private String html(Notificacion n) {
