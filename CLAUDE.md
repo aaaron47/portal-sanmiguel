@@ -64,6 +64,12 @@ Perfil de correo real: `smtp` (se combina, p. ej. `cloud,smtp`) con `MAIL_HOST`,
 `MAIL_USERNAME` y `MAIL_PASSWORD`. Sin ese perfil el correo apunta a `localhost:1025` (no existe)
 y nunca sale a internet. `CORREO_REDIRIGIR_A` manda todos los correos a una dirección de pruebas.
 
+Una sola prueba: `mvn test -Dtest=EnvioCorreoTests` (o `-Dtest=Clase#metodo`).
+
+Variables locales: se pueden poner en un `.env` en la raíz (ignorado por git). Los documentos de
+trabajo `docs/*.docx` (p. ej. `docs/Conexion_BD_Backend_Movil.docx`, referencia de la rama
+`conexion-bd`) tampoco se suben.
+
 ### Usuarios de prueba (se crean al arrancar, solo fuera del perfil `cloud`)
 
 | Usuario | Contraseña | Rol |
@@ -90,8 +96,9 @@ src/main/java/com/empresa/quejas/
 ├── metadata/    LogMetadata, TipoEvento, RequestInfo (IP, navegador, SO, sesión),
 │                MetadataService, MetadataController (perfil del admin)
 ├── notificaciones/ Notificacion (portal_notificaciones), EstadoNotificacion, DatosRespuesta,
-│                NotificacionService, EnvioCorreo (arma el correo y el hilo),
-│                EnvioEnSegundoPlano (@Async + AFTER_COMMIT), NotificacionController (estado y reenviar)
+│                NotificacionService (publica el evento NotificacionProgramada),
+│                EnvioCorreo (arma el correo y el hilo), EnvioEnSegundoPlano (@Async + AFTER_COMMIT,
+│                escucha NotificacionProgramada), NotificacionController (estado y reenviar)
 ├── config/      SecurityConfig, DatosDemo (@Profile("!cloud"))
 └── web/         DatosComunesAdvice (usuario y contadores para el menú), Filtros (paginación)
 
@@ -104,7 +111,7 @@ src/main/resources/
 └── static/      css/app.css, js/tracker.js, js/correos.js (estado del correo sin recargar)
 
 src/test/java/.../PortalQuejasApplicationTests.java   (pruebas de humo con MockMvc)
-src/test/java/.../notificaciones/                     (envío de correos con GreenMail)
+src/test/java/.../notificaciones/                     EnvioCorreoTests, RedireccionCorreoTests (GreenMail)
 ```
 
 ### Pantallas y permisos

@@ -26,3 +26,5 @@ bin/
 # Sistema operativo
 .DS_Store
 Thumbs.db
+.env
+docs/*.docx
