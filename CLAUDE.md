@@ -74,9 +74,9 @@ trabajo `docs/*.docx` (p. ej. `docs/Conexion_BD_Backend_Movil.docx`, referencia 
 
 | Usuario | Contraseña | Rol |
 |---|---|---|
-| `lparedes` | `Supervisor2026!` | Supervisor (ve auditoría y la metadata de todos) |
-| `jhuaman` | `Admin2026!` | Administrador |
-| `cmendoza` | `Admin2026!` | Administrador |
+| `admin` | `admin` | Supervisor, Lucía Paredes (ve auditoría y la metadata de todos) |
+| `admin2` | `admin` | Administrador, Jorge Huamán |
+| `admin3` | `admin` | Administrador, Carla Mendoza |
 
 5 intentos fallidos bloquean la cuenta 15 minutos (`portal.login.*` en `application.yml`).
 Los datos se regeneran en cada arranque.
