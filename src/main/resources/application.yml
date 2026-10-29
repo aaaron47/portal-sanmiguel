@@ -3,6 +3,9 @@
 spring:
   application:
     name: portal-quejas-admin
+  config:
+    # Variables locales (DB_HOST, DB_USER, DB_PASSWORD...) desde un .env en la raíz, ignorado por git.
+    import: optional:file:.env[.properties]
   datasource:
     url: jdbc:h2:mem:quejas;DB_CLOSE_DELAY=-1
     username: sa
@@ -11,6 +14,11 @@ spring:
     hibernate:
       ddl-auto: create-drop
     open-in-view: false
+    # Con H2, schema.sql (la secuencia seq_resolucion) corre después de que Hibernate crea las tablas.
+    defer-datasource-initialization: true
+    properties:
+      # La BD guarda los instantes en UTC; la aplicación trabaja en la hora local del servidor.
+      hibernate.jdbc.time_zone: UTC
   thymeleaf:
     cache: false
   mail:

@@ -1,5 +1,7 @@
 package com.empresa.quejas.metadata;
 
+import com.empresa.quejas.auth.AdminDirectorio;
+import com.empresa.quejas.auth.AdminUser;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -17,30 +19,50 @@ import java.util.List;
 @Service
 public class MetadataService {
 
-    private final LogMetadataRepository repository;
+    /** auditoria.entidad_id es obligatorio: así se marca un evento de un usuario que no existe. */
+    private static final String SIN_ENTIDAD = "desconocido";
 
-    public MetadataService(LogMetadataRepository repository) {
+    private final LogMetadataRepository repository;
+    private final AdminDirectorio directorio;
+
+    public MetadataService(LogMetadataRepository repository, AdminDirectorio directorio) {
         this.repository = repository;
+        this.directorio = directorio;
+    }
+
+    /** Evento sobre el propio administrador (accesos, cierre de sesión, correos). */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void registrar(TipoEvento tipo, String usuario, RequestInfo info, String detalle) {
+        guardar(tipo, usuario, info, detalle, "administradores", null);
     }
 
     /**
-     * Transacción propia: el registro de auditoría se guarda aunque la acción que lo origina falle
-     * (por ejemplo, un conflicto de versión).
+     * Evento sobre otra entidad (por ejemplo un reclamo).
+     * Transacción propia: el registro se guarda aunque la acción que lo origina falle (un conflicto de versión).
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void registrar(TipoEvento tipo, String usuario, RequestInfo info, String detalle) {
-        repository.save(new LogMetadata(tipo, usuario, info, RequestInfo.recortar(detalle, 400)));
+    public void registrar(TipoEvento tipo, String usuario, RequestInfo info, String detalle, String entidad,
+                          String entidadId) {
+        guardar(tipo, usuario, info, detalle, entidad, entidadId);
+    }
+
+    private void guardar(TipoEvento tipo, String usuario, RequestInfo info, String detalle, String entidad,
+                         String entidadId) {
+        AdminUser admin = directorio.referencia(usuario).orElse(null);
+        String id = entidadId != null ? entidadId : directorio.idDe(usuario).orElse(SIN_ENTIDAD);
+        repository.save(new LogMetadata(tipo, admin, usuario, info, RequestInfo.recortar(detalle, 400), entidad, id));
     }
 
     @Transactional(readOnly = true)
     public Page<LogMetadata> buscar(TipoEvento tipo, String usuario, LocalDate fecha, int pagina) {
         Specification<LogMetadata> spec = (root, query, cb) -> {
             List<Predicate> filtros = new ArrayList<>();
-            if (tipo != null) {
-                filtros.add(cb.equal(root.get("tipo"), tipo));
-            }
+            filtros.add(cb.equal(root.get("origen"), LogMetadata.ORIGEN_WEB));
+            filtros.add(tipo != null
+                    ? cb.equal(root.get("accion"), tipo.name())
+                    : root.get("accion").in(TipoEvento.nombres()));
             if (usuario != null && !usuario.isBlank()) {
-                filtros.add(cb.equal(root.get("usuario"), usuario));
+                filtros.add(cb.equal(root.get("administrador").get("username"), usuario));
             }
             if (fecha != null) {
                 filtros.add(cb.between(root.<LocalDateTime>get("fecha"), fecha.atStartOfDay(), fecha.plusDays(1).atStartOfDay()));
@@ -52,31 +74,31 @@ public class MetadataService {
 
     @Transactional(readOnly = true)
     public long fallidosHoy() {
-        return repository.countByTipoAndFechaAfter(TipoEvento.LOGIN_FALLIDO, LocalDate.now().atStartOfDay());
+        return repository.countByAccionAndFechaAfter(TipoEvento.LOGIN_FALLIDO.name(), LocalDate.now().atStartOfDay());
     }
 
     @Transactional(readOnly = true)
     public long accesosHoy() {
-        return repository.countByTipoAndFechaAfter(TipoEvento.LOGIN_EXITOSO, LocalDate.now().atStartOfDay());
+        return repository.countByAccionAndFechaAfter(TipoEvento.LOGIN_EXITOSO.name(), LocalDate.now().atStartOfDay());
     }
 
     @Transactional(readOnly = true)
     public List<LogMetadata> actividadReciente(String usuario) {
-        return repository.findTop12ByUsuarioOrderByFechaDesc(usuario);
+        return repository.findTop12ByAdministradorUsernameAndAccionInOrderByFechaDesc(usuario, TipoEvento.nombres());
     }
 
     @Transactional(readOnly = true)
     public List<LogMetadata> ultimosAccesos(String usuario) {
-        return repository.findTop5ByUsuarioAndTipoOrderByFechaDesc(usuario, TipoEvento.LOGIN_EXITOSO);
+        return repository.findTop5ByAdministradorUsernameAndAccionOrderByFechaDesc(usuario, TipoEvento.LOGIN_EXITOSO.name());
     }
 
     @Transactional(readOnly = true)
     public long contar(String usuario, TipoEvento tipo) {
-        return repository.countByUsuarioAndTipo(usuario, tipo);
+        return repository.countByAdministradorUsernameAndAccion(usuario, tipo.name());
     }
 
     @Transactional(readOnly = true)
     public long contarDesde(String usuario, TipoEvento tipo, LocalDateTime desde) {
-        return repository.countByUsuarioAndTipoAndFechaAfter(usuario, tipo, desde);
+        return repository.countByAdministradorUsernameAndAccionAndFechaAfter(usuario, tipo.name(), desde);
     }
 }

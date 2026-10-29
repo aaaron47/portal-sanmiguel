@@ -18,8 +18,7 @@
         <!-- Franja de distribución: cuántos tickets activos hay en cada estado -->
         <section class="bloque" aria-labelledby="t-estado">
             <h2 id="t-estado" th:text="|${resumen.totalActivos} tickets activos|">40 tickets activos</h2>
-            <div class="franja" role="img"
-                 th:attr="aria-label=|${resumen.conteo()[estados[0]]} pendientes, ${resumen.conteo()[estados[1]]} por contestar, ${resumen.conteo()[estados[2]]} respondidos|">
+            <div class="franja" role="img" aria-label="Distribución de los tickets activos por estado">
                 <a th:each="e : ${estados}" th:href="@{/tickets(estado=${e})}"
                    class="franja-tramo" th:classappend="|estado-${e.clase}|"
                    th:style="|flex-grow: ${resumen.conteo().get(e) > 0 ? resumen.conteo().get(e) : 0}|"
@@ -36,9 +35,9 @@
                 </li>
             </ul>
 
-            <p class="alerta-linea" th:if="${resumen.vencidos() > 0}">
+            <p class="alerta-linea" th:if="${resumen.vencidos() > 0 or resumen.enAlerta() > 0}">
                 <span class="punto vencido"></span>
-                <span th:text="|${resumen.vencidos()} tickets llevan más de 72 horas sin respuesta y ${resumen.enAlerta() - resumen.vencidos()} más de 24 horas.|">
+                <span th:text="|${resumen.vencidos()} tickets pasaron su fecha límite de atención y ${resumen.enAlerta()} vencen en los próximos 3 días.|">
                     3 tickets...</span>
                 <a th:href="@{/tickets(estado='PENDIENTE')}" data-track="ver-vencidos">Ver pendientes</a>
             </p>

@@ -1,5 +1,6 @@
 package com.empresa.quejas.auditoria;
 
+import com.empresa.quejas.auth.AdminDirectorio;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -18,9 +19,11 @@ import java.util.List;
 public class AuditoriaService {
 
     private final EventoClickRepository repository;
+    private final AdminDirectorio directorio;
 
-    public AuditoriaService(EventoClickRepository repository) {
+    public AuditoriaService(EventoClickRepository repository, AdminDirectorio directorio) {
         this.repository = repository;
+        this.directorio = directorio;
     }
 
     /**
@@ -29,8 +32,10 @@ public class AuditoriaService {
      * En producción, si el volumen es alto, conviene acumular y guardar por lotes.
      */
     @Async
-    public void registrarAsync(EventoClick evento) {
-        repository.save(evento);
+    public void registrarAsync(TipoInteraccion tipo, String usuario, String ruta, String elemento, String texto,
+                               String ip, String sesion) {
+        directorio.referencia(usuario).ifPresent(admin ->
+                repository.save(new EventoClick(tipo, admin, ruta, elemento, texto, ip, sesion)));
     }
 
     @Transactional(readOnly = true)
@@ -38,7 +43,7 @@ public class AuditoriaService {
         Specification<EventoClick> spec = (root, query, cb) -> {
             List<Predicate> filtros = new ArrayList<>();
             if (usuario != null && !usuario.isBlank()) {
-                filtros.add(cb.equal(root.get("usuario"), usuario));
+                filtros.add(cb.equal(root.get("administrador").get("username"), usuario));
             }
             if (tipo != null) {
                 filtros.add(cb.equal(root.get("tipo"), tipo));
@@ -74,7 +79,7 @@ public class AuditoriaService {
 
     @Transactional(readOnly = true)
     public long clicksHoy(String usuario) {
-        return repository.countByUsuarioAndTipoAndFechaAfter(usuario, TipoInteraccion.CLICK, LocalDate.now().atStartOfDay());
+        return repository.countByAdministradorUsernameAndTipoAndFechaAfter(usuario, TipoInteraccion.CLICK, LocalDate.now().atStartOfDay());
     }
 
     public record ResumenClicks(long clicksHoy,

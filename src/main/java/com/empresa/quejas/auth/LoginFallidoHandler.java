@@ -51,7 +51,7 @@ public class LoginFallidoHandler extends SimpleUrlAuthenticationFailureHandler {
         }
 
         final String usuario = username;
-        boolean bloqueada = adminRepository.findByUsername(usuario).map(admin -> {
+        boolean bloqueada = adminRepository.findByUsername(usuario.toLowerCase()).map(admin -> {
             boolean bloq = admin.registrarIntentoFallido(maxIntentos, minutosBloqueo);
             adminRepository.save(admin);
             return bloq;

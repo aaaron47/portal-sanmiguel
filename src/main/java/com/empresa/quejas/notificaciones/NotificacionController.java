@@ -24,7 +24,7 @@ public class NotificacionController {
 
     /** Fragmento con el estado del correo; lo consulta js/correos.js mientras dice "Enviando". */
     @GetMapping("/tickets/{ticketId}/correos/{id}")
-    public String estado(@PathVariable("ticketId") Long ticketId, @PathVariable("id") Long id, Model model) {
+    public String estado(@PathVariable("ticketId") String ticketId, @PathVariable("id") String id, Model model) {
         Notificacion notificacion = notificacionService.buscar(ticketId, id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         model.addAttribute("c", notificacion);
@@ -33,7 +33,7 @@ public class NotificacionController {
     }
 
     @PostMapping("/tickets/{ticketId}/correos/{id}/reenviar")
-    public String reenviar(@PathVariable("ticketId") Long ticketId, @PathVariable("id") Long id,
+    public String reenviar(@PathVariable("ticketId") String ticketId, @PathVariable("id") String id,
                            Authentication auth, HttpServletRequest request, RedirectAttributes flash) {
         try {
             if (notificacionService.reenviar(ticketId, id, auth.getName(), RequestInfo.de(request))) {

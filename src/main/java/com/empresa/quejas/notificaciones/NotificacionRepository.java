@@ -4,11 +4,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 
-public interface NotificacionRepository extends JpaRepository<Notificacion, Long> {
+public interface NotificacionRepository extends JpaRepository<Notificacion, String> {
 
-    List<Notificacion> findByTicketId(Long ticketId);
+    List<Notificacion> findByReclamoId(String reclamoId);
 
-    /** Correos ya enviados del ticket, del más antiguo al más reciente, para armar el hilo. */
-    List<Notificacion> findByTicketIdAndEstadoAndIdNotOrderByFechaEnvioAsc(Long ticketId, EstadoNotificacion estado,
-                                                                           Long excluir);
+    /** Correos ya enviados del reclamo, del más antiguo al más reciente, para armar el hilo. */
+    List<Notificacion> findByReclamoIdAndEstadoAndIdNotOrderByFechaEnvioAsc(String reclamoId, EstadoNotificacion estado,
+                                                                            String excluir);
 }

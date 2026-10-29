@@ -71,6 +71,7 @@
 <!-- Mensajes después de una acción -->
 <div th:fragment="avisos" class="avisos">
     <p class="aviso aviso-ok" th:if="${ok}" th:text="${ok}" role="status">Listo.</p>
+    <p class="aviso aviso-info" th:if="${aviso}" th:text="${aviso}" role="status">Aviso.</p>
     <p class="aviso aviso-error" th:if="${error}" th:text="${error}" role="alert">Error.</p>
 </div>
 
@@ -89,9 +90,9 @@
     </span>
 </nav>
 
-<!-- Celda de antigüedad con barra: se llena a medida que el ticket se acerca a las 72 h sin respuesta -->
+<!-- Celda de plazo con barra: se llena a medida que el ticket se acerca a su fecha límite de atención -->
 <td th:fragment="antiguedad(t)" class="celda-edad">
-    <span class="edad-texto" th:text="${t.fechaPrimeraRespuesta == null} ? ${t.antiguedadTexto} : |Respondido en ${t.tiempoRespuestaTexto}|">12 h</span>
+    <span class="edad-texto" th:text="${t.plazoTexto}">Vence en 12 días</span>
     <span class="edad-pista" aria-hidden="true">
         <span class="edad-relleno" th:classappend="${t.nivelAntiguedad}"
               th:style="|width: ${t.porcentajeAntiguedad}%|"></span>

@@ -59,13 +59,19 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!--
-            Cuando se conecte a la BD real en la nube, agrega el driver que corresponda, por ejemplo:
-            PostgreSQL:  org.postgresql:postgresql
-            MySQL:       com.mysql:mysql-connector-j
-            SQL Server:  com.microsoft.sqlserver:mssql-jdbc
-            Oracle:      com.oracle.database.jdbc:ojdbc11
-        -->
+        <!-- Base de datos real: Oracle 19c (cuenta SANMI_PORTAL_WEB, esquema SANMI_APP) -->
+        <dependency>
+            <groupId>com.oracle.database.jdbc</groupId>
+            <artifactId>ojdbc11</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Argon2id: así guarda las contraseñas la tabla administradores (lo exige Argon2PasswordEncoder) -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>1.80</version>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

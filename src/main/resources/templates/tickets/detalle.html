@@ -40,10 +40,11 @@
                             <time th:text="${#temporals.format(ticket.fechaCreacion, 'dd/MM/yyyy HH:mm')}">fecha</time>
                         </p>
                         <p class="mensaje-texto" th:text="${ticket.descripcion}">Descripción de la queja.</p>
+                        <p class="mensaje-texto"><strong>Lo que pide: </strong><span th:text="${ticket.pedido}">Pedido</span></p>
                     </article>
 
                     <article th:each="r : ${ticket.respuestas}" class="mensaje"
-                             th:classappend="${r.notaInterna} ? 'mensaje-nota' : 'mensaje-admin'">
+                             th:classappend="${r.notaInterna} ? 'mensaje-nota' : (${r.deAdmin} ? 'mensaje-admin' : 'mensaje-cliente')">
                         <p class="mensaje-autor">
                             <strong th:text="${r.autor}">admin</strong>
                             <span class="etiqueta etiqueta-nota" th:if="${r.notaInterna}">Nota interna</span>
@@ -60,23 +61,57 @@
                     </article>
                 </section>
 
-                <!-- Formulario de respuesta: solo cuando el ticket está en atención o ya respondido -->
-                <section class="bloque" th:if="${ticket.estado.name() == 'EN_ATENCION' or ticket.estado.name() == 'RESPONDIDO'}"
-                         aria-labelledby="t-responder">
-                    <h2 id="t-responder">Responder</h2>
-                    <form th:action="@{/tickets/{id}/responder(id=${ticket.id})}" method="post" class="formulario">
-                        <input type="hidden" name="version" th:value="${ticket.version}">
-                        <label for="mensaje" class="solo-lector">Mensaje</label>
-                        <textarea id="mensaje" name="mensaje" rows="5" required maxlength="4000"
-                                  placeholder="Escribe la respuesta para el cliente"></textarea>
-                        <div class="formulario-pie">
-                            <label class="check">
-                                <input type="checkbox" name="notaInterna" value="true" data-track="marcar-nota-interna">
-                                Guardar como nota interna (el cliente no la ve)
-                            </label>
-                            <button type="submit" class="boton boton-prim" data-track="enviar-respuesta">Enviar respuesta</button>
-                        </div>
-                    </form>
+                <!-- Cómo atender el reclamo: solo cuando está por contestar u observado -->
+                <section class="bloque" th:if="${ticket.estado.name() == 'EN_ATENCION' or ticket.estado.name() == 'OBSERVADO'}"
+                         aria-labelledby="t-atender">
+                    <h2 id="t-atender">Atender el reclamo</h2>
+
+                    <details class="accion-form" th:if="${ticket.estado.name() == 'EN_ATENCION'}">
+                        <summary>Pedir información al contribuyente</summary>
+                        <form th:action="@{/tickets/{id}/observar(id=${ticket.id})}" method="post" class="formulario">
+                            <input type="hidden" name="version" th:value="${ticket.version}">
+                            <label for="mensaje-observar">Qué necesitas que complete o corrija</label>
+                            <textarea id="mensaje-observar" name="mensaje" rows="4" required th:maxlength="${maxObservacion}"
+                                      placeholder="Por ejemplo: adjunta el comprobante del pago"></textarea>
+                            <label for="plazo">Fecha límite para que responda</label>
+                            <input id="plazo" type="date" name="plazo" th:value="${plazoSugerido}">
+                            <p class="texto-sec">El reclamo pasa a observado y se le avisa por correo. Queda esperando su respuesta desde la app.</p>
+                            <div class="formulario-pie">
+                                <button type="submit" class="boton boton-sec" data-track="pedir-informacion">Pedir información</button>
+                            </div>
+                        </form>
+                    </details>
+
+                    <details class="accion-form" open>
+                        <summary>Resolver el reclamo</summary>
+                        <form th:action="@{/tickets/{id}/resolver(id=${ticket.id})}" method="post" class="formulario">
+                            <input type="hidden" name="version" th:value="${ticket.version}">
+                            <label for="resolucion">Resultado</label>
+                            <select id="resolucion" name="resolucion" required>
+                                <option th:each="r : ${resoluciones}" th:value="${r}" th:text="${r.etiqueta}">Fundado</option>
+                            </select>
+                            <label for="mensaje-resolver">Respuesta para el contribuyente</label>
+                            <textarea id="mensaje-resolver" name="mensaje" rows="5" required th:maxlength="${maxMensaje}"
+                                      placeholder="Explica la decisión con palabras sencillas"></textarea>
+                            <p class="texto-sec">Se registra la resolución con su número, se cierra el reclamo y se avisa por correo.</p>
+                            <div class="formulario-pie">
+                                <button type="submit" class="boton boton-prim" data-track="resolver-ticket">Resolver reclamo</button>
+                            </div>
+                        </form>
+                    </details>
+
+                    <details class="accion-form">
+                        <summary>Guardar una nota interna</summary>
+                        <form th:action="@{/tickets/{id}/nota(id=${ticket.id})}" method="post" class="formulario">
+                            <input type="hidden" name="version" th:value="${ticket.version}">
+                            <label for="mensaje-nota" class="solo-lector">Nota</label>
+                            <textarea id="mensaje-nota" name="mensaje" rows="3" required th:maxlength="${maxMensaje}"
+                                      placeholder="Solo la ven los administradores"></textarea>
+                            <div class="formulario-pie">
+                                <button type="submit" class="boton boton-sec" data-track="guardar-nota">Guardar nota</button>
+                            </div>
+                        </form>
+                    </details>
                 </section>
 
                 <p class="aviso aviso-info" th:if="${ticket.estado.name() == 'PENDIENTE'}">
@@ -96,12 +131,16 @@
 
                     <th:block th:if="${ticket.estado.name() == 'EN_ATENCION'}">
                         <p class="texto-sec" th:if="${ticket.asignadoA != usuarioActual.username}"
-                           th:text="|Lo está atendiendo ${ticket.asignadoA}.|">Lo está atendiendo...</p>
+                           th:text="|Lo está atendiendo ${ticket.asignadoNombre}.|">Lo está atendiendo...</p>
                         <form th:action="@{/tickets/{id}/liberar(id=${ticket.id})}" method="post">
                             <input type="hidden" name="version" th:value="${ticket.version}">
                             <button type="submit" class="boton boton-sec boton-ancho" data-track="liberar-ticket">Devolver a pendientes</button>
                         </form>
                     </th:block>
+
+                    <p class="texto-sec" th:if="${ticket.estado.name() == 'OBSERVADO'}"
+                       th:text="|Esperando al contribuyente${ticket.plazoSubsanacionHasta != null ? ' hasta el ' + #temporals.format(ticket.plazoSubsanacionHasta, 'dd/MM/yyyy') : ''}.|">
+                        Esperando al contribuyente.</p>
 
                     <form th:if="${ticket.estado.name() == 'RESPONDIDO'}"
                           th:action="@{/tickets/{id}/archivar(id=${ticket.id})}" method="post">
@@ -115,10 +154,10 @@
                 </section>
 
                 <section class="bloque" aria-labelledby="t-cliente">
-                    <h2 id="t-cliente">Cliente</h2>
+                    <h2 id="t-cliente">Contribuyente</h2>
                     <dl class="datos">
                         <dt>Nombre</dt><dd th:text="${ticket.clienteNombre}">Nombre</dd>
-                        <dt>DNI</dt><dd th:text="${ticket.clienteDocumento}">00000000</dd>
+                        <dt>Documento</dt><dd th:text="${ticket.clienteDocumento}">00000000</dd>
                         <dt>Correo</dt><dd th:text="${ticket.clienteEmail}">correo</dd>
                         <dt>Teléfono</dt><dd th:text="${ticket.clienteTelefono}">999</dd>
                         <dt>Canal</dt><dd th:text="${ticket.canal.etiqueta}">App</dd>
@@ -129,8 +168,12 @@
                     <h2 id="t-tiempos">Tiempos</h2>
                     <dl class="datos">
                         <dt>Abierto hace</dt><dd th:text="${ticket.antiguedadTexto}">3 días</dd>
+                        <dt>Fecha límite</dt><dd th:text="${#temporals.format(ticket.fechaLimiteAtencion, 'dd/MM/yyyy')}">fecha</dd>
                         <dt>Primera respuesta</dt><dd th:text="${ticket.tiempoRespuestaTexto}">Sin respuesta</dd>
-                        <dt>Asignado a</dt><dd th:text="${ticket.asignadoA ?: 'Sin asignar'}">jhuaman</dd>
+                        <dt>Asignado a</dt><dd th:text="${ticket.asignadoNombre ?: 'Sin asignar'}">Jorge Huamán</dd>
+                        <th:block th:if="${ticket.numeroResolucion != null}">
+                            <dt>Resolución</dt><dd th:text="${ticket.numeroResolucion}">RES-RCL-2026-000001</dd>
+                        </th:block>
                         <dt>Última actualización</dt>
                         <dd th:text="${#temporals.format(ticket.fechaActualizacion, 'dd/MM/yyyy HH:mm')}">fecha</dd>
                         <dt>Versión</dt>

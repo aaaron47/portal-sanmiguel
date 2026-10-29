@@ -1,16 +1,24 @@
-# Perfil para la base de datos compartida en la nube.
+# Perfil para la base de datos compartida en la nube: Oracle 19c, esquema SANMI_APP.
 # Actívalo con: SPRING_PROFILES_ACTIVE=cloud
-# Las credenciales llegan por variables de entorno (en GitHub: Secrets), nunca en el repo.
+# Las credenciales llegan por variables de entorno (en local, desde el .env; en GitHub: Secrets), nunca en el repo.
+# Cuenta del portal: SANMI_PORTAL_WEB (rol SANMI_PORTAL_ROLE). Detalle en docs/Conexion_Portal_Oracle.md.
 spring:
   datasource:
-    url: ${DB_URL}
+    # Conexión por SID (con dos puntos), no por service name.
+    url: jdbc:oracle:thin:@${DB_HOST}:${DB_PORT:1521}:${DB_SID}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
+    driver-class-name: oracle.jdbc.OracleDriver
     hikari:
       maximum-pool-size: 10
+      # Las tablas están en SANMI_APP, no en el esquema de la cuenta.
+      connection-init-sql: ALTER SESSION SET CURRENT_SCHEMA = ${DB_SCHEMA:SANMI_APP}
   jpa:
     hibernate:
-      # La BD es compartida con la app móvil y reportes: nunca crear ni alterar tablas desde aquí.
-      ddl-auto: validate
+      # La BD es compartida con la app móvil y reportes: la cuenta no puede crear ni alterar tablas.
+      ddl-auto: none
+  sql:
+    init:
+      mode: never
   thymeleaf:
     cache: true

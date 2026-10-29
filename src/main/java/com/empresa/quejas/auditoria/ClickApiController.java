@@ -29,7 +29,7 @@ public class ClickApiController {
         RequestInfo info = RequestInfo.de(request);
         TipoInteraccion tipo = "VISTA".equalsIgnoreCase(dto.tipo()) ? TipoInteraccion.VISTA : TipoInteraccion.CLICK;
 
-        EventoClick evento = new EventoClick(
+        auditoriaService.registrarAsync(
                 tipo,
                 auth.getName(),
                 RequestInfo.recortar(dto.ruta(), 300),
@@ -37,8 +37,6 @@ public class ClickApiController {
                 RequestInfo.recortar(dto.texto(), 150),
                 info.ip(),
                 info.sesion());
-
-        auditoriaService.registrarAsync(evento);
         return ResponseEntity.accepted().build();
     }
 }

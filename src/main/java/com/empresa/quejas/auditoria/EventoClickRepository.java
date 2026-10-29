@@ -9,13 +9,13 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
 
-public interface EventoClickRepository extends JpaRepository<EventoClick, Long>, JpaSpecificationExecutor<EventoClick> {
+public interface EventoClickRepository extends JpaRepository<EventoClick, String>, JpaSpecificationExecutor<EventoClick> {
 
     long countByTipoAndFechaAfter(TipoInteraccion tipo, LocalDateTime desde);
 
-    long countByUsuarioAndTipoAndFechaAfter(String usuario, TipoInteraccion tipo, LocalDateTime desde);
+    long countByAdministradorUsernameAndTipoAndFechaAfter(String usuario, TipoInteraccion tipo, LocalDateTime desde);
 
-    @Query("select count(distinct e.usuario) from EventoClick e where e.fecha >= :desde")
+    @Query("select count(distinct e.administrador.id) from EventoClick e where e.fecha >= :desde")
     long contarUsuariosActivos(@Param("desde") LocalDateTime desde);
 
     @Query("""

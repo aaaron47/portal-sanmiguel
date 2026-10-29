@@ -1,48 +1,59 @@
 package com.empresa.quejas.auth;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDateTime;
 
 /**
- * Usuario administrador del portal. Tabla propia de este módulo.
+ * Administrador del portal. Tabla administradores de SANMI_APP (la crea y la llena el responsable de la BD).
+ *
+ * La cuenta del portal solo puede actualizar cinco columnas (intentos, bloqueo, accesos e IP): el resto va
+ * con updatable = false para que Hibernate nunca las incluya en un UPDATE (daría ORA-01031).
  */
 @Entity
-@Table(name = "portal_admin_usuarios")
+@Table(name = "administradores")
 public class AdminUser {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @UuidGenerator
+    @Column(length = 36)
+    private String id;
 
-    @Column(nullable = false, unique = true, length = 60)
+    @Column(name = "usuario", nullable = false, unique = true, length = 60, updatable = false)
     private String username;
 
-    @Column(name = "password_hash", nullable = false, length = 100)
+    /** Hash Argon2id. */
+    @Column(name = "hash_contrasena", nullable = false, length = 255, updatable = false)
     private String passwordHash;
 
-    @Column(name = "nombre_completo", nullable = false, length = 120)
+    @Column(name = "nombre_completo", nullable = false, length = 180, updatable = false)
     private String nombreCompleto;
 
-    @Column(length = 120)
+    @Column(name = "correo", nullable = false, unique = true, length = 254, updatable = false)
     private String email;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 15, updatable = false)
     private Rol rol;
 
-    @Column(nullable = false)
-    private boolean activo = true;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 15, updatable = false)
+    private EstadoAdmin estado = EstadoAdmin.ACTIVO;
 
-    @Column(name = "fecha_creacion", nullable = false)
+    @Column(name = "creado_en", nullable = false, updatable = false)
     private LocalDateTime fechaCreacion = LocalDateTime.now();
 
+    /** Lo mantiene un trigger de la BD. */
+    @Column(name = "actualizado_en", nullable = false, updatable = false)
+    private LocalDateTime actualizadoEn = LocalDateTime.now();
+
     /** Inicio de la sesión actual (o la última, si no está conectado). */
-    @Column(name = "ultimo_acceso")
+    @Column(name = "ultimo_acceso_en")
     private LocalDateTime ultimoAcceso;
 
     /** Inicio de la sesión anterior, para mostrar "tu acceso anterior fue...". */
-    @Column(name = "acceso_anterior")
+    @Column(name = "acceso_anterior_en")
     private LocalDateTime accesoAnterior;
 
     @Column(name = "ultima_ip", length = 60)
@@ -67,6 +78,11 @@ public class AdminUser {
 
     public boolean estaBloqueado() {
         return bloqueadoHasta != null && bloqueadoHasta.isAfter(LocalDateTime.now());
+    }
+
+    /** Solo las cuentas en estado ACTIVO pueden entrar. */
+    public boolean isActivo() {
+        return estado == EstadoAdmin.ACTIVO;
     }
 
     public void registrarAccesoExitoso(String ip) {
@@ -97,13 +113,13 @@ public class AdminUser {
         return ini.toUpperCase();
     }
 
-    public Long getId() { return id; }
+    public String getId() { return id; }
     public String getUsername() { return username; }
     public String getPasswordHash() { return passwordHash; }
     public String getNombreCompleto() { return nombreCompleto; }
     public String getEmail() { return email; }
     public Rol getRol() { return rol; }
-    public boolean isActivo() { return activo; }
+    public EstadoAdmin getEstado() { return estado; }
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
     public LocalDateTime getUltimoAcceso() { return ultimoAcceso; }
     public LocalDateTime getAccesoAnterior() { return accesoAnterior; }
@@ -111,6 +127,7 @@ public class AdminUser {
     public int getIntentosFallidos() { return intentosFallidos; }
     public LocalDateTime getBloqueadoHasta() { return bloqueadoHasta; }
 
+    // Solo para los datos de ejemplo (H2): en la BD real el portal no crea administradores.
     public void setFechaCreacion(LocalDateTime fechaCreacion) { this.fechaCreacion = fechaCreacion; }
     public void setUltimoAcceso(LocalDateTime ultimoAcceso) { this.ultimoAcceso = ultimoAcceso; }
     public void setAccesoAnterior(LocalDateTime accesoAnterior) { this.accesoAnterior = accesoAnterior; }
