@@ -1,15 +1,17 @@
 package com.empresa.quejas.notificaciones;
 
+import com.empresa.quejas.auth.AdminUser;
+
 /**
- * Lo necesario para avisar al cliente de una respuesta. Llega ya armado desde el módulo de tickets,
- * así este módulo no depende de cómo estén modeladas las tablas de tickets.
+ * Lo necesario para avisar al contribuyente de una respuesta. Llega ya armado desde el módulo de tickets.
+ * El id del seguimiento es el de la fila de reclamo_seguimientos que contiene el mensaje.
  */
-public record DatosRespuesta(Long ticketId,
+public record DatosRespuesta(String ticketId,
                              String ticketCodigo,
                              String ticketAsunto,
                              String clienteNombre,
                              String clienteEmail,
-                             Long respuestaId,
+                             String seguimientoId,
                              String mensaje,
-                             String autor) {
+                             AdminUser autor) {
 }

@@ -314,6 +314,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--acento); ou
 .etiqueta-nota { background: var(--nota); color: #7A5A12; border: 1px solid var(--nota-borde); }
 .estado-pendiente.etiqueta  { background: #F7E9E7; color: #8A2A21; }
 .estado-atencion.etiqueta   { background: #FBF0DD; color: #7A5212; }
+.estado-observado.etiqueta  { background: #E3EEF0; color: #0D4A53; }
 .estado-respondido.etiqueta { background: #E5F2EA; color: #1F5A37; }
 .estado-archivado.etiqueta  { background: var(--linea-suave); color: var(--tinta-2); }
 
@@ -332,6 +333,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--acento); ou
 .franja-tramo { display: block; min-width: 4px; }
 .estado-pendiente.franja-tramo, .punto.estado-pendiente   { background: var(--vencido); }
 .estado-atencion.franja-tramo, .punto.estado-atencion     { background: var(--alerta); }
+.estado-observado.franja-tramo, .punto.estado-observado   { background: var(--acento); }
 .estado-respondido.franja-tramo, .punto.estado-respondido { background: var(--reciente); }
 .franja-tramo:hover { filter: brightness(0.9); }
 
@@ -562,3 +564,11 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--acento); ou
 @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; }
 }
+
+/* ---------- Detalle: acciones para atender el reclamo (nota, pedir información, resolver) ---------- */
+
+.accion-form { border: 1px solid var(--linea); border-radius: 6px; background: var(--superficie, #fff); margin-top: 0.75rem; }
+.accion-form > summary { cursor: pointer; padding: 0.7rem 0.9rem; font-weight: 500; list-style-position: inside; }
+.accion-form[open] > summary { border-bottom: 1px solid var(--linea-suave); }
+.accion-form .formulario { padding: 0.5rem 0.9rem 0.9rem; }
+.accion-form textarea, .accion-form select, .accion-form input[type="date"] { width: 100%; }

@@ -1,5 +1,9 @@
 # Datos que faltan para conectar el Portal de quejas a Oracle
 
+> **Atendido el 28/10/2026.** El responsable de la BD creó la cuenta `SANMI_PORTAL_WEB`, las tablas
+> `portal_notificaciones` y `portal_eventos_click` y las columnas pedidas. Lo entregado, cómo se conectó el portal y lo que
+> se verificó están en `docs/Conexion_Portal_Oracle.md`. Este documento queda como registro de lo que se pidió.
+
 Solicitud para el responsable de la base de datos `SANMI_APP` · 27/10/2026
 
 El portal de administración atiende los **reclamos** de los contribuyentes (`reclamos` y

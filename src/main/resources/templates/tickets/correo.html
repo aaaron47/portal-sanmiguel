@@ -14,8 +14,6 @@
           th:text="|Enviando correo a ${c.destinatario}…|">Enviando correo...</span>
     <span th:if="${c.estado.name() == 'ENVIADO'}"
           th:text="|Correo enviado a ${c.destinatario} el ${#temporals.format(c.fechaEnvio, 'dd/MM/yyyy')} a las ${#temporals.format(c.fechaEnvio, 'HH:mm')}.|">Correo enviado.</span>
-    <span th:if="${c.estado.name() == 'SIN_CORREO'}">
-        No se envió correo: el cliente no tiene uno registrado. Avísale por teléfono.</span>
     <th:block th:if="${c.estado.name() == 'FALLIDO'}">
         <span th:text="|No se pudo enviar el correo a ${c.destinatario}.|">No se pudo enviar.</span>
         <form th:action="@{/tickets/{t}/correos/{id}/reenviar(t=${ticketId}, id=${c.id})}" method="post">

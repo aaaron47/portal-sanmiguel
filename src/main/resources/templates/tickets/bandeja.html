@@ -9,7 +9,7 @@
         <header class="encabezado">
             <div>
                 <h1>Bandeja</h1>
-                <p class="texto-sec">Lo más antiguo aparece primero. La barra se llena a medida que el ticket se acerca a 72 horas sin respuesta.</p>
+                <p class="texto-sec">Lo que vence primero aparece arriba. La barra se llena a medida que el ticket se acerca a su fecha límite de atención.</p>
             </div>
         </header>
 
@@ -27,7 +27,7 @@
             <input type="hidden" name="estado" th:value="${estado}">
             <div class="campo campo-ancho">
                 <label for="q">Buscar</label>
-                <input id="q" name="q" type="search" th:value="${q}" placeholder="Código, cliente, DNI o asunto">
+                <input id="q" name="q" type="search" th:value="${q}" placeholder="Número, contribuyente, documento o asunto">
             </div>
             <div class="campo">
                 <label for="prioridad">Prioridad</label>
@@ -61,7 +61,7 @@
                     <th scope="col">Canal</th>
                     <th scope="col">Prioridad</th>
                     <th scope="col">Asignado a</th>
-                    <th scope="col">Antigüedad</th>
+                    <th scope="col">Plazo</th>
                 </tr>
                 </thead>
                 <tbody>

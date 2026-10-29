@@ -17,7 +17,7 @@ public class AdminUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        AdminUser admin = repository.findByUsername(username)
+        AdminUser admin = repository.findByUsername(username == null ? "" : username.trim().toLowerCase())
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
 
         return User.withUsername(admin.getUsername())
