@@ -36,6 +36,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -76,6 +77,32 @@ class OracleConexionTests {
                 "SELECT USER AS usuario, SYS_CONTEXT('USERENV','CURRENT_SCHEMA') AS esquema FROM dual");
         assertThat(fila.get("USUARIO")).isEqualTo("SANMI_PORTAL_WEB");
         assertThat(fila.get("ESQUEMA")).isEqualTo("SANMI_APP");
+    }
+
+    /**
+     * Solo lecturas: no usa NEXTVAL (gastaría un número para siempre, aunque se revierta). ALL_SEQUENCES solo
+     * muestra las secuencias que la cuenta puede usar, así que una fila significa que existe y hay permiso.
+     */
+    @Test
+    void laSecuenciaDeResolucionesExisteYNoRepiteNumeros() {
+        String esquema = jdbc.queryForObject("SELECT SYS_CONTEXT('USERENV','CURRENT_SCHEMA') FROM dual", String.class);
+        List<Map<String, Object>> filas = jdbc.queryForList(
+                "SELECT sequence_owner, min_value, increment_by, cache_size, last_number "
+                        + "FROM all_sequences WHERE sequence_name = 'SEQ_RESOLUCION'");
+        System.out.println("[seq_resolucion] ALL_SEQUENCES = " + filas);
+        assertThat(filas).as("seq_resolucion no existe o la cuenta no puede usarla").hasSize(1);
+        Map<String, Object> secuencia = filas.get(0);
+        assertThat(secuencia.get("SEQUENCE_OWNER")).isEqualTo(esquema);
+
+        Number maximo = jdbc.queryForObject(
+                "SELECT MAX(TO_NUMBER(REGEXP_SUBSTR(numero_resolucion, '[0-9]+$'))) "
+                        + "FROM reclamos WHERE numero_resolucion IS NOT NULL", Number.class);
+        System.out.println("[seq_resolucion] numero de resolucion mas alto existente = " + maximo);
+        if (maximo != null) {
+            assertThat(((Number) secuencia.get("LAST_NUMBER")).longValue())
+                    .as("la secuencia repetiria numeros de resolucion ya usados")
+                    .isGreaterThan(maximo.longValue());
+        }
     }
 
     @Test
