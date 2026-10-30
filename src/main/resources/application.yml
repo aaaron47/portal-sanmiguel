@@ -34,6 +34,10 @@ spring:
 
 server:
   port: 8080
+  # Detrás de un túnel o proxy (reenvío de puertos de VS Code, balanceador) usar el host y el https
+  # públicos que llegan en X-Forwarded-Host / X-Forwarded-Proto. Sin esto, los redireccionamientos
+  # (por ejemplo al /login) apuntan a http://localhost:8080 y no abren en otra computadora.
+  forward-headers-strategy: framework
   servlet:
     session:
       timeout: 30m
