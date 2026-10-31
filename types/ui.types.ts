@@ -6,4 +6,6 @@ export type NotifyFn = (type: NotifyType, message: string) => void;
 export interface RoleViewProps {
   initialTab?: string;
   onNotify: NotifyFn;
+  /** Avisa a la página que se eligió otra opción, para marcarla en el menú lateral. */
+  onTabChange?: (tab: string) => void;
 }

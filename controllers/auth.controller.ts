@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/api-client.service';
+import { apiClient, ApiError } from '@/services/api-client.service';
 import { storageService } from '@/services/storage.service';
 import { AuthSession, LoginCredentials, UserRole, Usuario } from '@/types/auth.types';
 
@@ -75,17 +75,28 @@ export class AuthController {
       });
       storageService.setSession(session);
       return session;
-    } catch {
-      // Fallback inteligente para entorno de desarrollo / evaluación de roles
-      const targetRole = credentials.targetRole || 'FUNCIONARIO';
-      const usuario = USUARIOS_DEMO[targetRole];
-      
+    } catch (err) {
+      // Si el backend respondió (p. ej. 401 por contraseña incorrecta), no se entra en modo demo.
+      if (err instanceof ApiError && err.status !== 0) {
+        throw new Error(
+          err.status === 401 || err.status === 403
+            ? 'El DNI, el correo o la contraseña no son correctos. Revisa los datos e inténtalo de nuevo.'
+            : 'No se pudo iniciar sesión. Inténtalo de nuevo en unos minutos.'
+        );
+      }
+      // Modo demo (sin conexión al backend): los accesos rápidos eligen el rol; con el formulario se busca
+      // el usuario demo por DNI o correo. La contraseña no se valida hasta que exista el backend.
+      const dato = credentials.emailOrDni.trim().toLowerCase();
+      const usuario = credentials.targetRole
+        ? USUARIOS_DEMO[credentials.targetRole]
+        : Object.values(USUARIOS_DEMO).find((u) => u.dni === dato || u.email.toLowerCase() === dato);
+      if (!usuario) {
+        throw new Error('No encontramos un usuario con ese DNI o correo. Revisa que esté bien escrito.');
+      }
+
       const mockSession: AuthSession = {
         token: `mock-jwt-token-${usuario.rol.toLowerCase()}-${Date.now()}`,
-        usuario: {
-          ...usuario,
-          email: credentials.emailOrDni.includes('@') ? credentials.emailOrDni : usuario.email,
-        },
+        usuario,
         expiraEn: Date.now() + 8 * 60 * 60 * 1000, // 8 horas
       };
 

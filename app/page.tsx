@@ -98,6 +98,7 @@ export default function HomePage() {
             <SupervisorView
               initialTab={currentTab}
               onNotify={showNotification}
+              onTabChange={setCurrentTab}
             />
           )}
 

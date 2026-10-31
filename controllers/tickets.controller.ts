@@ -5,11 +5,12 @@ import {
   TicketSeguimiento, 
   RespuestaPayload, 
   DerivacionPayload, 
+  DevolucionPayload,
   ReasignacionPayload 
 } from '@/types/ticket.types';
 
 // Mock dataset representativo de la base de datos municipal para pruebas de flujos
-let MOCK_TICKETS: Ticket[] = [
+const MOCK_TICKETS: Ticket[] = [
   {
     id: 'REC-001',
     folio: 'REC-2026-0104',
@@ -314,6 +315,38 @@ export class TicketsController {
       MOCK_TICKETS[ticketIndex] = {
         ...MOCK_TICKETS[ticketIndex],
         estado: 'resuelto',
+        fechaActualizacion: nuevoSeguimiento.fecha,
+        seguimientos: [...MOCK_TICKETS[ticketIndex].seguimientos, nuevoSeguimiento],
+      };
+
+      return MOCK_TICKETS[ticketIndex];
+    }
+  }
+
+  async devolverTicket(id: string, payload: DevolucionPayload, supervisorNombre: string): Promise<Ticket> {
+    try {
+      return await apiClient<Ticket>(`/tickets/${id}/devolver`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      const ticketIndex = MOCK_TICKETS.findIndex(t => t.id === id);
+      if (ticketIndex === -1) throw new Error('Reclamo no encontrado');
+
+      const nuevoSeguimiento: TicketSeguimiento = {
+        id: `SEG-${Date.now()}`,
+        reclamoId: id,
+        autorId: 'CURRENT_USER',
+        autorNombre: supervisorNombre,
+        autorRol: 'Supervisor',
+        fecha: new Date().toISOString().replace('T', ' ').substring(0, 16),
+        tipoAccion: 'DEVOLUCION',
+        comentario: `DEVOLUCIÓN PARA CORREGIR: ${payload.motivoDevolucion}`,
+      };
+
+      MOCK_TICKETS[ticketIndex] = {
+        ...MOCK_TICKETS[ticketIndex],
+        estado: 'en evaluación',
         fechaActualizacion: nuevoSeguimiento.fecha,
         seguimientos: [...MOCK_TICKETS[ticketIndex].seguimientos, nuevoSeguimiento],
       };

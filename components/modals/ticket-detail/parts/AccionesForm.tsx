@@ -1,41 +1,125 @@
-import React, { useState, useEffect } from 'react';
-import { Send, CornerDownRight, CheckCircle, RotateCcw, FileCheck2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Send, CornerDownRight, CheckCircle, RotateCcw, FileCheck2, Undo2 } from 'lucide-react';
 import { UserRole } from '@/types/auth.types';
-import { Ticket } from '@/types/ticket.types';
+import { AccionTicket, EstadoAtencion, Ticket } from '@/types/ticket.types';
+import {
+  FuncionarioOpcion,
+  esActivo,
+  puedeAprobar,
+  puedeAtender,
+  puedeDerivar,
+  puedeDevolver,
+  puedeEvaluarConstancia,
+  puedeReasignar,
+} from '@/utils/ticket.utils';
 
 interface AccionesFormProps {
   ticket: Ticket;
   rolUsuario: UserRole;
-  initialAction?: 'ninguna' | 'atender' | 'derivar' | 'aprobar' | 'reasignar' | 'constancia';
-  onAtender: (id: string, comentario: string, nuevoEstado: 'por aprobar' | 'resuelto' | 'en evaluación') => Promise<void>;
+  initialAction?: AccionTicket;
+  funcionarios?: FuncionarioOpcion[];
+  onAtender: (id: string, comentario: string, nuevoEstado: EstadoAtencion) => Promise<void>;
   onDerivar: (id: string, areaDestino: string, motivo: string) => Promise<void>;
   onAprobar: (id: string, comentario: string) => Promise<void>;
+  onDevolver?: (id: string, motivo: string) => Promise<void>;
   onReasignar: (id: string, nuevoFuncionarioId: string, nuevoNombre: string, motivo: string) => Promise<void>;
   onEvaluarConstancia: (id: string, estado: 'aprobada' | 'observada', observaciones: string) => Promise<void>;
 }
+
+/** Indica si la acción está permitida para el rol y el estado actual del reclamo. */
+function accionPermitida(accion: AccionTicket, rol: UserRole, ticket: Ticket, hayDevolver: boolean): boolean {
+  if (rol === 'FUNCIONARIO') {
+    if (accion === 'atender') return puedeAtender(ticket);
+    if (accion === 'derivar') return puedeDerivar(ticket);
+    if (accion === 'constancia') return puedeEvaluarConstancia(ticket);
+  }
+  if (rol === 'SUPERVISOR') {
+    if (accion === 'aprobar') return puedeAprobar(ticket);
+    if (accion === 'devolver') return hayDevolver && puedeDevolver(ticket);
+    if (accion === 'reasignar') return puedeReasignar(ticket);
+  }
+  return false;
+}
+
+const TITULOS: Record<Exclude<AccionTicket, 'ninguna'>, string> = {
+  atender: 'Atender reclamo',
+  derivar: 'Derivar a otra área municipal',
+  constancia: 'Evaluar constancia',
+  aprobar: 'Aprobar resolución definitiva',
+  devolver: 'Devolver al funcionario para corregir',
+  reasignar: 'Reasignar a otro funcionario',
+};
+
+const AREAS_DERIVACION = [
+  'Obras Públicas',
+  'Fiscalización y Control',
+  'Limpieza Pública',
+  'Parques y Jardines',
+  'Tránsito y Transporte',
+  'Seguridad Ciudadana',
+];
+
+const estiloCampo: React.CSSProperties = {
+  width: '100%',
+  padding: '0.5rem',
+  borderRadius: '6px',
+  border: '1px solid var(--border-color)',
+  background: 'var(--bg-card)',
+  color: 'var(--text-main)',
+};
+
+const estiloEtiqueta: React.CSSProperties = {
+  display: 'block',
+  fontSize: '0.8rem',
+  fontWeight: 600,
+  color: 'var(--text-main)',
+  marginBottom: '0.25rem',
+};
+
+const estiloOpcion: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '0.35rem',
+  fontSize: '0.85rem',
+  cursor: 'pointer',
+  color: 'var(--text-main)',
+};
 
 export const AccionesForm: React.FC<AccionesFormProps> = ({
   ticket,
   rolUsuario,
   initialAction = 'ninguna',
+  funcionarios = [],
   onAtender,
   onDerivar,
   onAprobar,
+  onDevolver,
   onReasignar,
   onEvaluarConstancia,
 }) => {
-  const [activeAction, setActiveAction] = useState<'ninguna' | 'atender' | 'derivar' | 'aprobar' | 'reasignar' | 'constancia'>(initialAction);
+  const permitida = (accion: AccionTicket) => accionPermitida(accion, rolUsuario, ticket, Boolean(onDevolver));
+
+  // El modal monta este formulario con una `key` por reclamo y acción inicial,
+  // así que basta con inicializar el estado (sin efectos).
+  const [activeAction, setActiveAction] = useState<AccionTicket>(
+    initialAction !== 'ninguna' && permitida(initialAction) ? initialAction : 'ninguna'
+  );
   const [textoComentario, setTextoComentario] = useState('');
-  const [areaDestino, setAreaDestino] = useState('Obras Públicas');
-  const [nuevoFuncionarioNombre, setNuevoFuncionarioNombre] = useState('Ing. Fernando Rojas');
+  const [areaDestino, setAreaDestino] = useState(
+    AREAS_DERIVACION.find((a) => a !== ticket.areaAsignada) ?? AREAS_DERIVACION[0]
+  );
+  const [nuevoFuncionarioId, setNuevoFuncionarioId] = useState('');
+  const [estadoAtencion, setEstadoAtencion] = useState<EstadoAtencion>('en evaluación');
   const [estadoConstanciaDecision, setEstadoConstanciaDecision] = useState<'aprobada' | 'observada'>('aprobada');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (initialAction) {
-      setActiveAction(initialAction);
-    }
-  }, [initialAction, ticket.id]);
+  const funcionariosDisponibles = funcionarios.filter((f) => f.id !== ticket.funcionarioAsignadoId);
+
+  const cerrarAccion = () => {
+    setActiveAction('ninguna');
+    setTextoComentario('');
+    setNuevoFuncionarioId('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,21 +128,35 @@ export const AccionesForm: React.FC<AccionesFormProps> = ({
     setIsSubmitting(true);
     try {
       if (activeAction === 'atender') {
-        await onAtender(ticket.id, textoComentario, 'por aprobar');
+        await onAtender(ticket.id, textoComentario, estadoAtencion);
       } else if (activeAction === 'derivar') {
         await onDerivar(ticket.id, areaDestino, textoComentario);
       } else if (activeAction === 'aprobar') {
         await onAprobar(ticket.id, textoComentario);
+      } else if (activeAction === 'devolver' && onDevolver) {
+        await onDevolver(ticket.id, textoComentario);
       } else if (activeAction === 'reasignar') {
-        await onReasignar(ticket.id, 'USR-FUN-09', nuevoFuncionarioNombre, textoComentario);
+        const elegido = funcionariosDisponibles.find((f) => f.id === nuevoFuncionarioId);
+        if (!elegido) return;
+        await onReasignar(ticket.id, elegido.id, elegido.nombre, textoComentario);
       } else if (activeAction === 'constancia') {
         await onEvaluarConstancia(ticket.id, estadoConstanciaDecision, textoComentario || 'Evaluación conforme');
       }
-      setActiveAction('ninguna');
-      setTextoComentario('');
+      cerrarAccion();
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const textoConfirmar = (): string => {
+    if (activeAction === 'atender') {
+      return estadoAtencion === 'por aprobar' ? 'Enviar al supervisor' : 'Registrar avance';
+    }
+    if (activeAction === 'derivar') return `Derivar a ${areaDestino}`;
+    if (activeAction === 'aprobar') return 'Aprobar resolución';
+    if (activeAction === 'devolver') return 'Devolver al funcionario';
+    if (activeAction === 'reasignar') return 'Reasignar';
+    return 'Guardar evaluación';
   };
 
   if (activeAction !== 'ninguna') {
@@ -66,181 +164,181 @@ export const AccionesForm: React.FC<AccionesFormProps> = ({
       <form onSubmit={handleSubmit} style={{ background: 'var(--bg-card-subtle)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '1.25rem', marginTop: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
           <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>
-            {activeAction === 'atender' && 'Atender Reclamo y Elevar Respuesta'}
-            {activeAction === 'derivar' && 'Derivar a otra Área Municipal (Directiva Ágil)'}
-            {activeAction === 'aprobar' && 'Aprobar Resolución Definitiva'}
-            {activeAction === 'reasignar' && 'Reasignar Caso a otro Funcionario'}
-            {activeAction === 'constancia' && 'Evaluar Constancia Formal'}
+            {TITULOS[activeAction]}
           </h4>
           <button
             type="button"
-            onClick={() => setActiveAction('ninguna')}
+            onClick={cerrarAccion}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.8rem' }}
           >
             Cancelar acción
           </button>
         </div>
 
+        {activeAction === 'atender' && (
+          <div style={{ marginBottom: '0.75rem' }}>
+            <span style={estiloEtiqueta}>¿Qué quieres hacer?</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '0.25rem' }}>
+              <label style={estiloOpcion}>
+                <input
+                  type="radio"
+                  name="estadoAtencion"
+                  checked={estadoAtencion === 'en evaluación'}
+                  onChange={() => setEstadoAtencion('en evaluación')}
+                />
+                Registrar avance (sigue en evaluación)
+              </label>
+              <label style={estiloOpcion}>
+                <input
+                  type="radio"
+                  name="estadoAtencion"
+                  checked={estadoAtencion === 'por aprobar'}
+                  onChange={() => setEstadoAtencion('por aprobar')}
+                />
+                Enviar al supervisor para aprobación
+              </label>
+            </div>
+          </div>
+        )}
+
         {activeAction === 'derivar' && (
           <div style={{ marginBottom: '0.75rem' }}>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.25rem' }}>
-              Área Municipal de Destino:
-            </label>
+            <label htmlFor="areaDestino" style={estiloEtiqueta}>Área municipal de destino:</label>
             <select
+              id="areaDestino"
               value={areaDestino}
               onChange={(e) => setAreaDestino(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-main)' }}
+              style={estiloCampo}
             >
-              <option value="Obras Públicas">Obras Públicas</option>
-              <option value="Fiscalización y Control">Fiscalización y Control</option>
-              <option value="Limpieza Pública">Limpieza Pública</option>
-              <option value="Parques y Jardines">Parques y Jardines</option>
-              <option value="Tránsito y Transporte">Tránsito y Transporte</option>
-              <option value="Seguridad Ciudadana">Seguridad Ciudadana</option>
+              {AREAS_DERIVACION.filter((a) => a !== ticket.areaAsignada).map((a) => (
+                <option key={a} value={a}>{a}</option>
+              ))}
             </select>
           </div>
         )}
 
         {activeAction === 'reasignar' && (
           <div style={{ marginBottom: '0.75rem' }}>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.25rem' }}>
-              Nuevo Funcionario Asignado:
-            </label>
-            <select
-              value={nuevoFuncionarioNombre}
-              onChange={(e) => setNuevoFuncionarioNombre(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-main)' }}
-            >
-              <option value="Ing. Fernando Rojas">Ing. Fernando Rojas (Obras)</option>
-              <option value="Lic. Mariana Rios">Lic. Mariana Rios (Fiscalización)</option>
-              <option value="Bach. Laura Paredes">Bach. Laura Paredes (Parques)</option>
-              <option value="Sr. Walter Quispe">Sr. Walter Quispe (Limpieza)</option>
-            </select>
+            <label htmlFor="nuevoFuncionario" style={estiloEtiqueta}>Nuevo funcionario asignado:</label>
+            {funcionariosDisponibles.length === 0 ? (
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                No hay otros funcionarios activos a quienes reasignar este reclamo.
+              </p>
+            ) : (
+              <select
+                id="nuevoFuncionario"
+                value={nuevoFuncionarioId}
+                onChange={(e) => setNuevoFuncionarioId(e.target.value)}
+                style={estiloCampo}
+                required
+              >
+                <option value="" disabled>Elige un funcionario</option>
+                {funcionariosDisponibles.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.nombre}{f.area ? ` (${f.area})` : ''}
+                  </option>
+                ))}
+              </select>
+            )}
+            {ticket.funcionarioAsignadoNombre && (
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                Asignado ahora: {ticket.funcionarioAsignadoNombre}
+              </p>
+            )}
           </div>
         )}
 
         {activeAction === 'constancia' && (
           <div style={{ marginBottom: '0.75rem' }}>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.25rem' }}>
-              Dictamen de Constancia:
-            </label>
+            <span style={estiloEtiqueta}>Dictamen de la constancia:</span>
             <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', cursor: 'pointer', color: 'var(--text-main)' }}>
+              <label style={estiloOpcion}>
                 <input
                   type="radio"
                   name="dictamenConstancia"
                   checked={estadoConstanciaDecision === 'aprobada'}
                   onChange={() => setEstadoConstanciaDecision('aprobada')}
                 />
-                Aprobar Constancia
+                Aprobar constancia
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', cursor: 'pointer', color: 'var(--text-main)' }}>
+              <label style={estiloOpcion}>
                 <input
                   type="radio"
                   name="dictamenConstancia"
                   checked={estadoConstanciaDecision === 'observada'}
                   onChange={() => setEstadoConstanciaDecision('observada')}
                 />
-                Observar Constancia
+                Observar constancia
               </label>
             </div>
           </div>
         )}
 
         <div style={{ marginBottom: '0.75rem' }}>
-          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.25rem' }}>
-            {activeAction === 'derivar' 
-              ? 'Motivo y Hallazgos (Directiva Ágil sin tablas extra):' 
-              : 'Detalle o Comentarios de la Acción:'}
+          <label htmlFor="comentarioAccion" style={estiloEtiqueta}>
+            {activeAction === 'derivar' && 'Motivo de la derivación y hallazgos:'}
+            {activeAction === 'devolver' && 'Qué debe corregir el funcionario:'}
+            {activeAction === 'reasignar' && 'Motivo de la reasignación:'}
+            {activeAction === 'constancia' && 'Observaciones (opcional):'}
+            {(activeAction === 'atender' || activeAction === 'aprobar') && 'Detalle o comentarios:'}
           </label>
           <textarea
+            id="comentarioAccion"
             rows={3}
             value={textoComentario}
             onChange={(e) => setTextoComentario(e.target.value)}
-            placeholder="Ingrese las observaciones, coordinaciones o fundamento técnico..."
-            style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-main)', resize: 'vertical' }}
+            placeholder="Escribe las observaciones, coordinaciones o el fundamento técnico..."
+            style={{ ...estiloCampo, resize: 'vertical' }}
             required={activeAction !== 'constancia'}
           />
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-          <button
-            type="button"
-            onClick={() => setActiveAction('ninguna')}
-            className="btn btn-secondary"
-            style={{ fontSize: '0.8rem' }}
-          >
+          <button type="button" onClick={cerrarAccion} className="btn btn-secondary" style={{ fontSize: '0.8rem' }}>
             Cancelar
           </button>
           <button
             type="submit"
-            disabled={isSubmitting}
-            className="btn btn-primary"
+            disabled={isSubmitting || (activeAction === 'reasignar' && funcionariosDisponibles.length === 0)}
+            className={activeAction === 'aprobar' ? 'btn btn-success' : 'btn btn-primary'}
             style={{ fontSize: '0.8rem' }}
           >
-            {isSubmitting ? 'Guardando...' : 'Confirmar y Guardar'}
+            {isSubmitting ? 'Guardando...' : textoConfirmar()}
           </button>
         </div>
       </form>
     );
   }
 
+  const esRolAtencion = rolUsuario === 'FUNCIONARIO' || rolUsuario === 'SUPERVISOR';
+  const acciones: { id: AccionTicket; label: string; icon: React.ReactNode; className: string }[] = [
+    { id: 'atender', label: 'Atender', icon: <Send size={15} />, className: 'btn btn-primary' },
+    { id: 'derivar', label: 'Derivar a otra área', icon: <CornerDownRight size={15} />, className: 'btn btn-secondary' },
+    { id: 'constancia', label: 'Evaluar constancia', icon: <FileCheck2 size={15} />, className: 'btn btn-secondary' },
+    { id: 'aprobar', label: 'Aprobar resolución', icon: <CheckCircle size={15} />, className: 'btn btn-success' },
+    { id: 'devolver', label: 'Devolver al funcionario', icon: <Undo2 size={15} />, className: 'btn btn-secondary' },
+    { id: 'reasignar', label: 'Reasignar funcionario', icon: <RotateCcw size={15} />, className: 'btn btn-secondary' },
+  ];
+  const disponibles = acciones.filter((a) => permitida(a.id));
+
+  let mensaje: string | null = null;
+  if (!esRolAtencion) {
+    mensaje = `Modo solo lectura para el perfil ${rolUsuario}.`;
+  } else if (!esActivo(ticket)) {
+    mensaje = 'Este reclamo ya está cerrado; no tiene acciones pendientes.';
+  } else if (rolUsuario === 'FUNCIONARIO' && ticket.estado === 'por aprobar') {
+    mensaje = 'Esperando la aprobación del supervisor.';
+  }
+
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-      {/* Acciones para FUNCIONARIO */}
-      {rolUsuario === 'FUNCIONARIO' && (
-        <>
-          <button
-            onClick={() => setActiveAction('atender')}
-            className="btn btn-primary"
-            style={{ fontSize: '0.825rem' }}
-          >
-            <Send size={15} /> Atender y Responder
-          </button>
-          <button
-            onClick={() => setActiveAction('derivar')}
-            className="btn btn-secondary"
-            style={{ fontSize: '0.825rem' }}
-          >
-            <CornerDownRight size={15} /> Derivar Caso
-          </button>
-          {ticket.tieneConstancia && (
-            <button
-              onClick={() => setActiveAction('constancia')}
-              className="btn btn-secondary"
-              style={{ fontSize: '0.825rem' }}
-            >
-              <FileCheck2 size={15} /> Evaluar Constancia
-            </button>
-          )}
-        </>
-      )}
-
-      {/* Acciones para SUPERVISOR */}
-      {rolUsuario === 'SUPERVISOR' && (
-        <>
-          <button
-            onClick={() => setActiveAction('aprobar')}
-            className="btn btn-success"
-            style={{ fontSize: '0.825rem' }}
-          >
-            <CheckCircle size={15} /> Aprobar Resolución
-          </button>
-          <button
-            onClick={() => setActiveAction('reasignar')}
-            className="btn btn-secondary"
-            style={{ fontSize: '0.825rem' }}
-          >
-            <RotateCcw size={15} /> Reasignar Funcionario
-          </button>
-        </>
-      )}
-
-      {/* Para Control Municipal o TI */}
-      {(rolUsuario === 'CONTROL_MUNICIPAL' || rolUsuario === 'CONTROL_TI' || rolUsuario === 'ADMIN') && (
-        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span>Modo solo lectura para el perfil {rolUsuario}.</span>
-        </div>
+    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+      {disponibles.map((a) => (
+        <button key={a.id} onClick={() => setActiveAction(a.id)} className={a.className} style={{ fontSize: '0.825rem' }}>
+          {a.icon} {a.label}
+        </button>
+      ))}
+      {mensaje && (
+        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{mensaje}</span>
       )}
     </div>
   );

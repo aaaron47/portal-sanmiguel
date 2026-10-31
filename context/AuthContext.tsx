@@ -23,29 +23,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [, startTransition] = useTransition();
 
   useEffect(() => {
+    // Solo se entra directo si hay una sesión guardada y vigente; si no, se muestra el login.
     const session = storageService.getSession();
-    if (session?.usuario) {
+    if (session?.usuario && (!session.expiraEn || session.expiraEn > Date.now())) {
       setUsuario(session.usuario);
-    } else {
-      // Por defecto iniciamos con Funcionario como demostración accesible
-      setUsuario(USUARIOS_DEMO.FUNCIONARIO);
-      storageService.setSession({
-        token: 'initial-demo-token',
-        usuario: USUARIOS_DEMO.FUNCIONARIO,
-        expiraEn: Date.now() + 86400000,
-      });
+    } else if (session) {
+      storageService.clearSession();
     }
     setIsLoading(false);
   }, []);
 
+  // No usa isLoading: el formulario de login muestra su propio "Iniciando sesión..." y,
+  // si la página cambiara al indicador de carga, el formulario se desmontaría y perdería el error.
   const login = async (credentials: LoginCredentials) => {
-    setIsLoading(true);
-    try {
-      const session = await authController.login(credentials);
-      setUsuario(session.usuario);
-    } finally {
-      setIsLoading(false);
-    }
+    const session = await authController.login(credentials);
+    setUsuario(session.usuario);
   };
 
   const logout = async () => {
