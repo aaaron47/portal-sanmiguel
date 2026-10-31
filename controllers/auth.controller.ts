@@ -1,4 +1,4 @@
-import { apiClient, ApiError } from '@/services/api-client.service';
+import { apiClient, ApiError, esSinConexion } from '@/services/api-client.service';
 import { storageService } from '@/services/storage.service';
 import { AuthSession, LoginCredentials, UserRole, Usuario } from '@/types/auth.types';
 
@@ -77,7 +77,7 @@ export class AuthController {
       return session;
     } catch (err) {
       // Si el backend respondió (p. ej. 401 por contraseña incorrecta), no se entra en modo demo.
-      if (err instanceof ApiError && err.status !== 0) {
+      if (err instanceof ApiError && !esSinConexion(err)) {
         throw new Error(
           err.status === 401 || err.status === 403
             ? 'El DNI, el correo o la contraseña no son correctos. Revisa los datos e inténtalo de nuevo.'

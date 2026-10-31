@@ -27,7 +27,8 @@ convenciones y lo que falta. Mantenerla al día cuando cambie algo importante.
 | **Next.js (App Router) + TypeScript, una sola página** (`app/page.tsx`) que muestra la vista del rol | Lo definió el equipo en `9ddb046`. La navegación es por pestañas del menú lateral, no por rutas. |
 | **Capas:** `components` → `controllers` → `services/api-client` | Los componentes no llaman a `fetch`; cada acción es un método del controlador. |
 | **Datos simulados mientras no exista el backend** | Cada método del controlador llama primero a la API (`apiClient`) y, si no hay conexión, usa los datos simulados del mismo archivo (`MOCK_*`). Así el grupo de backend ve qué endpoint implementar. |
-| **El respaldo simulado solo con fallo de red** en el login | Si el backend responde (p. ej. 401), no se entra en modo demo. `ApiError.status === 0` = sin conexión. |
+| **El respaldo simulado solo sin conexión** (`esSinConexion(err)` en `api-client.service.ts`) | Si el backend responde con error (401, 403, 409...), no se aplica nada en los datos simulados: el error llega a la vista, que lo muestra con `mensajeErrorApi`. En el login, una contraseña incorrecta no entra en modo demo. |
+| **Los handlers de las vistas avisan y relanzan el error** | `AccionesForm` solo cierra el formulario si la acción salió bien; si falla, queda abierto con lo escrito. |
 | **Reglas de acciones por estado en un solo archivo** (`utils/ticket.utils.ts`) | Las usan el formulario de acciones y las tablas; no repetir condiciones en los componentes. |
 | **El funcionario no resuelve**: envía a aprobación y el supervisor aprueba o devuelve | Lo exige el README (visto bueno del supervisor). |
 
@@ -105,7 +106,9 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
   exacta ("Devolver al funcionario", "Reasignar").
 - **Colores:** solo variables del tema (`var(--text-main)`, `var(--bg-card)`, `var(--border-color)`...),
   nunca `--slate-*` fijos en componentes nuevos: no se leen en modo oscuro.
-- **Acciones nuevas sobre reclamos:** agregar el método al controlador (API + respaldo simulado), el tipo
+- **Acciones nuevas sobre reclamos:** agregar el método al controlador (API + respaldo simulado con
+  `if (!esSinConexion(err)) throw err;` al inicio del `catch`), el handler en el hook (avisar con
+  `mensajeErrorApi` y relanzar), el tipo
   en `types/ticket.types.ts` (payload y `tipoAccion` si deja huella en la línea de tiempo), la regla en
   `utils/ticket.utils.ts` y el endpoint en la tabla del plan.
 - **React:** cumplir las reglas de lint `react-hooks` (`set-state-in-effect`, `immutability`). Para reiniciar
@@ -117,12 +120,8 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
 
 ## 7. Errores conocidos
 
-- **Los handlers de las vistas atrapan los errores** (muestran el aviso y no relanzan), así que
-  `AccionesForm` cierra el formulario aunque la acción falle. Con datos simulados casi no pasa; revisarlo
-  cuando haya backend.
-- **El respaldo simulado de `tickets.controller` se usa ante cualquier error**, no solo sin conexión:
-  con backend real, un 409 o un 403 se "aplicaría" en los datos simulados. Corregirlo igual que en el login
-  cuando exista el backend.
+- **Los demás controladores** (`usuarios`, `auditoria`, `reportes`, `telemetria`, de Braulio) todavía usan
+  los datos simulados ante cualquier error. Aplicarles `esSinConexion` cuando se integre el backend.
 - **Fin de línea:** git avisa "LF will be replaced by CRLF" en varios archivos; es solo un aviso.
 
 ## 8. Bitácora
@@ -141,9 +140,11 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
 - [ ] Qué significa "clicks de los usuarios" (admins en el portal o ciudadanos en la app).
 
 **Técnicos**
-- [ ] **El pipeline `.github/workflows/ci.yml` sigue corriendo `mvn -B verify`** y ya no hay `pom.xml`: falla en todo PR a `main`. Pasarlo a Node (`npm ci`, `tsc`, `build`).
-- [ ] 6 errores de lint de antes en archivos de otros (`app/page.tsx`, `context/*`, `usuarios.controller.ts`, `control-municipal/*`, `control-ti/*`).
-- [ ] Respaldo simulado de `tickets.controller` solo con fallo de red (ver sección 7).
+- [x] Pipeline pasado de Maven a Node 22 (`npm ci`, `tsc --noEmit`, `npm run build`).
+- [ ] 6 errores de lint de antes en archivos de otros (`app/page.tsx`, `context/*`, `usuarios.controller.ts`, `control-municipal/*`, `control-ti/*`). Al corregirlos, agregar `npm run lint` al pipeline.
+- [x] Respaldo simulado de `tickets.controller` solo sin conexión; el formulario queda abierto si la acción falla.
+- [ ] `esSinConexion` en los controladores de Braulio (sección 7).
 - [ ] Integrar con el backend cuando esté listo y quitar los datos simulados.
 - [ ] Pruebas automáticas en el repositorio (hoy solo hay scripts de Playwright fuera del repo).
-- [ ] Actualizar `README.md`: la estructura que muestra (`components/views/`) ya no existe; ahora es `components/roles/`.
+- [x] `README.md` actualizado (estructura `components/roles/`, Next.js 16, datos que no coincidían con el código).
+- [ ] `ConfirmModal` existe pero no se usa en ninguna pantalla.

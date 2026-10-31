@@ -4,6 +4,7 @@ import { EstadoAtencion, Ticket, TicketEstado, TicketPrioridad } from '@/types/t
 import { useAuth } from '@/context/AuthContext';
 import { NotifyFn } from '@/types/ui.types';
 import { exportarCSV } from '@/utils/csv.utils';
+import { mensajeErrorApi } from '@/services/api-client.service';
 
 export type FiltroConstancia = 'todos' | 'con_constancia' | 'sin_constancia' | 'por_evaluar' | 'aprobada' | 'observada';
 
@@ -62,8 +63,9 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
           ? `Expediente ${actualizado.folio} enviado al supervisor para aprobación`
           : `Avance registrado en el expediente ${actualizado.folio}`
       );
-    } catch {
-      onNotify('error', 'Error al registrar atención');
+    } catch (err) {
+      onNotify('error', mensajeErrorApi(err, 'No se pudo guardar la atención. Inténtalo de nuevo.'));
+      throw err; // El formulario queda abierto con lo escrito.
     }
   };
 
@@ -77,8 +79,9 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
       setTickets(prev => prev.map(t => t.id === id ? actualizado : t));
       setSelectedTicket(actualizado);
       onNotify('success', `Expediente derivado a ${areaDestino} correctamente`);
-    } catch {
-      onNotify('error', 'Error al derivar expediente');
+    } catch (err) {
+      onNotify('error', mensajeErrorApi(err, 'No se pudo derivar el expediente. Inténtalo de nuevo.'));
+      throw err;
     }
   };
 
@@ -93,8 +96,9 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
       setTickets(prev => prev.map(t => t.id === id ? actualizado : t));
       setSelectedTicket(actualizado);
       onNotify('success', `Constancia formal ${estado} exitosamente`);
-    } catch {
-      onNotify('error', 'Error al evaluar constancia');
+    } catch (err) {
+      onNotify('error', mensajeErrorApi(err, 'No se pudo guardar la evaluación de la constancia. Inténtalo de nuevo.'));
+      throw err;
     }
   };
 

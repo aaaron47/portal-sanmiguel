@@ -6,6 +6,7 @@ import { Usuario } from '@/types/auth.types';
 import { useAuth } from '@/context/AuthContext';
 import { NotifyFn } from '@/types/ui.types';
 import { calcularCarga, construirFuncionarios, listarAreas } from '@/utils/ticket.utils';
+import { mensajeErrorApi } from '@/services/api-client.service';
 
 export function useSupervisorTickets(onNotify: NotifyFn) {
   const { usuario } = useAuth();
@@ -62,8 +63,9 @@ export function useSupervisorTickets(onNotify: NotifyFn) {
       const actualizado = await ticketsController.aprobarTicket(id, comentario, supervisorNombre);
       reemplazar(actualizado);
       onNotify('success', `Resolución del expediente ${actualizado.folio} aprobada con éxito`);
-    } catch {
-      onNotify('error', 'No se pudo aprobar la resolución. Inténtalo de nuevo.');
+    } catch (err) {
+      onNotify('error', mensajeErrorApi(err, 'No se pudo aprobar la resolución. Inténtalo de nuevo.'));
+      throw err; // El formulario queda abierto con lo escrito.
     }
   };
 
@@ -75,8 +77,9 @@ export function useSupervisorTickets(onNotify: NotifyFn) {
         'success',
         `Expediente ${actualizado.folio} devuelto a ${actualizado.funcionarioAsignadoNombre || 'su funcionario'} para corregir`
       );
-    } catch {
-      onNotify('error', 'No se pudo devolver el expediente. Inténtalo de nuevo.');
+    } catch (err) {
+      onNotify('error', mensajeErrorApi(err, 'No se pudo devolver el expediente. Inténtalo de nuevo.'));
+      throw err;
     }
   };
 
@@ -89,8 +92,9 @@ export function useSupervisorTickets(onNotify: NotifyFn) {
       );
       reemplazar(actualizado);
       onNotify('success', `Expediente reasignado a ${nuevoNombre}`);
-    } catch {
-      onNotify('error', 'No se pudo reasignar el expediente. Inténtalo de nuevo.');
+    } catch (err) {
+      onNotify('error', mensajeErrorApi(err, 'No se pudo reasignar el expediente. Inténtalo de nuevo.'));
+      throw err;
     }
   };
 

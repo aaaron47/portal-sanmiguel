@@ -81,3 +81,20 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
     throw new ApiError(message, 0, null);
   }
 }
+
+/** true si no se pudo llegar al backend (red caída o backend apagado): solo entonces se usan datos simulados. */
+export function esSinConexion(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 0;
+}
+
+/** Mensaje para el usuario según la respuesta del backend; `porDefecto` para el resto de casos. */
+export function mensajeErrorApi(err: unknown, porDefecto: string): string {
+  if (!(err instanceof ApiError)) return porDefecto;
+  if (err.status === 401) return 'Tu sesión venció. Cierra sesión y vuelve a entrar.';
+  if (err.status === 403) return 'No tienes permiso para hacer esta acción.';
+  if (err.status === 404) return 'No encontramos este reclamo. Recarga la página para ver la lista actualizada.';
+  if (err.status === 409) {
+    return 'Otra persona cambió este reclamo mientras lo tenías abierto. Cierra el detalle y vuelve a abrirlo para ver los cambios.';
+  }
+  return porDefecto;
+}

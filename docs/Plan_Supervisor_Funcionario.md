@@ -243,6 +243,12 @@ por DNI, recargar, cerrar sesión, sesión vencida, acceso rápido).
 - **Repetido todo:** `tsc` sin errores, `build` compila, recorrido 42 de 42, login 12 de 12, menú 6 de 6.
   Lint: los archivos tocados solo tienen los 2 errores que ya traían (`app/page.tsx`, `context/AuthContext.tsx`,
   `set-state-in-effect`); el total sigue en 6 errores, todos de antes.
-- **Quedan anotados (no se cambiaron):** el respaldo simulado de `tickets.controller` también se usa ante
-  cualquier error; los handlers atrapan los errores y el formulario se cierra aunque la acción falle; y el
-  pipeline `ci.yml` todavía corre Maven. Ver CLAUDE.md, secciones 7 y 9.
+- **Corregido después de la auditoría:**
+  - `tickets.controller` usa los datos simulados **solo sin conexión** (`esSinConexion`). Si el backend
+    responde con error, la acción no se aplica y la vista muestra un mensaje claro (`mensajeErrorApi`: 401, 403,
+    404, 409).
+  - Los handlers avisan y relanzan el error, así que el formulario queda abierto con lo escrito.
+  - El pipeline `ci.yml` pasó de Maven a Node 22 (`npm ci`, `tsc`, `build`).
+  - El README ahora coincide con el código.
+  - Comprobado simulando el backend: 409 al aprobar y 403 al atender, más el caso sin conexión, 11 de 11.
+    Se repitieron el recorrido (42/42), el login (12/12), el menú (6/6) y el login con backend (6/6).

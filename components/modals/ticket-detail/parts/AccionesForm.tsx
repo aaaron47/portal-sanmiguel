@@ -143,6 +143,8 @@ export const AccionesForm: React.FC<AccionesFormProps> = ({
         await onEvaluarConstancia(ticket.id, estadoConstanciaDecision, textoComentario || 'Evaluación conforme');
       }
       cerrarAccion();
+    } catch {
+      // La vista ya mostró el aviso; el formulario queda abierto con lo escrito para reintentar.
     } finally {
       setIsSubmitting(false);
     }

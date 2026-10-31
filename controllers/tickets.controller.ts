@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/api-client.service';
+import { apiClient, esSinConexion } from '@/services/api-client.service';
 import { 
   Ticket, 
   TicketFiltros, 
@@ -190,7 +190,9 @@ export class TicketsController {
         params: filtros as Record<string, string | number | boolean | undefined>,
       });
       return tickets;
-    } catch {
+    } catch (err) {
+      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
+      if (!esSinConexion(err)) throw err;
       // Filtrado local sobre mock
       let resultado = [...MOCK_TICKETS];
       if (filtros?.estado && filtros.estado !== 'todos') {
@@ -218,7 +220,9 @@ export class TicketsController {
   async getTicketById(id: string): Promise<Ticket> {
     try {
       return await apiClient<Ticket>(`/tickets/${id}`);
-    } catch {
+    } catch (err) {
+      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
+      if (!esSinConexion(err)) throw err;
       const ticket = MOCK_TICKETS.find(t => t.id === id);
       if (!ticket) throw new Error(`Reclamo ${id} no encontrado`);
       return ticket;
@@ -231,7 +235,9 @@ export class TicketsController {
         method: 'POST',
         body: JSON.stringify(payload),
       });
-    } catch {
+    } catch (err) {
+      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
+      if (!esSinConexion(err)) throw err;
       const ticketIndex = MOCK_TICKETS.findIndex(t => t.id === id);
       if (ticketIndex === -1) throw new Error('Reclamo no encontrado');
 
@@ -263,7 +269,9 @@ export class TicketsController {
         method: 'POST',
         body: JSON.stringify(payload),
       });
-    } catch {
+    } catch (err) {
+      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
+      if (!esSinConexion(err)) throw err;
       const ticketIndex = MOCK_TICKETS.findIndex(t => t.id === id);
       if (ticketIndex === -1) throw new Error('Reclamo no encontrado');
 
@@ -297,7 +305,9 @@ export class TicketsController {
         method: 'POST',
         body: JSON.stringify({ comentarioAprobacion }),
       });
-    } catch {
+    } catch (err) {
+      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
+      if (!esSinConexion(err)) throw err;
       const ticketIndex = MOCK_TICKETS.findIndex(t => t.id === id);
       if (ticketIndex === -1) throw new Error('Reclamo no encontrado');
 
@@ -329,7 +339,9 @@ export class TicketsController {
         method: 'POST',
         body: JSON.stringify(payload),
       });
-    } catch {
+    } catch (err) {
+      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
+      if (!esSinConexion(err)) throw err;
       const ticketIndex = MOCK_TICKETS.findIndex(t => t.id === id);
       if (ticketIndex === -1) throw new Error('Reclamo no encontrado');
 
@@ -361,7 +373,9 @@ export class TicketsController {
         method: 'POST',
         body: JSON.stringify(payload),
       });
-    } catch {
+    } catch (err) {
+      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
+      if (!esSinConexion(err)) throw err;
       const ticketIndex = MOCK_TICKETS.findIndex(t => t.id === id);
       if (ticketIndex === -1) throw new Error('Reclamo no encontrado');
 
@@ -394,7 +408,9 @@ export class TicketsController {
         method: 'POST',
         body: JSON.stringify({ estado, observaciones }),
       });
-    } catch {
+    } catch (err) {
+      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
+      if (!esSinConexion(err)) throw err;
       const ticketIndex = MOCK_TICKETS.findIndex(t => t.id === id);
       if (ticketIndex === -1) throw new Error('Reclamo no encontrado');
 
