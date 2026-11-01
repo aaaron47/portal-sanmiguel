@@ -46,7 +46,7 @@ convenciones y lo que falta. Mantenerla al día cuando cambie algo importante.
 npm install          # dependencias
 npm run dev          # http://localhost:3000
 npx tsc --noEmit     # tipos
-npm run lint         # lint (hay errores de antes en archivos de otros, ver sección 8)
+npm run lint         # lint: debe quedar en 0 errores y 0 advertencias (lo corre el pipeline)
 npm run build        # compilación de producción
 ```
 
@@ -80,7 +80,7 @@ controllers/    auth, tickets, usuarios, auditoria, reportes, telemetria (API + 
 services/       api-client.service (fetch + JWT + ApiError), storage.service (sesión en localStorage)
 types/          auth, ticket, ui, auditoria, telemetria
 utils/          ticket.utils (reglas por estado, carga, áreas), csv.utils
-docs/           Plan_Supervisor_Funcionario.md y documentos de la etapa Oracle
+docs/           Cambios_rama_supervisor_funcionario.md (todo lo de la rama), Plan_Supervisor_Funcionario.md y documentos de la etapa Oracle
 ```
 
 ### Flujo de un reclamo (estados del front)
@@ -115,13 +115,16 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
   un formulario se usa `key` (ver `TicketDetailModal`), no un `useEffect`.
 - **Pestañas por rol:** la pestaña activa la manda `app/page.tsx` (`initialTab`); si la vista tiene
   pestañas propias, avisa con `onTabChange` para que el menú lateral quede marcado (ver `SupervisorView`).
-- **No tocar** las vistas de Admin, Control Municipal ni Control TI sin acordarlo con Braulio.
+- **Vistas de Admin, Control Municipal y Control TI (de Braulio):** los cambios se le avisan y se documentan
+  (los de esta rama están en `docs/Cambios_rama_supervisor_funcionario.md`, sección 5).
 - **Credenciales:** nunca en el repositorio.
 
 ## 7. Errores conocidos
 
-- **Los demás controladores** (`usuarios`, `auditoria`, `reportes`, `telemetria`, de Braulio) todavía usan
-  los datos simulados ante cualquier error. Aplicarles `esSinConexion` cuando se integre el backend.
+- **StrictMode en desarrollo:** React monta los efectos dos veces, así que en `npm run dev` cada pantalla pide sus
+  datos dos veces a la API. Es normal; en producción es una vez.
+- **Playwright + Edge:** cerrar un contexto en el que hubo una descarga (p. ej. "Exportar CSV") da `TargetClosedError`.
+  Es del entorno de pruebas, no de la app.
 - **Fin de línea:** git avisa "LF will be replaced by CRLF" en varios archivos; es solo un aviso.
 
 ## 8. Bitácora
@@ -131,6 +134,7 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
 | 23/10–28/10/2026 | Etapa Spring Boot + Thymeleaf y conexión a Oracle (ver historia de git y `docs/Conexion_Portal_Oracle.md`). |
 | 31/10/2026 | Braulio pasa el proyecto a Next.js (`9ddb046`): pantallas por rol, modo oscuro, datos simulados. |
 | 31/10/2026 | Rama `feature/supervisor-funcionario`: reglas por estado, pestaña de reasignación de carga, reasignación con el funcionario elegido, devolver al funcionario, filtros del supervisor, atender sin enviar a aprobación, arreglo del login (sin entrada automática; sin modo demo si el backend responde) y menú lateral sincronizado con las pestañas del supervisor. Auditoría: `tsc` y `build` OK; 42 + 12 + 6 + 6 comprobaciones en navegador. |
+| 31/10/2026 | Misma rama: datos simulados solo sin conexión en todos los controladores (`esSinConexion`, `mensajeErrorApi`); el formulario queda abierto si la acción falla; período de Control Municipal enviado al backend; lint en 0 (arranque sin `setState` en efectos: `AuthContext`, `ThemeContext`, `page.tsx`); pipeline a Node 22 con lint; README al día. **Todos los cambios de la rama: `docs/Cambios_rama_supervisor_funcionario.md`.** |
 
 ## 9. Pendientes
 
@@ -140,10 +144,12 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
 - [ ] Qué significa "clicks de los usuarios" (admins en el portal o ciudadanos en la app).
 
 **Técnicos**
-- [x] Pipeline pasado de Maven a Node 22 (`npm ci`, `tsc --noEmit`, `npm run build`).
-- [ ] 6 errores de lint de antes en archivos de otros (`app/page.tsx`, `context/*`, `usuarios.controller.ts`, `control-municipal/*`, `control-ti/*`). Al corregirlos, agregar `npm run lint` al pipeline.
+- [x] Pipeline pasado de Maven a Node 22 (`npm ci`, `tsc --noEmit`, `npm run lint`, `npm run build`).
+- [x] Lint en 0 errores y 0 advertencias, y `npm run lint` en el pipeline.
 - [x] Respaldo simulado de `tickets.controller` solo sin conexión; el formulario queda abierto si la acción falla.
-- [ ] `esSinConexion` en los controladores de Braulio (sección 7).
+- [x] `esSinConexion` en todos los controladores.
+- [x] Selector de período de Control Municipal: ahora se envía al backend (los datos simulados no cambian por período).
+- [ ] Control TI: "Dashboard Telemetría App" y "Privacidad y Onboarding" muestran lo mismo, y "Flujo de Eventos Anónimos" no está en el menú; definir qué va en cada una con Braulio.
 - [ ] Integrar con el backend cuando esté listo y quitar los datos simulados.
 - [ ] Pruebas automáticas en el repositorio (hoy solo hay scripts de Playwright fuera del repo).
 - [x] `README.md` actualizado (estructura `components/roles/`, Next.js 16, datos que no coincidían con el código).

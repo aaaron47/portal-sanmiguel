@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { NotifyFn } from '@/types/ui.types';
 import { exportarCSV } from '@/utils/csv.utils';
 import { mensajeErrorApi } from '@/services/api-client.service';
+import { MENSAJES_ERROR_RECLAMO } from '@/utils/ticket.utils';
 
 export type FiltroConstancia = 'todos' | 'con_constancia' | 'sin_constancia' | 'por_evaluar' | 'aprobada' | 'observada';
 
@@ -64,7 +65,7 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
           : `Avance registrado en el expediente ${actualizado.folio}`
       );
     } catch (err) {
-      onNotify('error', mensajeErrorApi(err, 'No se pudo guardar la atención. Inténtalo de nuevo.'));
+      onNotify('error', mensajeErrorApi(err, 'No se pudo guardar la atención. Inténtalo de nuevo.', MENSAJES_ERROR_RECLAMO));
       throw err; // El formulario queda abierto con lo escrito.
     }
   };
@@ -80,7 +81,7 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
       setSelectedTicket(actualizado);
       onNotify('success', `Expediente derivado a ${areaDestino} correctamente`);
     } catch (err) {
-      onNotify('error', mensajeErrorApi(err, 'No se pudo derivar el expediente. Inténtalo de nuevo.'));
+      onNotify('error', mensajeErrorApi(err, 'No se pudo derivar el expediente. Inténtalo de nuevo.', MENSAJES_ERROR_RECLAMO));
       throw err;
     }
   };
@@ -97,7 +98,7 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
       setSelectedTicket(actualizado);
       onNotify('success', `Constancia formal ${estado} exitosamente`);
     } catch (err) {
-      onNotify('error', mensajeErrorApi(err, 'No se pudo guardar la evaluación de la constancia. Inténtalo de nuevo.'));
+      onNotify('error', mensajeErrorApi(err, 'No se pudo guardar la evaluación de la constancia. Inténtalo de nuevo.', MENSAJES_ERROR_RECLAMO));
       throw err;
     }
   };

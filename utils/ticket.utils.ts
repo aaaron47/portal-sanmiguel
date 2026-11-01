@@ -92,3 +92,9 @@ export function listarAreas(tickets: Ticket[], funcionarios: FuncionarioOpcion[]
   funcionarios.forEach((f) => f.area && areas.add(f.area));
   return [...areas].sort((a, b) => a.localeCompare(b));
 }
+
+/** Textos de error propios de los reclamos para `mensajeErrorApi`. */
+export const MENSAJES_ERROR_RECLAMO: Partial<Record<number, string>> = {
+  404: 'No encontramos este reclamo. Recarga la página para ver la lista actualizada.',
+  409: 'Otra persona cambió este reclamo mientras lo tenías abierto. Cierra el detalle y vuelve a abrirlo para ver los cambios.',
+};

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { BarChart3, FileCheck, Building, Calendar, Download } from 'lucide-react';
+import { FileCheck, Building, Calendar, Download } from 'lucide-react';
 import { RoleViewProps } from '@/types/ui.types';
 import { CardHeader } from '@/components/shared/ui/CardHeader';
 import { useControlMunicipal } from './useControlMunicipal';

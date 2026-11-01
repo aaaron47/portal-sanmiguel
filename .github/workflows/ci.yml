@@ -23,10 +23,11 @@ jobs:
       - name: Revisar tipos
         run: npx tsc --noEmit
 
+      - name: Revisar estilo y reglas de React (lint)
+        run: npm run lint
+
       - name: Compilar
         run: npm run build
 
-      # Lint: se agrega cuando se corrijan los 6 errores que vienen de antes (ver CLAUDE.md, sección 9);
-      # hoy haría fallar todo PR. Paso a agregar: `- run: npm run lint`
       # El despliegue se agrega aquí cuando se defina el proveedor. La URL del backend
       # (NEXT_PUBLIC_API_URL) debe venir de GitHub Secrets o variables del repositorio.

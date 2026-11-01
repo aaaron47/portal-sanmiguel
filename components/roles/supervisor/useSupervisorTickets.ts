@@ -5,7 +5,7 @@ import { AccionTicket, Ticket, TicketEstado, TicketPrioridad } from '@/types/tic
 import { Usuario } from '@/types/auth.types';
 import { useAuth } from '@/context/AuthContext';
 import { NotifyFn } from '@/types/ui.types';
-import { calcularCarga, construirFuncionarios, listarAreas } from '@/utils/ticket.utils';
+import { calcularCarga, construirFuncionarios, listarAreas, MENSAJES_ERROR_RECLAMO } from '@/utils/ticket.utils';
 import { mensajeErrorApi } from '@/services/api-client.service';
 
 export function useSupervisorTickets(onNotify: NotifyFn) {
@@ -64,7 +64,7 @@ export function useSupervisorTickets(onNotify: NotifyFn) {
       reemplazar(actualizado);
       onNotify('success', `Resolución del expediente ${actualizado.folio} aprobada con éxito`);
     } catch (err) {
-      onNotify('error', mensajeErrorApi(err, 'No se pudo aprobar la resolución. Inténtalo de nuevo.'));
+      onNotify('error', mensajeErrorApi(err, 'No se pudo aprobar la resolución. Inténtalo de nuevo.', MENSAJES_ERROR_RECLAMO));
       throw err; // El formulario queda abierto con lo escrito.
     }
   };
@@ -78,7 +78,7 @@ export function useSupervisorTickets(onNotify: NotifyFn) {
         `Expediente ${actualizado.folio} devuelto a ${actualizado.funcionarioAsignadoNombre || 'su funcionario'} para corregir`
       );
     } catch (err) {
-      onNotify('error', mensajeErrorApi(err, 'No se pudo devolver el expediente. Inténtalo de nuevo.'));
+      onNotify('error', mensajeErrorApi(err, 'No se pudo devolver el expediente. Inténtalo de nuevo.', MENSAJES_ERROR_RECLAMO));
       throw err;
     }
   };
@@ -93,7 +93,7 @@ export function useSupervisorTickets(onNotify: NotifyFn) {
       reemplazar(actualizado);
       onNotify('success', `Expediente reasignado a ${nuevoNombre}`);
     } catch (err) {
-      onNotify('error', mensajeErrorApi(err, 'No se pudo reasignar el expediente. Inténtalo de nuevo.'));
+      onNotify('error', mensajeErrorApi(err, 'No se pudo reasignar el expediente. Inténtalo de nuevo.', MENSAJES_ERROR_RECLAMO));
       throw err;
     }
   };

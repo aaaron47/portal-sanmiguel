@@ -169,6 +169,7 @@ sin color parece una **decisión de diseño de Braulio**. Sin embargo, existen l
 | POST | `/tickets/{id}/devolver` | `{ motivoDevolucion }` | Supervisor (**nuevo**) |
 | POST | `/tickets/{id}/reasignar` | `{ nuevoFuncionarioId, nuevoFuncionarioNombre, motivoReasignacion }` | Supervisor |
 | GET | `/usuarios` | — | Lista de funcionarios para reasignar |
+| GET | `/reportes/kpis`, `/reportes/areas` | `?periodo=2026-10` o `2026-T3` | Control Municipal (**nuevo parámetro**, ver `docs/Cambios_rama_supervisor_funcionario.md`) |
 
 Ojo: la tabla `reclamos` de la BD Oracle no tiene hoy área, funcionario asignado, aprobación ni
 constancias, y sus estados son otros (ver `docs/Conexion_Portal_Oracle.md`). El grupo de backend
@@ -252,3 +253,9 @@ por DNI, recargar, cerrar sesión, sesión vencida, acceso rápido).
   - El README ahora coincide con el código.
   - Comprobado simulando el backend: 409 al aprobar y 403 al atender, más el caso sin conexión, 11 de 11.
     Se repitieron el recorrido (42/42), el login (12/12), el menú (6/6) y el login con backend (6/6).
+
+### Después de la auditoría: resto de la app (31/10/2026)
+
+Se corrigieron los errores de lint de toda la app (también en las pantallas de Braulio), el selector de período de
+Control Municipal y el uso de datos simulados ante errores del backend en todos los controladores. El lint quedó en
+0 y se agregó al pipeline. **El detalle de todos los cambios de la rama está en `docs/Cambios_rama_supervisor_funcionario.md`.**

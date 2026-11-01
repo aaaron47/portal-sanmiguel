@@ -3,6 +3,7 @@ import { auditoriaController } from '@/controllers/auditoria.controller';
 import { AuditoriaLog } from '@/types/auditoria.types';
 import { NotifyFn } from '@/types/ui.types';
 import { exportarCSV } from '@/utils/csv.utils';
+import { mensajeErrorApi } from '@/services/api-client.service';
 
 export function useAuditoria(onNotify: NotifyFn) {
   const [logs, setLogs] = useState<AuditoriaLog[]>([]);
@@ -15,7 +16,7 @@ export function useAuditoria(onNotify: NotifyFn) {
     auditoriaController
       .getLogs()
       .then(setLogs)
-      .catch(() => onNotify('error', 'Error al cargar registros de auditoría'));
+      .catch((err) => onNotify('error', mensajeErrorApi(err, 'No se pudieron cargar los registros de auditoría. Recarga la página.')));
   }, [onNotify]);
 
   const responsablesDisponibles = useMemo(() => {

@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { UserRole } from '@/types/auth.types';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { AdminView } from '@/components/roles/admin/AdminView';
@@ -11,32 +12,34 @@ import { ControlMunicipalView } from '@/components/roles/control-municipal/Contr
 import { ControlTiView } from '@/components/roles/control-ti/ControlTiView';
 import { NotificationToast } from '@/components/layout/NotificationToast';
 
+/** Opción del menú con la que entra cada rol. */
+const TAB_INICIAL: Record<UserRole, string> = {
+  ADMIN: 'admin-usuarios',
+  FUNCIONARIO: 'funcionario-bandeja',
+  SUPERVISOR: 'supervisor-panorama',
+  CONTROL_MUNICIPAL: 'control-reportes',
+  CONTROL_TI: 'ti-telemetria',
+};
+
 export default function HomePage() {
   const { isAuthenticated, rol, isLoading } = useAuth();
-  const [currentTab, setCurrentTab] = useState<string>('inicio');
+  // Se guarda la opción elegida junto con el rol: si cambia el rol (otro usuario o "Simular Rol"),
+  // se vuelve a la opción inicial de ese rol sin necesidad de un efecto.
+  const [tabElegida, setTabElegida] = useState<{ rol: UserRole; tab: string } | null>(null);
+  const currentTab = rol && tabElegida?.rol === rol ? tabElegida.tab : rol ? TAB_INICIAL[rol] : 'inicio';
+  const setCurrentTab = useCallback((tab: string) => {
+    if (rol) setTabElegida({ rol, tab });
+  }, [rol]);
+
   const [notification, setNotification] = useState<{
     type: 'success' | 'error' | 'info';
     message: string;
   } | null>(null);
 
-  // Al cambiar de rol, ajustamos automáticamente el tab inicial por defecto
-  useEffect(() => {
-    if (rol === 'ADMIN') {
-      setCurrentTab('admin-usuarios');
-    } else if (rol === 'FUNCIONARIO') {
-      setCurrentTab('funcionario-bandeja');
-    } else if (rol === 'SUPERVISOR') {
-      setCurrentTab('supervisor-panorama');
-    } else if (rol === 'CONTROL_MUNICIPAL') {
-      setCurrentTab('control-reportes');
-    } else if (rol === 'CONTROL_TI') {
-      setCurrentTab('ti-telemetria');
-    }
-  }, [rol]);
-
-  const showNotification = (type: 'success' | 'error' | 'info', message: string) => {
+  // Estable entre renders: las vistas que la usan como dependencia no vuelven a cargar sus datos.
+  const showNotification = useCallback((type: 'success' | 'error' | 'info', message: string) => {
     setNotification({ type, message });
-  };
+  }, []);
 
   if (isLoading) {
     return (

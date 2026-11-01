@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useTransition } from 'react';
+import React, { createContext, useContext, useState, useSyncExternalStore, useTransition } from 'react';
 import { AuthSession, LoginCredentials, UserRole, Usuario } from '@/types/auth.types';
 import { authController, USUARIOS_DEMO } from '@/controllers/auth.controller';
 import { storageService } from '@/services/storage.service';
@@ -17,21 +17,30 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [, startTransition] = useTransition();
+/**
+ * Usuario de la sesión guardada, si sigue vigente; si venció, la borra.
+ * En el servidor no hay localStorage y devuelve null.
+ */
+function usuarioDeSesionGuardada(): Usuario | null {
+  const session = storageService.getSession();
+  if (session?.usuario && (!session.expiraEn || session.expiraEn > Date.now())) {
+    return session.usuario;
+  }
+  if (session) storageService.clearSession();
+  return null;
+}
 
-  useEffect(() => {
-    // Solo se entra directo si hay una sesión guardada y vigente; si no, se muestra el login.
-    const session = storageService.getSession();
-    if (session?.usuario && (!session.expiraEn || session.expiraEn > Date.now())) {
-      setUsuario(session.usuario);
-    } else if (session) {
-      storageService.clearSession();
-    }
-    setIsLoading(false);
-  }, []);
+const sinSuscripcion = () => () => {};
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  // Se lee al crear el estado (sin efecto). Solo se entra directo si hay una sesión vigente.
+  const [usuario, setUsuario] = useState<Usuario | null>(usuarioDeSesionGuardada);
+  // false en el servidor y en la hidratación, true después: mientras tanto se muestra "Cargando",
+  // así el HTML del servidor (sin sesión) y el primer render del navegador coinciden.
+  const hidratado = useSyncExternalStore(sinSuscripcion, () => true, () => false);
+  const [cerrandoSesion, setCerrandoSesion] = useState(false);
+  const isLoading = !hidratado || cerrandoSesion;
+  const [, startTransition] = useTransition();
 
   // No usa isLoading: el formulario de login muestra su propio "Iniciando sesión..." y,
   // si la página cambiara al indicador de carga, el formulario se desmontaría y perdería el error.
@@ -41,12 +50,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    setIsLoading(true);
+    setCerrandoSesion(true);
     try {
       await authController.logout();
       setUsuario(null);
     } finally {
-      setIsLoading(false);
+      setCerrandoSesion(false);
     }
   };
 

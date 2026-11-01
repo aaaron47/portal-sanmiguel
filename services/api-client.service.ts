@@ -87,14 +87,22 @@ export function esSinConexion(err: unknown): boolean {
   return err instanceof ApiError && err.status === 0;
 }
 
-/** Mensaje para el usuario según la respuesta del backend; `porDefecto` para el resto de casos. */
-export function mensajeErrorApi(err: unknown, porDefecto: string): string {
+const MENSAJES_POR_ESTADO: Record<number, string> = {
+  401: 'Tu sesión venció. Cierra sesión y vuelve a entrar.',
+  403: 'No tienes permiso para hacer esta acción.',
+  404: 'No encontramos este registro. Recarga la página para ver la lista actualizada.',
+  409: 'Otra persona cambió estos datos mientras los tenías abiertos. Recarga la página para ver los cambios.',
+};
+
+/**
+ * Mensaje para el usuario según la respuesta del backend; `porDefecto` para el resto de casos.
+ * `propios` reemplaza el texto de algún estado (p. ej. un 409 al crear un usuario es "ya existe").
+ */
+export function mensajeErrorApi(
+  err: unknown,
+  porDefecto: string,
+  propios: Partial<Record<number, string>> = {}
+): string {
   if (!(err instanceof ApiError)) return porDefecto;
-  if (err.status === 401) return 'Tu sesión venció. Cierra sesión y vuelve a entrar.';
-  if (err.status === 403) return 'No tienes permiso para hacer esta acción.';
-  if (err.status === 404) return 'No encontramos este reclamo. Recarga la página para ver la lista actualizada.';
-  if (err.status === 409) {
-    return 'Otra persona cambió este reclamo mientras lo tenías abierto. Cierra el detalle y vuelve a abrirlo para ver los cambios.';
-  }
-  return porDefecto;
+  return propios[err.status] ?? MENSAJES_POR_ESTADO[err.status] ?? porDefecto;
 }

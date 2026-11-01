@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { reportesController, KpisReporte, ReportePorArea } from '@/controllers/reportes.controller';
+import { mensajeErrorApi } from '@/services/api-client.service';
 import { NotifyFn } from '@/types/ui.types';
 
 export function useControlMunicipal(onNotify: NotifyFn) {
@@ -7,22 +8,27 @@ export function useControlMunicipal(onNotify: NotifyFn) {
   const [areas, setAreas] = useState<ReportePorArea[]>([]);
   const [periodo, setPeriodo] = useState('2026-10');
 
+  // Se vuelve a pedir cada vez que cambia el período, y se le pasa al backend.
   useEffect(() => {
-    cargarReportes();
+    let cancelado = false;
+    Promise.all([reportesController.getKpis(periodo), reportesController.getReportesPorArea(periodo)])
+      .then(([dataKpis, dataAreas]) => {
+        // Si se cambió de período antes de que llegara la respuesta, se descarta.
+        if (cancelado) return;
+        setKpis(dataKpis);
+        setAreas(dataAreas);
+      })
+      .catch((err) => {
+        if (!cancelado) {
+          onNotify('error', mensajeErrorApi(err, 'No se pudieron cargar los reportes del período. Recarga la página.'));
+        }
+      });
+    return () => {
+      cancelado = true;
+    };
+    // onNotify cambia de identidad entre renders del padre; solo importa el período.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [periodo]);
-
-  const cargarReportes = async () => {
-    try {
-      const [dataKpis, dataAreas] = await Promise.all([
-        reportesController.getKpis(),
-        reportesController.getReportesPorArea(),
-      ]);
-      setKpis(dataKpis);
-      setAreas(dataAreas);
-    } catch {
-      onNotify('error', 'Error al obtener reportes de control municipal');
-    }
-  };
 
   const descargarReporte = () => {
     onNotify('success', 'Generando Reporte Oficial de Cumplimiento Municipal en PDF...');
