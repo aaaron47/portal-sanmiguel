@@ -9,30 +9,23 @@ convenciones y lo que falta. Mantenerla al día cuando cambie algo importante.
 > tablas reales) queda como referencia en `docs/Conexion_Portal_Oracle.md`, `docs/Conexion_BD.md`
 > y `docs/datos_faltantes.md`, y en la historia de git.
 
-## ▶ Para retomar (31/10/2026, se cortó a mitad de la auditoría)
+## ▶ Para retomar (01/11/2026, auditoría cerrada)
 
-Rama `feature/supervisor-funcionario`, **sin subir a GitHub**. La auditoría independiente encontró 12 problemas. Están
-**corregidos y guardados en un commit**, pero **falta la prueba en el navegador de estos arreglos** (detalle en
-`docs/Cambios_rama_supervisor_funcionario.md`, sección 10).
+Rama `feature/supervisor-funcionario`, **sin subir a GitHub**. La auditoría independiente encontró 12 problemas.
+**Están corregidos y probados** (detalle en `docs/Cambios_rama_supervisor_funcionario.md`, sección 10).
 
-Hecho: `tsc` y `lint` en 0, y las 100 comprobaciones anteriores en el navegador siguen pasando (42 + 12 + 6 + 6 + 11 + 23).
+Hecho: `tsc`, `lint` y `npm run build` sin errores. En el navegador pasan las 100 comprobaciones anteriores y otras
+34 de los arreglos: 24 en desarrollo, 6 en producción sin modo demo y 4 con `NEXT_PUBLIC_MODO_DEMO=true`.
 
 Siguientes pasos, en orden:
-1. `npm run build` para confirmar que compila con los últimos cambios (no se corrió después de los arreglos de la auditoría).
-2. Probar en el navegador (los scripts están fuera del repositorio, en la carpeta temporal de Claude; si no
-   están, rehacerlos con Playwright + Edge):
-   - Supervisor con `GET /usuarios` respondiendo 403: los reclamos se ven y aparece el aviso informativo.
-   - `POST /tickets/{id}/aprobar` que responde 200 con cuerpo vacío, y un 500 con HTML: aviso de error y el reclamo no cambia.
-   - Derivar como Funcionario: el reclamo sale de la bandeja.
-   - Admin desactiva a Lic. Mariana Rios y luego, con "Simular Rol", entrar como Supervisor: Mariana sale como
-     "(inactivo...)" en la carga y no aparece para reasignar.
-   - Control Municipal: al cambiar de período se borran los números mientras carga.
-   - La hora de una acción nueva en la línea de tiempo es la local.
-   - **Modo producción:** `npm run build` + `npx next start -p 3001` sin variables. No aparecen los accesos rápidos
-     ni "Simular Rol", y entrar con un DNI dice "No se pudo conectar con el servidor". Con `NEXT_PUBLIC_MODO_DEMO=true`
-     vuelve a funcionar la demo (la variable se aplica al compilar).
-3. Si todo pasa: subir la rama y abrir el PR a `main` (el pipeline correrá por primera vez en GitHub).
-4. Avisar a Braulio: sección 5 y sección 10 (#5 y #11) del documento de cambios.
+1. Subir la rama y abrir el PR a `main` (el pipeline correrá por primera vez en GitHub).
+2. Avisar a Braulio: sección 5 y sección 10 (#5 y #11) del documento de cambios.
+
+Notas para las pruebas en el navegador:
+- El botón "N" de Next.js en desarrollo queda encima del perfil del menú lateral y no deja hacer clic con
+  Playwright; en el script se oculta `nextjs-portal`.
+- En Windows, al detener una tarea en segundo plano, `next dev` y `next start` pueden seguir ocupando el puerto
+  y hay que cerrarlos a mano.
 
 ## 1. Contexto del negocio
 
@@ -160,6 +153,7 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
 | 31/10/2026 | Braulio pasa el proyecto a Next.js (`9ddb046`): pantallas por rol, modo oscuro, datos simulados. |
 | 31/10/2026 | Rama `feature/supervisor-funcionario`: reglas por estado, pestaña de reasignación de carga, reasignación con el funcionario elegido, devolver al funcionario, filtros del supervisor, atender sin enviar a aprobación, arreglo del login (sin entrada automática; sin modo demo si el backend responde) y menú lateral sincronizado con las pestañas del supervisor. Auditoría: `tsc` y `build` OK; 42 + 12 + 6 + 6 comprobaciones en navegador. |
 | 31/10/2026 | Misma rama: datos simulados solo sin conexión en todos los controladores (`esSinConexion`, `mensajeErrorApi`); el formulario queda abierto si la acción falla; período de Control Municipal enviado al backend; lint en 0 (arranque sin `setState` en efectos: `AuthContext`, `ThemeContext`, `page.tsx`); pipeline a Node 22 con lint; README al día. **Todos los cambios de la rama: `docs/Cambios_rama_supervisor_funcionario.md`.** |
+| 01/11/2026 | Misma rama: los 12 arreglos de la auditoría independiente, probados en el navegador (34 comprobaciones: desarrollo, y producción con y sin modo demo). `npm run build` sin errores. |
 
 ## 9. Pendientes
 

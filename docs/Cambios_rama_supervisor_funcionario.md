@@ -146,8 +146,18 @@ dos pedidos iguales a la API. En producción es uno.
 
 Se hizo una revisión de código independiente de toda la rama frente a `main` (10 hallazgos). Cada uno se comprobó
 leyendo el código y los 10 resultaron ciertos. Al revisarlos aparecieron 2 problemas más (11 y 12).
-**Estado: los 12 están corregidos en el código. Tipos y lint quedan en 0. Las 100 comprobaciones anteriores en el
-navegador siguen pasando. Falta la prueba específica de estos arreglos** (ver "Para retomar" en CLAUDE.md).
+**Estado: los 12 están corregidos y probados.** Tipos, lint y `npm run build` sin errores. En el navegador siguen
+pasando las 100 comprobaciones anteriores. Además pasan 34 comprobaciones de estos arreglos (01/11/2026):
+- **24 en desarrollo:**
+  - #1: 403 en `/usuarios` para el Supervisor.
+  - #2 y #12: 200 vacío y 500 con HTML al aprobar.
+  - #7: derivar como Funcionario.
+  - #4 y #11: Admin desactiva a Mariana y, con "Simular Rol", ella sale como inactiva en la carga y no aparece para reasignar.
+  - #6: período de Control Municipal.
+  - #10: hora local.
+- **6 en producción sin `NEXT_PUBLIC_MODO_DEMO` (#5 y #11):** no aparecen los accesos rápidos ni "Simular Rol", el
+  login dice "No se pudo conectar con el servidor" y la bandeja no muestra datos simulados.
+- **4 en producción con `NEXT_PUBLIC_MODO_DEMO=true`:** la demo funciona.
 
 | # | Problema | Arreglo | Archivos |
 |---|---|---|---|
