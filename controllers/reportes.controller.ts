@@ -1,4 +1,4 @@
-import { apiClient, esSinConexion } from '@/services/api-client.service';
+import { apiClient, usarDatosDemo } from '@/services/api-client.service';
 
 export interface KpisReporte {
   totalReclamosPeriodo: number;
@@ -42,8 +42,8 @@ export class ReportesController {
     try {
       return await apiClient<KpisReporte>('/reportes/kpis', { params: { periodo } });
     } catch (err) {
-      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
-      if (!esSinConexion(err)) throw err;
+      // Datos simulados solo sin conexión y en modo demo; si no, el error llega a la vista.
+      if (!usarDatosDemo(err)) throw err;
       return MOCK_KPIS;
     }
   }
@@ -52,8 +52,8 @@ export class ReportesController {
     try {
       return await apiClient<ReportePorArea[]>('/reportes/areas', { params: { periodo } });
     } catch (err) {
-      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
-      if (!esSinConexion(err)) throw err;
+      // Datos simulados solo sin conexión y en modo demo; si no, el error llega a la vista.
+      if (!usarDatosDemo(err)) throw err;
       return MOCK_AREAS;
     }
   }

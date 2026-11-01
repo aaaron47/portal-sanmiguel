@@ -2,9 +2,10 @@ import React from 'react';
 import { Layers, CheckCircle2, AlertTriangle, UserCheck } from 'lucide-react';
 import { Ticket } from '@/types/ticket.types';
 import { KpiCard } from '@/components/shared/ui/KpiCard';
+import { puedeAprobar } from '@/utils/ticket.utils';
 
 export const SupervisorKpis: React.FC<{ tickets: Ticket[] }> = ({ tickets }) => {
-  const porAprobar = tickets.filter((t) => t.estado === 'por aprobar').length;
+  const porAprobar = tickets.filter(puedeAprobar).length;
   const urgentes = tickets.filter((t) => t.prioridad === 'URGENTE').length;
   const resueltos = tickets.filter((t) => t.estado === 'resuelto').length;
 

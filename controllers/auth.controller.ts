@@ -1,4 +1,4 @@
-import { apiClient, ApiError, esSinConexion } from '@/services/api-client.service';
+import { apiClient, ApiError, esSinConexion, MODO_DEMO } from '@/services/api-client.service';
 import { storageService } from '@/services/storage.service';
 import { AuthSession, LoginCredentials, UserRole, Usuario } from '@/types/auth.types';
 
@@ -83,6 +83,10 @@ export class AuthController {
             ? 'El DNI, el correo o la contraseña no son correctos. Revisa los datos e inténtalo de nuevo.'
             : 'No se pudo iniciar sesión. Inténtalo de nuevo en unos minutos.'
         );
+      }
+      // Sin conexión y fuera del modo demo (producción): nunca se entra sin el backend.
+      if (!MODO_DEMO) {
+        throw new Error('No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.');
       }
       // Modo demo (sin conexión al backend): los accesos rápidos eligen el rol; con el formulario se busca
       // el usuario demo por DNI o correo. La contraseña no se valida hasta que exista el backend.

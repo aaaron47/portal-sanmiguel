@@ -46,7 +46,14 @@ export const CargaFuncionariosTable: React.FC<CargaFuncionariosTableProps> = ({
                   style={seleccionado ? { background: 'var(--sidebar-nav-active-bg)' } : undefined}
                   aria-selected={seleccionado}
                 >
-                  <td style={{ fontWeight: 600, color: 'var(--text-main)' }}>{c.nombre}</td>
+                  <td style={{ fontWeight: 600, color: 'var(--text-main)' }}>
+                    {c.nombre}
+                    {!c.activo && (
+                      <span style={{ marginLeft: '0.4rem', fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>
+                        (inactivo: reasigna sus reclamos)
+                      </span>
+                    )}
+                  </td>
                   <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{c.area || '—'}</td>
                   <td style={celdaNumero}>{c.activos}</td>
                   <td style={{ ...celdaNumero, color: c.criticos > 0 ? 'var(--red-600)' : 'var(--text-muted)' }}>

@@ -11,6 +11,7 @@ import { SupervisorKpis } from './supervision/parts/SupervisorKpis';
 import { SupervisorFiltros } from './supervision/parts/SupervisorFiltros';
 import { SupervisorTable } from './supervision/parts/SupervisorTable';
 import { ReasignacionPanel } from './reasignacion/ReasignacionPanel';
+import { puedeAprobar } from '@/utils/ticket.utils';
 
 type SupervisorTab = 'panorama' | 'aprobaciones' | 'reasignaciones';
 
@@ -46,14 +47,14 @@ export const SupervisorView: React.FC<RoleViewProps> = ({
     { id: 'panorama', label: `Panorama Integral (${s.tickets.length})`, icon: Layers },
     {
       id: 'aprobaciones',
-      label: `Por Aprobar (${s.tickets.filter((t) => t.estado === 'por aprobar').length})`,
+      label: `Por Aprobar (${s.tickets.filter(puedeAprobar).length})`,
       icon: CheckCircle2,
     },
     { id: 'reasignaciones', label: 'Reasignación de Carga', icon: RotateCcw },
   ];
 
   const ticketsFiltrados = s.tickets.filter((t) => {
-    if (subTab === 'aprobaciones' && t.estado !== 'por aprobar') return false;
+    if (subTab === 'aprobaciones' && !puedeAprobar(t)) return false;
     if (subTab === 'panorama' && s.filtroEstado !== 'todos' && t.estado !== s.filtroEstado) return false;
     if (s.filtroPrioridad !== 'todos' && t.prioridad !== s.filtroPrioridad) return false;
     if (s.filtroArea !== 'todas' && t.areaAsignada !== s.filtroArea) return false;

@@ -59,6 +59,9 @@ const AREAS_DERIVACION = [
   'Seguridad Ciudadana',
 ];
 
+/** Primera área distinta de la actual del reclamo (no se deriva al área donde ya está). */
+const areaDestinoInicial = (t: Ticket) => AREAS_DERIVACION.find((a) => a !== t.areaAsignada) ?? AREAS_DERIVACION[0];
+
 const estiloCampo: React.CSSProperties = {
   width: '100%',
   padding: '0.5rem',
@@ -105,20 +108,26 @@ export const AccionesForm: React.FC<AccionesFormProps> = ({
     initialAction !== 'ninguna' && permitida(initialAction) ? initialAction : 'ninguna'
   );
   const [textoComentario, setTextoComentario] = useState('');
-  const [areaDestino, setAreaDestino] = useState(
-    AREAS_DERIVACION.find((a) => a !== ticket.areaAsignada) ?? AREAS_DERIVACION[0]
-  );
+  const [areaDestino, setAreaDestino] = useState(() => areaDestinoInicial(ticket));
   const [nuevoFuncionarioId, setNuevoFuncionarioId] = useState('');
   const [estadoAtencion, setEstadoAtencion] = useState<EstadoAtencion>('en evaluación');
   const [estadoConstanciaDecision, setEstadoConstanciaDecision] = useState<'aprobada' | 'observada'>('aprobada');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const funcionariosDisponibles = funcionarios.filter((f) => f.id !== ticket.funcionarioAsignadoId);
+  // Solo funcionarios activos y distintos del que ya lo tiene.
+  const funcionariosDisponibles = funcionarios.filter((f) => f.activo && f.id !== ticket.funcionarioAsignadoId);
 
   const cerrarAccion = () => {
     setActiveAction('ninguna');
     setTextoComentario('');
     setNuevoFuncionarioId('');
+  };
+
+  // Al abrir una acción, sus campos parten del reclamo tal como está ahora (pudo cambiar tras otra acción).
+  const abrirAccion = (accion: AccionTicket) => {
+    setAreaDestino(areaDestinoInicial(ticket));
+    setEstadoAtencion('en evaluación');
+    setActiveAction(accion);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -335,7 +344,7 @@ export const AccionesForm: React.FC<AccionesFormProps> = ({
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
       {disponibles.map((a) => (
-        <button key={a.id} onClick={() => setActiveAction(a.id)} className={a.className} style={{ fontSize: '0.825rem' }}>
+        <button key={a.id} onClick={() => abrirAccion(a.id)} className={a.className} style={{ fontSize: '0.825rem' }}>
           {a.icon} {a.label}
         </button>
       ))}

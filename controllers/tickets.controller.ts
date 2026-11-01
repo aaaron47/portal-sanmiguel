@@ -1,4 +1,4 @@
-import { apiClient, esSinConexion } from '@/services/api-client.service';
+import { apiClient, usarDatosDemo } from '@/services/api-client.service';
 import { 
   Ticket, 
   TicketFiltros, 
@@ -183,6 +183,42 @@ const MOCK_TICKETS: Ticket[] = [
   }
 ];
 
+/** Fecha y hora locales en el formato de los datos ("AAAA-MM-DD HH:mm"); toISOString() daba la hora UTC. */
+function fechaLocal(): string {
+  const d = new Date();
+  const dos = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())} ${dos(d.getHours())}:${dos(d.getMinutes())}`;
+}
+
+/**
+ * Modo demo: aplica una acción sobre los reclamos simulados (agrega la entrada en la línea de tiempo,
+ * aplica los cambios y actualiza la fecha). Un solo lugar para las 6 acciones.
+ */
+function aplicarEnDemo(
+  id: string,
+  seguimiento: Pick<TicketSeguimiento, 'autorNombre' | 'autorRol' | 'tipoAccion' | 'comentario'>,
+  cambios: Partial<Ticket>
+): Ticket {
+  const ticketIndex = MOCK_TICKETS.findIndex((t) => t.id === id);
+  if (ticketIndex === -1) throw new Error('Reclamo no encontrado');
+
+  const nuevoSeguimiento: TicketSeguimiento = {
+    id: `SEG-${Date.now()}`,
+    reclamoId: id,
+    autorId: 'CURRENT_USER',
+    fecha: fechaLocal(),
+    ...seguimiento,
+  };
+
+  MOCK_TICKETS[ticketIndex] = {
+    ...MOCK_TICKETS[ticketIndex],
+    ...cambios,
+    fechaActualizacion: nuevoSeguimiento.fecha,
+    seguimientos: [...MOCK_TICKETS[ticketIndex].seguimientos, nuevoSeguimiento],
+  };
+  return MOCK_TICKETS[ticketIndex];
+}
+
 export class TicketsController {
   async getTickets(filtros?: TicketFiltros): Promise<Ticket[]> {
     try {
@@ -191,8 +227,8 @@ export class TicketsController {
       });
       return tickets;
     } catch (err) {
-      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
-      if (!esSinConexion(err)) throw err;
+      // Datos simulados solo sin conexión y en modo demo; si no, el error llega a la vista.
+      if (!usarDatosDemo(err)) throw err;
       // Filtrado local sobre mock
       let resultado = [...MOCK_TICKETS];
       if (filtros?.estado && filtros.estado !== 'todos') {
@@ -221,8 +257,8 @@ export class TicketsController {
     try {
       return await apiClient<Ticket>(`/tickets/${id}`);
     } catch (err) {
-      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
-      if (!esSinConexion(err)) throw err;
+      // Datos simulados solo sin conexión y en modo demo; si no, el error llega a la vista.
+      if (!usarDatosDemo(err)) throw err;
       const ticket = MOCK_TICKETS.find(t => t.id === id);
       if (!ticket) throw new Error(`Reclamo ${id} no encontrado`);
       return ticket;
@@ -236,30 +272,13 @@ export class TicketsController {
         body: JSON.stringify(payload),
       });
     } catch (err) {
-      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
-      if (!esSinConexion(err)) throw err;
-      const ticketIndex = MOCK_TICKETS.findIndex(t => t.id === id);
-      if (ticketIndex === -1) throw new Error('Reclamo no encontrado');
-
-      const nuevoSeguimiento: TicketSeguimiento = {
-        id: `SEG-${Date.now()}`,
-        reclamoId: id,
-        autorId: 'CURRENT_USER',
-        autorNombre: usuarioNombre,
-        autorRol: 'Funcionario',
-        fecha: new Date().toISOString().replace('T', ' ').substring(0, 16),
-        tipoAccion: 'ATENCION',
-        comentario: payload.comentarioRespuesta,
-      };
-
-      MOCK_TICKETS[ticketIndex] = {
-        ...MOCK_TICKETS[ticketIndex],
-        estado: payload.nuevoEstado,
-        fechaActualizacion: nuevoSeguimiento.fecha,
-        seguimientos: [...MOCK_TICKETS[ticketIndex].seguimientos, nuevoSeguimiento],
-      };
-
-      return MOCK_TICKETS[ticketIndex];
+      // Datos simulados solo sin conexión y en modo demo; si no, el error llega a la vista.
+      if (!usarDatosDemo(err)) throw err;
+      return aplicarEnDemo(
+        id,
+        { autorNombre: usuarioNombre, autorRol: 'Funcionario', tipoAccion: 'ATENCION', comentario: payload.comentarioRespuesta },
+        { estado: payload.nuevoEstado }
+      );
     }
   }
 
@@ -270,32 +289,18 @@ export class TicketsController {
         body: JSON.stringify(payload),
       });
     } catch (err) {
-      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
-      if (!esSinConexion(err)) throw err;
-      const ticketIndex = MOCK_TICKETS.findIndex(t => t.id === id);
-      if (ticketIndex === -1) throw new Error('Reclamo no encontrado');
-
-      const nuevoSeguimiento: TicketSeguimiento = {
-        id: `SEG-${Date.now()}`,
-        reclamoId: id,
-        autorId: 'CURRENT_USER',
-        autorNombre: usuarioNombre,
-        autorRol: 'Funcionario',
-        fecha: new Date().toISOString().replace('T', ' ').substring(0, 16),
-        tipoAccion: 'DERIVACION',
-        // Se guarda en el campo comentario según directiva de "Cero Sobreingeniería"
-        comentario: `DERIVACIÓN A [${payload.areaDestino}]: ${payload.motivoDerivacion}`,
-      };
-
-      MOCK_TICKETS[ticketIndex] = {
-        ...MOCK_TICKETS[ticketIndex],
-        estado: 'derivado',
-        areaAsignada: payload.areaDestino,
-        fechaActualizacion: nuevoSeguimiento.fecha,
-        seguimientos: [...MOCK_TICKETS[ticketIndex].seguimientos, nuevoSeguimiento],
-      };
-
-      return MOCK_TICKETS[ticketIndex];
+      if (!usarDatosDemo(err)) throw err;
+      return aplicarEnDemo(
+        id,
+        {
+          autorNombre: usuarioNombre,
+          autorRol: 'Funcionario',
+          tipoAccion: 'DERIVACION',
+          // Se guarda en el campo comentario según directiva de "Cero Sobreingeniería"
+          comentario: `DERIVACIÓN A [${payload.areaDestino}]: ${payload.motivoDerivacion}`,
+        },
+        { estado: 'derivado', areaAsignada: payload.areaDestino }
+      );
     }
   }
 
@@ -306,30 +311,17 @@ export class TicketsController {
         body: JSON.stringify({ comentarioAprobacion }),
       });
     } catch (err) {
-      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
-      if (!esSinConexion(err)) throw err;
-      const ticketIndex = MOCK_TICKETS.findIndex(t => t.id === id);
-      if (ticketIndex === -1) throw new Error('Reclamo no encontrado');
-
-      const nuevoSeguimiento: TicketSeguimiento = {
-        id: `SEG-${Date.now()}`,
-        reclamoId: id,
-        autorId: 'CURRENT_USER',
-        autorNombre: supervisorNombre,
-        autorRol: 'Supervisor',
-        fecha: new Date().toISOString().replace('T', ' ').substring(0, 16),
-        tipoAccion: 'APROBACION',
-        comentario: `APROBACIÓN DE RESOLUCIÓN: ${comentarioAprobacion}`,
-      };
-
-      MOCK_TICKETS[ticketIndex] = {
-        ...MOCK_TICKETS[ticketIndex],
-        estado: 'resuelto',
-        fechaActualizacion: nuevoSeguimiento.fecha,
-        seguimientos: [...MOCK_TICKETS[ticketIndex].seguimientos, nuevoSeguimiento],
-      };
-
-      return MOCK_TICKETS[ticketIndex];
+      if (!usarDatosDemo(err)) throw err;
+      return aplicarEnDemo(
+        id,
+        {
+          autorNombre: supervisorNombre,
+          autorRol: 'Supervisor',
+          tipoAccion: 'APROBACION',
+          comentario: `APROBACIÓN DE RESOLUCIÓN: ${comentarioAprobacion}`,
+        },
+        { estado: 'resuelto' }
+      );
     }
   }
 
@@ -340,30 +332,17 @@ export class TicketsController {
         body: JSON.stringify(payload),
       });
     } catch (err) {
-      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
-      if (!esSinConexion(err)) throw err;
-      const ticketIndex = MOCK_TICKETS.findIndex(t => t.id === id);
-      if (ticketIndex === -1) throw new Error('Reclamo no encontrado');
-
-      const nuevoSeguimiento: TicketSeguimiento = {
-        id: `SEG-${Date.now()}`,
-        reclamoId: id,
-        autorId: 'CURRENT_USER',
-        autorNombre: supervisorNombre,
-        autorRol: 'Supervisor',
-        fecha: new Date().toISOString().replace('T', ' ').substring(0, 16),
-        tipoAccion: 'DEVOLUCION',
-        comentario: `DEVOLUCIÓN PARA CORREGIR: ${payload.motivoDevolucion}`,
-      };
-
-      MOCK_TICKETS[ticketIndex] = {
-        ...MOCK_TICKETS[ticketIndex],
-        estado: 'en evaluación',
-        fechaActualizacion: nuevoSeguimiento.fecha,
-        seguimientos: [...MOCK_TICKETS[ticketIndex].seguimientos, nuevoSeguimiento],
-      };
-
-      return MOCK_TICKETS[ticketIndex];
+      if (!usarDatosDemo(err)) throw err;
+      return aplicarEnDemo(
+        id,
+        {
+          autorNombre: supervisorNombre,
+          autorRol: 'Supervisor',
+          tipoAccion: 'DEVOLUCION',
+          comentario: `DEVOLUCIÓN PARA CORREGIR: ${payload.motivoDevolucion}`,
+        },
+        { estado: 'en evaluación' }
+      );
     }
   }
 
@@ -374,31 +353,17 @@ export class TicketsController {
         body: JSON.stringify(payload),
       });
     } catch (err) {
-      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
-      if (!esSinConexion(err)) throw err;
-      const ticketIndex = MOCK_TICKETS.findIndex(t => t.id === id);
-      if (ticketIndex === -1) throw new Error('Reclamo no encontrado');
-
-      const nuevoSeguimiento: TicketSeguimiento = {
-        id: `SEG-${Date.now()}`,
-        reclamoId: id,
-        autorId: 'CURRENT_USER',
-        autorNombre: supervisorNombre,
-        autorRol: 'Supervisor',
-        fecha: new Date().toISOString().replace('T', ' ').substring(0, 16),
-        tipoAccion: 'REASIGNACION',
-        comentario: `REASIGNADO A ${payload.nuevoFuncionarioNombre}: ${payload.motivoReasignacion}`,
-      };
-
-      MOCK_TICKETS[ticketIndex] = {
-        ...MOCK_TICKETS[ticketIndex],
-        funcionarioAsignadoId: payload.nuevoFuncionarioId,
-        funcionarioAsignadoNombre: payload.nuevoFuncionarioNombre,
-        fechaActualizacion: nuevoSeguimiento.fecha,
-        seguimientos: [...MOCK_TICKETS[ticketIndex].seguimientos, nuevoSeguimiento],
-      };
-
-      return MOCK_TICKETS[ticketIndex];
+      if (!usarDatosDemo(err)) throw err;
+      return aplicarEnDemo(
+        id,
+        {
+          autorNombre: supervisorNombre,
+          autorRol: 'Supervisor',
+          tipoAccion: 'REASIGNACION',
+          comentario: `REASIGNADO A ${payload.nuevoFuncionarioNombre}: ${payload.motivoReasignacion}`,
+        },
+        { funcionarioAsignadoId: payload.nuevoFuncionarioId, funcionarioAsignadoNombre: payload.nuevoFuncionarioNombre }
+      );
     }
   }
 
@@ -409,30 +374,17 @@ export class TicketsController {
         body: JSON.stringify({ estado, observaciones }),
       });
     } catch (err) {
-      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
-      if (!esSinConexion(err)) throw err;
-      const ticketIndex = MOCK_TICKETS.findIndex(t => t.id === id);
-      if (ticketIndex === -1) throw new Error('Reclamo no encontrado');
-
-      const nuevoSeguimiento: TicketSeguimiento = {
-        id: `SEG-${Date.now()}`,
-        reclamoId: id,
-        autorId: 'CURRENT_USER',
-        autorNombre: funcionarioNombre,
-        autorRol: 'Funcionario',
-        fecha: new Date().toISOString().replace('T', ' ').substring(0, 16),
-        tipoAccion: 'EVALUACION_CONSTANCIA',
-        comentario: `EVALUACIÓN DE CONSTANCIA [${estado.toUpperCase()}]: ${observaciones}`,
-      };
-
-      MOCK_TICKETS[ticketIndex] = {
-        ...MOCK_TICKETS[ticketIndex],
-        estadoConstancia: estado,
-        fechaActualizacion: nuevoSeguimiento.fecha,
-        seguimientos: [...MOCK_TICKETS[ticketIndex].seguimientos, nuevoSeguimiento],
-      };
-
-      return MOCK_TICKETS[ticketIndex];
+      if (!usarDatosDemo(err)) throw err;
+      return aplicarEnDemo(
+        id,
+        {
+          autorNombre: funcionarioNombre,
+          autorRol: 'Funcionario',
+          tipoAccion: 'EVALUACION_CONSTANCIA',
+          comentario: `EVALUACIÓN DE CONSTANCIA [${estado.toUpperCase()}]: ${observaciones}`,
+        },
+        { estadoConstancia: estado }
+      );
     }
   }
 }

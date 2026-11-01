@@ -9,6 +9,31 @@ convenciones y lo que falta. Mantenerla al día cuando cambie algo importante.
 > tablas reales) queda como referencia en `docs/Conexion_Portal_Oracle.md`, `docs/Conexion_BD.md`
 > y `docs/datos_faltantes.md`, y en la historia de git.
 
+## ▶ Para retomar (31/10/2026, se cortó a mitad de la auditoría)
+
+Rama `feature/supervisor-funcionario`, **sin subir a GitHub**. La auditoría independiente encontró 12 problemas. Están
+**corregidos y guardados en un commit**, pero **falta la prueba en el navegador de estos arreglos** (detalle en
+`docs/Cambios_rama_supervisor_funcionario.md`, sección 10).
+
+Hecho: `tsc` y `lint` en 0, y las 100 comprobaciones anteriores en el navegador siguen pasando (42 + 12 + 6 + 6 + 11 + 23).
+
+Siguientes pasos, en orden:
+1. `npm run build` para confirmar que compila con los últimos cambios (no se corrió después de los arreglos de la auditoría).
+2. Probar en el navegador (los scripts están fuera del repositorio, en la carpeta temporal de Claude; si no
+   están, rehacerlos con Playwright + Edge):
+   - Supervisor con `GET /usuarios` respondiendo 403: los reclamos se ven y aparece el aviso informativo.
+   - `POST /tickets/{id}/aprobar` que responde 200 con cuerpo vacío, y un 500 con HTML: aviso de error y el reclamo no cambia.
+   - Derivar como Funcionario: el reclamo sale de la bandeja.
+   - Admin desactiva a Lic. Mariana Rios y luego, con "Simular Rol", entrar como Supervisor: Mariana sale como
+     "(inactivo...)" en la carga y no aparece para reasignar.
+   - Control Municipal: al cambiar de período se borran los números mientras carga.
+   - La hora de una acción nueva en la línea de tiempo es la local.
+   - **Modo producción:** `npm run build` + `npx next start -p 3001` sin variables. No aparecen los accesos rápidos
+     ni "Simular Rol", y entrar con un DNI dice "No se pudo conectar con el servidor". Con `NEXT_PUBLIC_MODO_DEMO=true`
+     vuelve a funcionar la demo (la variable se aplica al compilar).
+3. Si todo pasa: subir la rama y abrir el PR a `main` (el pipeline correrá por primera vez en GitHub).
+4. Avisar a Braulio: sección 5 y sección 10 (#5 y #11) del documento de cambios.
+
 ## 1. Contexto del negocio
 
 - Portal web de la Municipalidad de San Miguel para atender los **reclamos** de los ciudadanos.
@@ -27,7 +52,7 @@ convenciones y lo que falta. Mantenerla al día cuando cambie algo importante.
 | **Next.js (App Router) + TypeScript, una sola página** (`app/page.tsx`) que muestra la vista del rol | Lo definió el equipo en `9ddb046`. La navegación es por pestañas del menú lateral, no por rutas. |
 | **Capas:** `components` → `controllers` → `services/api-client` | Los componentes no llaman a `fetch`; cada acción es un método del controlador. |
 | **Datos simulados mientras no exista el backend** | Cada método del controlador llama primero a la API (`apiClient`) y, si no hay conexión, usa los datos simulados del mismo archivo (`MOCK_*`). Así el grupo de backend ve qué endpoint implementar. |
-| **El respaldo simulado solo sin conexión** (`esSinConexion(err)` en `api-client.service.ts`) | Si el backend responde con error (401, 403, 409...), no se aplica nada en los datos simulados: el error llega a la vista, que lo muestra con `mensajeErrorApi`. En el login, una contraseña incorrecta no entra en modo demo. |
+| **Datos simulados solo sin conexión y en modo demo** (`usarDatosDemo(err)` en `api-client.service.ts`; `MODO_DEMO` activo en `npm run dev`, en producción solo con `NEXT_PUBLIC_MODO_DEMO=true`) | Si el backend responde con error (401, 403, 409...), no se aplica nada en los datos simulados: el error llega a la vista, que lo muestra con `mensajeErrorApi`. En el login, una contraseña incorrecta no entra en modo demo. |
 | **Los handlers de las vistas avisan y relanzan el error** | `AccionesForm` solo cierra el formulario si la acción salió bien; si falla, queda abierto con lo escrito. |
 | **Reglas de acciones por estado en un solo archivo** (`utils/ticket.utils.ts`) | Las usan el formulario de acciones y las tablas; no repetir condiciones en los componentes. |
 | **El funcionario no resuelve**: envía a aprobación y el supervisor aprueba o devuelve | Lo exige el README (visto bueno del supervisor). |
@@ -107,7 +132,7 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
 - **Colores:** solo variables del tema (`var(--text-main)`, `var(--bg-card)`, `var(--border-color)`...),
   nunca `--slate-*` fijos en componentes nuevos: no se leen en modo oscuro.
 - **Acciones nuevas sobre reclamos:** agregar el método al controlador (API + respaldo simulado con
-  `if (!esSinConexion(err)) throw err;` al inicio del `catch`), el handler en el hook (avisar con
+  `if (!usarDatosDemo(err)) throw err;` al inicio del `catch`; en los datos simulados usar `aplicarEnDemo`), el handler en el hook (avisar con
   `mensajeErrorApi` y relanzar), el tipo
   en `types/ticket.types.ts` (payload y `tipoAccion` si deja huella en la línea de tiempo), la regla en
   `utils/ticket.utils.ts` y el endpoint en la tabla del plan.

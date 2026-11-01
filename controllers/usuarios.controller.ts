@@ -1,4 +1,4 @@
-import { apiClient, esSinConexion } from '@/services/api-client.service';
+import { apiClient, usarDatosDemo } from '@/services/api-client.service';
 import { Usuario } from '@/types/auth.types';
 import { USUARIOS_DEMO } from './auth.controller';
 
@@ -37,8 +37,8 @@ export class UsuariosController {
     try {
       return await apiClient<Usuario[]>('/usuarios');
     } catch (err) {
-      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
-      if (!esSinConexion(err)) throw err;
+      // Datos simulados solo sin conexión y en modo demo; si no, el error llega a la vista.
+      if (!usarDatosDemo(err)) throw err;
       return [...MOCK_USUARIOS];
     }
   }
@@ -50,8 +50,8 @@ export class UsuariosController {
         body: JSON.stringify(data),
       });
     } catch (err) {
-      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
-      if (!esSinConexion(err)) throw err;
+      // Datos simulados solo sin conexión y en modo demo; si no, el error llega a la vista.
+      if (!usarDatosDemo(err)) throw err;
       const nuevo: Usuario = {
         ...data,
         id: `USR-${Date.now().toString().slice(-4)}`,
@@ -70,8 +70,8 @@ export class UsuariosController {
         body: JSON.stringify({ activo }),
       });
     } catch (err) {
-      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
-      if (!esSinConexion(err)) throw err;
+      // Datos simulados solo sin conexión y en modo demo; si no, el error llega a la vista.
+      if (!usarDatosDemo(err)) throw err;
       const index = MOCK_USUARIOS.findIndex(u => u.id === id);
       if (index === -1) throw new Error('Usuario no encontrado');
       MOCK_USUARIOS[index] = { ...MOCK_USUARIOS[index], activo };

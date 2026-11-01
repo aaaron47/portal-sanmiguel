@@ -67,7 +67,7 @@ El sistema detecta automáticamente el rol del usuario autenticado y ajusta la n
 2. **Correspondencia entre el sistema y el mundo real**: Términos municipales familiares (Folio, Reclamo, Derivación, Constancia, OCI) y fechas legibles.
 3. **Control y libertad del usuario**: Posibilidad de cancelar acciones en modales y volver a la bandeja con un solo clic.
 4. **Consistencia y estándares**: Paleta de colores institucional cohesiva, iconografía uniforme con Lucide React y formatos estándar.
-5. **Prevención de errores**: Cada acción se confirma en un formulario propio con motivo obligatorio y opción de cancelar, y solo se ofrecen las acciones permitidas en el estado del reclamo. Si una acción falla, el formulario queda abierto con lo escrito.
+5. **Prevención de errores**: Cada acción se hace en un formulario propio con opción de cancelar; derivar, devolver y reasignar piden un motivo obligatorio. Solo se ofrecen las acciones permitidas en el estado del reclamo, y si una acción falla, el formulario queda abierto con lo escrito.
 6. **Reconocimiento antes que recuerdo**: Menú lateral adaptativo que solo presenta opciones relevantes al rol activo.
 7. **Flexibilidad y eficiencia de uso**: Selector rápido en el menú lateral (*Simular Rol*) para alternar entre perfiles durante pruebas y demostraciones.
 8. **Diseño estético y minimalista**: Jerarquía visual limpia, espaciado armónico, tipografía legible (Plus Jakarta Sans) y sin sobrecarga cognitiva.
@@ -102,4 +102,23 @@ Por defecto, el cliente API (`services/api-client.service.ts`) busca el backend 
 Crea un archivo `.env.local`:
 ```env
 NEXT_PUBLIC_API_URL=http://tu-servidor-backend:8080/api
+```
+
+### Modo demo (datos simulados)
+
+Mientras el backend no exista, el portal funciona con datos simulados: el login acepta el DNI o correo de los
+usuarios de prueba sin validar la contraseña, hay accesos rápidos por rol y el selector *Simular Rol*.
+
+| Cómo se ejecuta | Modo demo |
+|---|---|
+| `npm run dev` | Activo |
+| `npm run build` + `npm start` | **Apagado**: sin backend no se puede entrar, y los accesos rápidos y *Simular Rol* no aparecen |
+| Cualquiera, con `NEXT_PUBLIC_MODO_DEMO=true` (o `false`) | Lo que diga la variable |
+
+Aun con el modo demo activo, los datos simulados solo se usan **cuando no hay conexión** con el backend.
+Si el backend responde con un error (401, 403, 409...), se muestra al usuario y no se aplica nada.
+
+Para una presentación sin backend con el build de producción:
+```env
+NEXT_PUBLIC_MODO_DEMO=true
 ```

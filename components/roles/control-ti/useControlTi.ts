@@ -30,9 +30,7 @@ export function useControlTi(onNotify: NotifyFn) {
     return () => {
       cancelado = true;
     };
-    // onNotify cambia de identidad entre renders del padre; solo importa la recarga.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recarga]);
+  }, [recarga, onNotify]);
 
   const cargarTelemetria = () => {
     setIsLoading(true);

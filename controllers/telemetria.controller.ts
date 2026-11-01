@@ -1,4 +1,4 @@
-import { apiClient, esSinConexion } from '@/services/api-client.service';
+import { apiClient, usarDatosDemo } from '@/services/api-client.service';
 import { TelemetriaResumen, TelemetriaEvento } from '@/types/telemetria.types';
 
 const MOCK_RESUMEN_TELEMETRIA: TelemetriaResumen = {
@@ -87,8 +87,8 @@ export class TelemetriaController {
     try {
       return await apiClient<TelemetriaResumen>('/telemetria/resumen');
     } catch (err) {
-      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
-      if (!esSinConexion(err)) throw err;
+      // Datos simulados solo sin conexión y en modo demo; si no, el error llega a la vista.
+      if (!usarDatosDemo(err)) throw err;
       return MOCK_RESUMEN_TELEMETRIA;
     }
   }
@@ -99,8 +99,8 @@ export class TelemetriaController {
         params: { limite },
       });
     } catch (err) {
-      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
-      if (!esSinConexion(err)) throw err;
+      // Datos simulados solo sin conexión y en modo demo; si no, el error llega a la vista.
+      if (!usarDatosDemo(err)) throw err;
       return MOCK_EVENTOS_RECIENTES.slice(0, limite);
     }
   }

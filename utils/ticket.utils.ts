@@ -32,6 +32,8 @@ export interface FuncionarioOpcion {
   id: string;
   nombre: string;
   area?: string;
+  /** false si el usuario está desactivado: no se le puede reasignar nada. */
+  activo: boolean;
 }
 
 export interface CargaFuncionario extends FuncionarioOpcion {
@@ -43,20 +45,23 @@ export interface CargaFuncionario extends FuncionarioOpcion {
 export const SIN_ASIGNAR_ID = '__sin_asignar__';
 
 /**
- * Lista de funcionarios a partir de los usuarios (rol FUNCIONARIO y activos) y de los que
- * aparecen asignados en algún reclamo aunque no estén en la lista de usuarios.
+ * Funcionarios a partir de los usuarios con rol FUNCIONARIO (activos e inactivos, marcados con `activo`)
+ * y de los que aparecen asignados en algún reclamo pero no están en la lista de usuarios
+ * (p. ej. si la lista no se pudo cargar). Un usuario conocido nunca se vuelve a agregar desde los reclamos.
  */
 export function construirFuncionarios(usuarios: Usuario[], tickets: Ticket[]): FuncionarioOpcion[] {
   const mapa = new Map<string, FuncionarioOpcion>();
+  const conocidos = new Set(usuarios.map((u) => u.id));
   usuarios
-    .filter((u) => u.rol === 'FUNCIONARIO' && u.activo)
-    .forEach((u) => mapa.set(u.id, { id: u.id, nombre: u.nombreCompleto, area: u.area }));
+    .filter((u) => u.rol === 'FUNCIONARIO')
+    .forEach((u) => mapa.set(u.id, { id: u.id, nombre: u.nombreCompleto, area: u.area, activo: u.activo }));
   tickets.forEach((t) => {
-    if (t.funcionarioAsignadoId && !mapa.has(t.funcionarioAsignadoId)) {
+    if (t.funcionarioAsignadoId && !conocidos.has(t.funcionarioAsignadoId) && !mapa.has(t.funcionarioAsignadoId)) {
       mapa.set(t.funcionarioAsignadoId, {
         id: t.funcionarioAsignadoId,
         nombre: t.funcionarioAsignadoNombre || t.funcionarioAsignadoId,
         area: t.areaAsignada,
+        activo: true,
       });
     }
   });
@@ -72,14 +77,14 @@ export function calcularCarga(funcionarios: FuncionarioOpcion[], tickets: Ticket
     porAprobar: lista.filter((t) => t.estado === 'por aprobar').length,
   });
 
-  const carga: CargaFuncionario[] = funcionarios.map((f) => ({
-    ...f,
-    ...contar(activos.filter((t) => t.funcionarioAsignadoId === f.id)),
-  }));
+  // Los inactivos solo aparecen si todavía tienen reclamos activos (hay que reasignarlos).
+  const carga: CargaFuncionario[] = funcionarios
+    .map((f) => ({ ...f, ...contar(activos.filter((t) => t.funcionarioAsignadoId === f.id)) }))
+    .filter((f) => f.activo || f.activos > 0);
 
   const sinAsignar = activos.filter((t) => !t.funcionarioAsignadoId);
   if (sinAsignar.length > 0) {
-    carga.push({ id: SIN_ASIGNAR_ID, nombre: 'Sin asignar', ...contar(sinAsignar) });
+    carga.push({ id: SIN_ASIGNAR_ID, nombre: 'Sin asignar', activo: true, ...contar(sinAsignar) });
   }
 
   return carga.sort((a, b) => b.activos - a.activos || b.criticos - a.criticos);

@@ -139,3 +139,30 @@ dos pedidos iguales a la API. En producción es uno.
 - Integrar con el backend y quitar los datos simulados; la tabla `reclamos` de Oracle no tiene área, funcionario,
   aprobación ni constancias (ver plan, sección 10).
 - Pruebas automáticas dentro del repositorio.
+
+---
+
+## 10. Auditoría independiente (31/10/2026, tarde)
+
+Se hizo una revisión de código independiente de toda la rama frente a `main` (10 hallazgos). Cada uno se comprobó
+leyendo el código y los 10 resultaron ciertos. Al revisarlos aparecieron 2 problemas más (11 y 12).
+**Estado: los 12 están corregidos en el código. Tipos y lint quedan en 0. Las 100 comprobaciones anteriores en el
+navegador siguen pasando. Falta la prueba específica de estos arreglos** (ver "Para retomar" en CLAUDE.md).
+
+| # | Problema | Arreglo | Archivos |
+|---|---|---|---|
+| 1 | Supervisor: si `GET /usuarios` fallaba (p. ej. 403, porque es de Admin), **no se mostraba ningún reclamo** (`Promise.all`). | `Promise.allSettled`: los reclamos se muestran igual y un aviso dice que la reasignación solo ofrece los funcionarios que ya tienen reclamos. | `useSupervisorTickets.ts` |
+| 2 | Un 2xx con cuerpo vacío o que no era JSON se trataba como "sin conexión", así que la acción se aplicaba también en los datos simulados. | `api-client`: solo un fallo de `fetch` es "sin conexión" (status 0). Una respuesta inválida da `ApiError` con su código. | `api-client.service.ts` |
+| 3 | Derivar: después de una derivación, el área de destino quedaba en el área actual del reclamo. | El área se vuelve a calcular cada vez que se abre una acción (`abrirAccion`). | `AccionesForm.tsx` |
+| 4 | Los funcionarios **desactivados** volvían a aparecer como destino de una reasignación. | `FuncionarioOpcion.activo`. No se ofrecen para reasignar; si tienen reclamos activos, la tabla de carga los muestra como "(inactivo: reasigna sus reclamos)". | `ticket.utils.ts`, `AccionesForm.tsx`, `CargaFuncionariosTable.tsx` |
+| 5 | **En producción, si el backend se caía, se entraba con un DNI sin contraseña** (modo demo) y las acciones "se guardaban" en datos falsos. | `MODO_DEMO`: activo en `npm run dev`; en un build de producción solo con `NEXT_PUBLIC_MODO_DEMO=true`. Los controladores usan `usarDatosDemo(err)`. Sin el modo demo, el login dice "No se pudo conectar con el servidor" y los accesos rápidos no aparecen. | `api-client.service.ts`, todos los `controllers/*`, `LoginForm.tsx` |
+| 6 | Control Municipal: al cambiar de período, o si fallaba la carga, seguían los números del período anterior. | Se borran al cambiar de período y al fallar. | `useControlMunicipal.ts` |
+| 7 | Funcionario: un reclamo derivado seguía en su bandeja con "Atender" activo. | Sale de la bandeja y se cierra el detalle. | `useFuncionarioTickets.ts` |
+| 8 | Quedaban `eslint-disable` y comentarios desactualizados (`onNotify` ya es estable). | Se quitaron y `onNotify` va en las dependencias. | 4 hooks |
+| 9 | `SupervisorView` y `SupervisorKpis` repetían `estado === 'por aprobar'`. | Usan `puedeAprobar`. | `SupervisorView.tsx`, `SupervisorKpis.tsx` |
+| 10 | Las 6 acciones repetían el bloque de datos simulados, que además guardaba la hora en **UTC** (5 h adelantada respecto de Lima). | Una sola función `aplicarEnDemo` con hora local (`fechaLocal`). | `tickets.controller.ts` |
+| 11 | **"Simular Rol" dejaba a cualquier usuario pasar a Supervisor o Admin, incluso en producción.** | Solo aparece y funciona con `MODO_DEMO`. | `Sidebar.tsx`, `AuthContext.tsx` |
+| 12 | Un error del backend cuyo cuerpo no era JSON (p. ej. una página HTML de error 500) se leía dos veces; la segunda lectura fallaba y se trataba como "sin conexión", así que se aplicaba en los datos simulados. | El cuerpo se lee una vez como texto. | `api-client.service.ts` |
+
+También se corrigió el README: no todas las acciones piden un motivo obligatorio (en la constancia es opcional),
+y se documentó el modo demo.

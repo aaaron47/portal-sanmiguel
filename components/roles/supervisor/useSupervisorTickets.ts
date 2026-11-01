@@ -21,21 +21,33 @@ export function useSupervisorTickets(onNotify: NotifyFn) {
 
   useEffect(() => {
     let cancelado = false;
-    Promise.all([ticketsController.getTickets(), usuariosController.getUsuarios()])
-      .then(([listaTickets, listaUsuarios]) => {
+    // Por separado: si falla la lista de usuarios (p. ej. 403 porque es solo para Admin), los reclamos
+    // igual se muestran y la reasignación usa los funcionarios que aparecen asignados en ellos.
+    Promise.allSettled([ticketsController.getTickets(), usuariosController.getUsuarios()]).then(
+      ([resTickets, resUsuarios]) => {
         if (cancelado) return;
-        setTickets(listaTickets);
-        setUsuarios(listaUsuarios);
-      })
-      .catch(() => {
-        if (!cancelado) onNotify('error', 'No se pudieron cargar los reclamos para supervisión. Recarga la página.');
-      });
+        if (resTickets.status === 'fulfilled') {
+          setTickets(resTickets.value);
+        } else {
+          onNotify(
+            'error',
+            mensajeErrorApi(resTickets.reason, 'No se pudieron cargar los reclamos para supervisión. Recarga la página.')
+          );
+        }
+        if (resUsuarios.status === 'fulfilled') {
+          setUsuarios(resUsuarios.value);
+        } else if (resTickets.status === 'fulfilled') {
+          onNotify(
+            'info',
+            'No se pudo cargar la lista de funcionarios; para reasignar solo aparecen los que ya tienen reclamos.'
+          );
+        }
+      }
+    );
     return () => {
       cancelado = true;
     };
-    // Solo al montar la vista; onNotify cambia en cada render del padre.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [onNotify]);
 
   const funcionarios = useMemo(() => construirFuncionarios(usuarios, tickets), [usuarios, tickets]);
   const carga = useMemo(() => calcularCarga(funcionarios, tickets), [funcionarios, tickets]);

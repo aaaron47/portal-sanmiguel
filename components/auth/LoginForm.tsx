@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/types/auth.types';
+import { MODO_DEMO } from '@/services/api-client.service';
 import { 
   Building2, 
   Lock, 
@@ -180,6 +181,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
           </button>
         </form>
 
+        {/* Accesos rápidos de prueba: solo en modo demo (nunca en producción con el backend real). */}
+        {MODO_DEMO && (
+        <>
         {/* Separador */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: '1.25rem 0' }}>
           <div style={{ flex: 1, height: '1px', background: 'var(--slate-200)' }} />
@@ -296,6 +300,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
             <Sparkles size={14} />
           </button>
         </div>
+        </>
+        )}
 
         <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.75rem', color: 'var(--slate-400)' }}>
           <ShieldCheck size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />

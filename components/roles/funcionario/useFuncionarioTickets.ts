@@ -35,9 +35,7 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
     return () => {
       cancelado = true;
     };
-    // Se recarga solo si cambia el área; onNotify cambia en cada render del padre.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [area]);
+  }, [area, onNotify]);
 
   const abrirTicket = (ticket: Ticket, accion: 'ninguna' | 'atender' | 'derivar' | 'constancia' = 'ninguna') => {
     setSelectedTicket(ticket);
@@ -77,9 +75,10 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
         { areaDestino, motivoDerivacion: motivo }, 
         usuario?.nombreCompleto || 'Funcionario'
       );
-      setTickets(prev => prev.map(t => t.id === id ? actualizado : t));
-      setSelectedTicket(actualizado);
-      onNotify('success', `Expediente derivado a ${areaDestino} correctamente`);
+      // Ya pertenece a otra área: sale de esta bandeja y se cierra el detalle (no se puede seguir atendiendo).
+      setTickets(prev => prev.filter(t => t.id !== id));
+      cerrarModal();
+      onNotify('success', `Expediente ${actualizado.folio} derivado a ${areaDestino}; ya no aparece en tu bandeja`);
     } catch (err) {
       onNotify('error', mensajeErrorApi(err, 'No se pudo derivar el expediente. Inténtalo de nuevo.', MENSAJES_ERROR_RECLAMO));
       throw err;

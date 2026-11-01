@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useSyncExternalStore, useTr
 import { AuthSession, LoginCredentials, UserRole, Usuario } from '@/types/auth.types';
 import { authController, USUARIOS_DEMO } from '@/controllers/auth.controller';
 import { storageService } from '@/services/storage.service';
+import { MODO_DEMO } from '@/services/api-client.service';
 
 interface AuthContextType {
   usuario: Usuario | null;
@@ -60,6 +61,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const switchRoleDemo = (targetRole: UserRole) => {
+    // Cambiar de rol sin credenciales solo existe en el modo demo; en producción no hace nada.
+    if (!MODO_DEMO) return;
     startTransition(() => {
       const demoUser = USUARIOS_DEMO[targetRole];
       const newSession: AuthSession = {

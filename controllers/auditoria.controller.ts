@@ -1,4 +1,4 @@
-import { apiClient, esSinConexion } from '@/services/api-client.service';
+import { apiClient, usarDatosDemo } from '@/services/api-client.service';
 import { AuditoriaLog, AuditoriaFiltros } from '@/types/auditoria.types';
 
 const MOCK_LOGS_AUDITORIA: AuditoriaLog[] = [
@@ -59,8 +59,8 @@ export class AuditoriaController {
         params: filtros as Record<string, string | number | boolean | undefined>,
       });
     } catch (err) {
-      // Datos simulados solo sin conexión; si el backend respondió con error, se avisa a la vista.
-      if (!esSinConexion(err)) throw err;
+      // Datos simulados solo sin conexión y en modo demo; si no, el error llega a la vista.
+      if (!usarDatosDemo(err)) throw err;
       let resultado = [...MOCK_LOGS_AUDITORIA];
       if (filtros?.accion) {
         resultado = resultado.filter(l => l.accion === filtros.accion);

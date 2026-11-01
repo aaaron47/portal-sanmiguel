@@ -20,25 +20,34 @@ export function useControlMunicipal(onNotify: NotifyFn) {
       })
       .catch((err) => {
         if (!cancelado) {
+          // Sin datos en lugar de los del período anterior bajo el período elegido.
+          setKpis(null);
+          setAreas([]);
           onNotify('error', mensajeErrorApi(err, 'No se pudieron cargar los reportes del período. Recarga la página.'));
         }
       });
     return () => {
       cancelado = true;
     };
-    // onNotify cambia de identidad entre renders del padre; solo importa el período.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [periodo]);
+  }, [periodo, onNotify]);
 
   const descargarReporte = () => {
     onNotify('success', 'Generando Reporte Oficial de Cumplimiento Municipal en PDF...');
+  };
+
+  // Al elegir otro período se borran los números del anterior mientras llegan los nuevos.
+  const cambiarPeriodo = (nuevo: string) => {
+    if (nuevo === periodo) return;
+    setKpis(null);
+    setAreas([]);
+    setPeriodo(nuevo);
   };
 
   return {
     kpis,
     areas,
     periodo,
-    setPeriodo,
+    setPeriodo: cambiarPeriodo,
     descargarReporte,
   };
 }
