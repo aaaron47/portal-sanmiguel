@@ -1,8 +1,8 @@
-import { apiClient } from '@/services/api-client.service';
+import { apiClient, usarDatosDemo } from '@/services/api-client.service';
 import { Usuario } from '@/types/auth.types';
 import { USUARIOS_DEMO } from './auth.controller';
 
-let MOCK_USUARIOS: Usuario[] = [
+const MOCK_USUARIOS: Usuario[] = [
   USUARIOS_DEMO.ADMIN,
   USUARIOS_DEMO.FUNCIONARIO,
   USUARIOS_DEMO.SUPERVISOR,
@@ -36,7 +36,9 @@ export class UsuariosController {
   async getUsuarios(): Promise<Usuario[]> {
     try {
       return await apiClient<Usuario[]>('/usuarios');
-    } catch {
+    } catch (err) {
+      // Datos simulados solo sin conexión y en modo demo; si no, el error llega a la vista.
+      if (!usarDatosDemo(err)) throw err;
       return [...MOCK_USUARIOS];
     }
   }
@@ -47,7 +49,9 @@ export class UsuariosController {
         method: 'POST',
         body: JSON.stringify(data),
       });
-    } catch {
+    } catch (err) {
+      // Datos simulados solo sin conexión y en modo demo; si no, el error llega a la vista.
+      if (!usarDatosDemo(err)) throw err;
       const nuevo: Usuario = {
         ...data,
         id: `USR-${Date.now().toString().slice(-4)}`,
@@ -65,7 +69,9 @@ export class UsuariosController {
         method: 'PATCH',
         body: JSON.stringify({ activo }),
       });
-    } catch {
+    } catch (err) {
+      // Datos simulados solo sin conexión y en modo demo; si no, el error llega a la vista.
+      if (!usarDatosDemo(err)) throw err;
       const index = MOCK_USUARIOS.findIndex(u => u.id === id);
       if (index === -1) throw new Error('Usuario no encontrado');
       MOCK_USUARIOS[index] = { ...MOCK_USUARIOS[index], activo };

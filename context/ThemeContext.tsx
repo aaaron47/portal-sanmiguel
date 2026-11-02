@@ -12,34 +12,39 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setThemeState] = useState<Theme>('light');
-  const [mounted, setMounted] = useState(false);
+/** Preferencia guardada en localStorage o, si no hay, la del sistema. En el servidor, 'light'. */
+function temaInicial(): Theme {
+  if (typeof window === 'undefined') return 'light';
+  try {
+    const savedTheme = localStorage.getItem('portal_theme');
+    if (savedTheme === 'light' || savedTheme === 'dark') return savedTheme;
+  } catch {
+    // Sin acceso a localStorage (p. ej. bloqueado por el navegador): se usa la preferencia del sistema.
+  }
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
 
+export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Se lee al crear el estado (sin efecto). El primer render de la app es "Cargando" (AuthContext),
+  // que no depende del tema, así que no hay diferencias entre el HTML del servidor y el del navegador.
+  const [theme, setThemeState] = useState<Theme>(temaInicial);
+
+  // El efecto solo sincroniza el DOM (atributo del <html>) con el estado.
   useEffect(() => {
-    // Verificar preferencia guardada en localStorage o del sistema
-    const savedTheme = localStorage.getItem('portal_theme') as Theme | null;
-    if (savedTheme === 'light' || savedTheme === 'dark') {
-      setThemeState(savedTheme);
-      document.documentElement.setAttribute('data-theme', savedTheme);
-    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setThemeState('dark');
-      document.documentElement.setAttribute('data-theme', 'dark');
-    } else {
-      document.documentElement.setAttribute('data-theme', 'light');
-    }
-    setMounted(true);
-  }, []);
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   const setTheme = (t: Theme) => {
     setThemeState(t);
-    localStorage.setItem('portal_theme', t);
-    document.documentElement.setAttribute('data-theme', t);
+    try {
+      localStorage.setItem('portal_theme', t);
+    } catch {
+      // Si no se puede guardar, el tema igual cambia en esta sesión.
+    }
   };
 
   const toggleTheme = () => {
-    const nextTheme: Theme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(nextTheme);
+    setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
   return (

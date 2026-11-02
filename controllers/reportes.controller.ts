@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/api-client.service';
+import { apiClient, usarDatosDemo } from '@/services/api-client.service';
 
 export interface KpisReporte {
   totalReclamosPeriodo: number;
@@ -37,18 +37,23 @@ const MOCK_AREAS: ReportePorArea[] = [
 ];
 
 export class ReportesController {
-  async getKpis(): Promise<KpisReporte> {
+  /** `periodo`: "2026-10" (mes) o "2026-T3" (trimestre). Los datos simulados no cambian por período. */
+  async getKpis(periodo: string): Promise<KpisReporte> {
     try {
-      return await apiClient<KpisReporte>('/reportes/kpis');
-    } catch {
+      return await apiClient<KpisReporte>('/reportes/kpis', { params: { periodo } });
+    } catch (err) {
+      // Datos simulados solo sin conexión y en modo demo; si no, el error llega a la vista.
+      if (!usarDatosDemo(err)) throw err;
       return MOCK_KPIS;
     }
   }
 
-  async getReportesPorArea(): Promise<ReportePorArea[]> {
+  async getReportesPorArea(periodo: string): Promise<ReportePorArea[]> {
     try {
-      return await apiClient<ReportePorArea[]>('/reportes/areas');
-    } catch {
+      return await apiClient<ReportePorArea[]>('/reportes/areas', { params: { periodo } });
+    } catch (err) {
+      // Datos simulados solo sin conexión y en modo demo; si no, el error llega a la vista.
+      if (!usarDatosDemo(err)) throw err;
       return MOCK_AREAS;
     }
   }

@@ -1,9 +1,10 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useTransition } from 'react';
+import React, { createContext, useContext, useState, useSyncExternalStore, useTransition } from 'react';
 import { AuthSession, LoginCredentials, UserRole, Usuario } from '@/types/auth.types';
 import { authController, USUARIOS_DEMO } from '@/controllers/auth.controller';
 import { storageService } from '@/services/storage.service';
+import { MODO_DEMO } from '@/services/api-client.service';
 
 interface AuthContextType {
   usuario: Usuario | null;
@@ -17,48 +18,51 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * Usuario de la sesión guardada, si sigue vigente; si venció, la borra.
+ * En el servidor no hay localStorage y devuelve null.
+ */
+function usuarioDeSesionGuardada(): Usuario | null {
+  const session = storageService.getSession();
+  if (session?.usuario && (!session.expiraEn || session.expiraEn > Date.now())) {
+    return session.usuario;
+  }
+  if (session) storageService.clearSession();
+  return null;
+}
+
+const sinSuscripcion = () => () => {};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Se lee al crear el estado (sin efecto). Solo se entra directo si hay una sesión vigente.
+  const [usuario, setUsuario] = useState<Usuario | null>(usuarioDeSesionGuardada);
+  // false en el servidor y en la hidratación, true después: mientras tanto se muestra "Cargando",
+  // así el HTML del servidor (sin sesión) y el primer render del navegador coinciden.
+  const hidratado = useSyncExternalStore(sinSuscripcion, () => true, () => false);
+  const [cerrandoSesion, setCerrandoSesion] = useState(false);
+  const isLoading = !hidratado || cerrandoSesion;
   const [, startTransition] = useTransition();
 
-  useEffect(() => {
-    const session = storageService.getSession();
-    if (session?.usuario) {
-      setUsuario(session.usuario);
-    } else {
-      // Por defecto iniciamos con Funcionario como demostración accesible
-      setUsuario(USUARIOS_DEMO.FUNCIONARIO);
-      storageService.setSession({
-        token: 'initial-demo-token',
-        usuario: USUARIOS_DEMO.FUNCIONARIO,
-        expiraEn: Date.now() + 86400000,
-      });
-    }
-    setIsLoading(false);
-  }, []);
-
+  // No usa isLoading: el formulario de login muestra su propio "Iniciando sesión..." y,
+  // si la página cambiara al indicador de carga, el formulario se desmontaría y perdería el error.
   const login = async (credentials: LoginCredentials) => {
-    setIsLoading(true);
-    try {
-      const session = await authController.login(credentials);
-      setUsuario(session.usuario);
-    } finally {
-      setIsLoading(false);
-    }
+    const session = await authController.login(credentials);
+    setUsuario(session.usuario);
   };
 
   const logout = async () => {
-    setIsLoading(true);
+    setCerrandoSesion(true);
     try {
       await authController.logout();
       setUsuario(null);
     } finally {
-      setIsLoading(false);
+      setCerrandoSesion(false);
     }
   };
 
   const switchRoleDemo = (targetRole: UserRole) => {
+    // Cambiar de rol sin credenciales solo existe en el modo demo; en producción no hace nada.
+    if (!MODO_DEMO) return;
     startTransition(() => {
       const demoUser = USUARIOS_DEMO[targetRole];
       const newSession: AuthSession = {

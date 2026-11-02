@@ -6,6 +6,7 @@ import { CardHeader, CardAside } from '@/components/shared/ui/CardHeader';
 import { FuncionarioKpis } from './parts/FuncionarioKpis';
 import { ReclamosFiltros } from './parts/ReclamosFiltros';
 import { ReclamosTable } from './parts/ReclamosTable';
+import { puedeAtender } from '@/utils/ticket.utils';
 
 interface BandejaPanelProps {
   tickets: Ticket[];
@@ -72,7 +73,7 @@ export const BandejaPanel: React.FC<BandejaPanelProps> = ({
 
       <ReclamosTable
         tickets={ticketsFiltrados}
-        onSelectTicket={(t) => onSelectTicket(t, 'atender')}
+        onSelectTicket={(t) => onSelectTicket(t, puedeAtender(t) ? 'atender' : undefined)}
       />
     </div>
   </div>

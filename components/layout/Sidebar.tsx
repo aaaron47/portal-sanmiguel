@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { UserRole, ROLE_LABELS } from '@/types/auth.types';
+import { MODO_DEMO } from '@/services/api-client.service';
 import { 
   Users, 
   ShieldAlert, 
@@ -217,7 +218,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange }) => 
                 </div>
               </div>
 
-              {/* Selector de Simulación de Rol */}
+              {/* Selector de Simulación de Rol: solo en modo demo (en producción permitiría cambiar de rol sin permiso) */}
+              {MODO_DEMO && (
               <div className="popover-section">
                 <label className="popover-label">
                   <ArrowRightLeft size={13} /> Simular Rol (Demo):
@@ -237,6 +239,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange }) => 
                   <option value="CONTROL_TI">5. Control TI (Telemetría)</option>
                 </select>
               </div>
+              )}
 
               <div className="popover-divider" />
 

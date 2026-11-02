@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, HelpCircle, ChevronDown, ChevronUp, Search, BookOpen, ShieldCheck, FileCheck, Layers } from 'lucide-react';
+import { X, HelpCircle, ChevronDown, ChevronUp, Search } from 'lucide-react';
 
 interface FaqModalProps {
   isOpen: boolean;

@@ -12,14 +12,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-node@v4
         with:
-          distribution: temurin
-          java-version: '17'
-          cache: maven
+          node-version: '22'
+          cache: npm
 
-      - name: Compilar y ejecutar pruebas
-        run: mvn -B verify
+      - name: Instalar dependencias
+        run: npm ci
 
-      # El despliegue se agrega aquí cuando definan el proveedor (AWS, Azure, GCP...).
-      # Las credenciales de la BD deben venir de GitHub Secrets: DB_URL, DB_USER, DB_PASSWORD.
+      - name: Revisar tipos
+        run: npx tsc --noEmit
+
+      - name: Revisar estilo y reglas de React (lint)
+        run: npm run lint
+
+      - name: Compilar
+        run: npm run build
+
+      # El despliegue se agrega aquí cuando se defina el proveedor. La URL del backend
+      # (NEXT_PUBLIC_API_URL) debe venir de GitHub Secrets o variables del repositorio.

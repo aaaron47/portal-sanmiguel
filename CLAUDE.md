@@ -1,290 +1,175 @@
-# CLAUDE.md – Portal de quejas (administración)
+# CLAUDE.md – Portal de quejas (front web)
 
-Guía del proyecto para retomar el trabajo: contexto, decisiones tomadas, cómo está armado
-el código, convenciones y lo que falta. Mantenerla al día cuando cambie algo importante.
+Guía del proyecto para retomar el trabajo: contexto, decisiones, cómo está armado el código,
+convenciones y lo que falta. Mantenerla al día cuando cambie algo importante.
+
+> **Cambio de rumbo (commit `9ddb046`, de Braulio):** el portal pasó de Spring Boot + Thymeleaf a
+> **Next.js**. Este repositorio es **solo el front**; el backend (Spring Boot / Oracle 19c) lo hace
+> **otro grupo** en otro repositorio. Lo de la etapa Java (conexión a Oracle, cuenta `SANMI_PORTAL_WEB`,
+> tablas reales) queda como referencia en `docs/Conexion_Portal_Oracle.md`, `docs/Conexion_BD.md`
+> y `docs/datos_faltantes.md`, y en la historia de git.
+
+## ▶ Para retomar (01/11/2026, auditoría cerrada)
+
+Rama `feature/supervisor-funcionario`, **sin subir a GitHub**. La auditoría independiente encontró 12 problemas.
+**Están corregidos y probados** (detalle en `docs/Cambios_rama_supervisor_funcionario.md`, sección 10).
+
+Hecho: `tsc`, `lint` y `npm run build` sin errores. En el navegador pasan las 100 comprobaciones anteriores y otras
+34 de los arreglos: 24 en desarrollo, 6 en producción sin modo demo y 4 con `NEXT_PUBLIC_MODO_DEMO=true`.
+
+Siguientes pasos, en orden:
+1. Subir la rama y abrir el PR a `main` (el pipeline correrá por primera vez en GitHub).
+2. Avisar a Braulio: sección 5 y sección 10 (#5 y #11) del documento de cambios.
+
+Notas para las pruebas en el navegador:
+- El botón "N" de Next.js en desarrollo queda encima del perfil del menú lateral y no deja hacer clic con
+  Playwright; en el script se oculta `nextjs-portal`.
+- En Windows, al detener una tarea en segundo plano, `next dev` y `next start` pueden seguir ocupando el puerto
+  y hay que cerrarlos a mano.
 
 ## 1. Contexto del negocio
 
-- Módulo web para que los **administradores atiendan las quejas** (tickets) de los clientes.
-- Las quejas viven en una **base de datos compartida en la nube**. Esa misma BD la usan
-  otros sistemas que **se conectan directamente** (sin API intermedia):
-  - la app móvil de los clientes,
-  - el módulo de reportes de estados de cuenta de los empleados,
-  - otros sistemas internos.
-- **Alcance actual (solo el portal admin):**
-  - Tickets pendientes y por contestar, y lo que el admin ve en pantalla al abrir uno.
-  - Historial de tickets archivados.
-  - Login del admin.
-  - Registro de los clicks de los usuarios y auditoría.
-  - Logs de metadata.
-  - Módulo para mostrar la metadata del admin.
-- **Supuesto a confirmar:** "clicks de los usuarios" se interpretó como los clicks de los
-  **admins dentro del portal**. Si se refería a los clientes en la app móvil, esos datos los
-  tendría que generar la app móvil y quedan fuera de este portal.
+- Portal web de la Municipalidad de San Miguel para atender los **reclamos** de los ciudadanos.
+- Los reclamos viven en una **BD Oracle compartida** que también usan la app móvil y otros sistemas.
+  El front no se conecta a la BD: todo pasa por la API del backend.
+- **5 roles** (ver `README.md`, sección 2): Admin, Funcionario, Supervisor, Control Municipal
+  (lectura) y Control App/TI (lectura).
+- **Reparto del trabajo en el front:** Braulio hizo Admin, Control Municipal y Control TI; en la rama
+  `feature/supervisor-funcionario` se completaron **Funcionario y Supervisor**
+  (`docs/Plan_Supervisor_Funcionario.md`, con su auditoría).
 
-## 2. Decisiones de arquitectura
+## 2. Decisiones
 
 | Decisión | Motivo |
 |---|---|
-| **Una sola aplicación Spring Boot + Thymeleaf** (sin separar front y back) | Como los otros sistemas siguen yendo directo a la BD, una API aparte no sería la "dueña" de los datos y duplicaría trabajo. Si más adelante la empresa decide que todos pasen por una API, se extrae desde la capa de servicios. |
-| **Código organizado por funcionalidad** (`auth`, `tickets`, `auditoria`, `metadata`) y no por capa | Cada módulo queda aislado y se podría separar en el futuro. |
-| **Un solo repositorio** en GitHub con un pipeline (`.github/workflows/ci.yml`) | Alcance pequeño; un solo artefacto que desplegar. |
-| **Tablas propias con prefijo `portal_`** (`portal_notificaciones`, `portal_eventos_click`); administradores y auditoría viven en `administradores` y `auditoria` de SANMI_APP | No mezclar datos del portal con las tablas de otros sistemas; lo compartido (admins, auditoría) lo definió el responsable de la BD. |
-| **`ddl-auto: none` en la BD real** (perfil `cloud`), nunca `update` | La BD es compartida y la cuenta `SANMI_PORTAL_WEB` no tiene DDL: el portal no crea ni altera tablas. |
-| **Los "tickets" del portal son la tabla `reclamos`** (`Ticket` → `reclamos`, `TicketRespuesta` → `reclamo_seguimientos`) | El nombre del código y de la interfaz se mantiene; lo que cambia es el mapeo. Ver `docs/Conexion_Portal_Oracle.md`. |
-| **Columnas no permitidas con `updatable = false`** en las entidades | La cuenta solo puede actualizar algunas columnas; si Hibernate incluyera otra en un `UPDATE` daría `ORA-01031`. |
-| **Bloqueo optimista (`@Version`) en `Ticket`** | La app móvil u otro sistema puede modificar un ticket mientras el admin lo tiene abierto; el cambio del admin se rechaza en vez de pisar datos. |
-| **Clicks guardados de forma asíncrona (`@Async`)** | Generan mucho volumen; no deben frenar la navegación ni cargar la BD compartida. |
-| **H2 en memoria con datos de ejemplo** en el prototipo | Poder probar sin acceso a la BD real. |
+| **Next.js (App Router) + TypeScript, una sola página** (`app/page.tsx`) que muestra la vista del rol | Lo definió el equipo en `9ddb046`. La navegación es por pestañas del menú lateral, no por rutas. |
+| **Capas:** `components` → `controllers` → `services/api-client` | Los componentes no llaman a `fetch`; cada acción es un método del controlador. |
+| **Datos simulados mientras no exista el backend** | Cada método del controlador llama primero a la API (`apiClient`) y, si no hay conexión, usa los datos simulados del mismo archivo (`MOCK_*`). Así el grupo de backend ve qué endpoint implementar. |
+| **Datos simulados solo sin conexión y en modo demo** (`usarDatosDemo(err)` en `api-client.service.ts`; `MODO_DEMO` activo en `npm run dev`, en producción solo con `NEXT_PUBLIC_MODO_DEMO=true`) | Si el backend responde con error (401, 403, 409...), no se aplica nada en los datos simulados: el error llega a la vista, que lo muestra con `mensajeErrorApi`. En el login, una contraseña incorrecta no entra en modo demo. |
+| **Los handlers de las vistas avisan y relanzan el error** | `AccionesForm` solo cierra el formulario si la acción salió bien; si falla, queda abierto con lo escrito. |
+| **Reglas de acciones por estado en un solo archivo** (`utils/ticket.utils.ts`) | Las usan el formulario de acciones y las tablas; no repetir condiciones en los componentes. |
+| **El funcionario no resuelve**: envía a aprobación y el supervisor aprueba o devuelve | Lo exige el README (visto bueno del supervisor). |
 
 ## 3. Stack
 
-- Java 17, Spring Boot **3.5.15** (Maven, `spring-boot-starter-parent`).
-- Spring Web, Thymeleaf (+ `thymeleaf-extras-springsecurity6`), Spring Security,
-  Spring Data JPA, Validation, Mail (`spring-boot-starter-mail`), DevTools.
-- Pruebas: GreenMail (`greenmail-junit5`, servidor SMTP falso) y Awaitility (esperar el envío `@Async`).
-- H2 (prototipo y pruebas) y Oracle 19c (BD real, driver `ojdbc11`). Las contraseñas de los
-  administradores son Argon2id: se verifican con `Argon2PasswordEncoder` (dependencia `bcprov-jdk18on`).
-- Front: HTML con Thymeleaf, `static/css/app.css` y `static/js/tracker.js`, sin frameworks JS.
-  Tipografía IBM Plex Sans desde Google Fonts.
+- Next.js **16.4**, React **19.3**, TypeScript 5, ESLint 9 (`eslint-config-next`).
+- Íconos: `lucide-react`. Sin librerías de UI ni de estado: estilos en `app/globals.css` (tokens) y
+  estilos en línea con variables CSS.
+- **Ojo:** `AGENTS.md` (lo genera `next dev`) avisa que esta versión de Next.js cambió APIs; antes de
+  usar algo de Next que no esté ya en el código, leer `node_modules/next/dist/docs/`.
 
 ## 4. Comandos
 
 ```bash
-mvn spring-boot:run          # levantar en http://localhost:8080
-mvn test                     # pruebas de humo (arrancan la app completa con H2)
-mvn -B verify                # lo mismo que corre el pipeline de GitHub
+npm install          # dependencias
+npm run dev          # http://localhost:3000
+npx tsc --noEmit     # tipos
+npm run lint         # lint: debe quedar en 0 errores y 0 advertencias (lo corre el pipeline)
+npm run build        # compilación de producción
 ```
 
-En IntelliJ: ejecutar `PortalQuejasApplication`. Tras cambiar plantillas, si no se ven los
-cambios, detener y volver a ejecutar.
+- La URL del backend sale de `NEXT_PUBLIC_API_URL` (por defecto `http://localhost:8080/api`). Sin backend
+  levantado, todo funciona con datos simulados. Las variables van en `.env*` (ignorado por git).
+- No hay pruebas automáticas en el repositorio. Las comprobaciones en navegador se hicieron con
+  Playwright + Microsoft Edge desde una carpeta temporal fuera del repo.
+- `target/` (compilación del proyecto Java anterior) y `docs/*.docx` están en `.gitignore`.
 
-Perfil de la BD real (Oracle): `SPRING_PROFILES_ACTIVE=cloud` con las variables `DB_HOST`, `DB_PORT`,
-`DB_SID`, `DB_USER`, `DB_PASSWORD` y `DB_SCHEMA` (en GitHub, como Secrets). Con ese perfil no se cargan
-datos de ejemplo. La cuenta es `SANMI_PORTAL_WEB`; la conexión y lo que se verificó están en
-`docs/Conexion_Portal_Oracle.md`.
+### Usuarios de prueba (modo demo)
 
-Comprobar contra Oracle (no corre con `mvn test`; las escrituras se revierten):
-`mvn test -Dtest=OracleConexionTests -Doracle=true`.
-
-Perfil de correo real: `smtp` (se combina, p. ej. `cloud,smtp`) con `MAIL_HOST`, `MAIL_PORT`,
-`MAIL_USERNAME` y `MAIL_PASSWORD`. Sin ese perfil el correo apunta a `localhost:1025` (no existe)
-y nunca sale a internet. `CORREO_REDIRIGIR_A` manda todos los correos a una dirección de pruebas.
-
-Una sola prueba: `mvn test -Dtest=EnvioCorreoTests` (o `-Dtest=Clase#metodo`).
-
-Variables locales: se ponen en un `.env` en la raíz (ignorado por git); `application.yml` lo importa solo
-(`spring.config.import`). Maven no está en el PATH de esta máquina: usar el de IntelliJ o
-`C:\Users\aaron\.m2\wrapper\dists\apache-maven-3.9.11\...\bin\mvn.cmd`. Los documentos de
-trabajo `docs/*.docx` (p. ej. `docs/Conexion_BD_Backend_Movil.docx`, referencia de la rama
-`conexion-bd`) tampoco se suben.
-
-### Usuarios de prueba con H2 (se crean al arrancar, solo fuera del perfil `cloud`)
-
-| Usuario | Contraseña | Rol |
-|---|---|---|
-| `admin` | `admin` | Supervisor, Lucía Paredes (ve auditoría y la metadata de todos) |
-| `admin2` | `admin` | Administrador, Jorge Huamán |
-| `admin3` | `admin` | Operador, Carla Mendoza |
-
-Los datos se regeneran en cada arranque.
-
-### Usuarios de prueba en Oracle (perfil `cloud`)
-
-`admin.demo` (ADMIN), `operador.demo` (OPERADOR) y `supervisor.demo` (SUPERVISOR). Las contraseñas están en el
-documento del responsable de la BD, **no en el repositorio**. Los administradores los da de alta el responsable
-de la BD; el portal no puede insertarlos.
-
-5 intentos fallidos bloquean la cuenta 15 minutos (`portal.login.*` en `application.yml`).
+En el login se entra con el **DNI o correo** de un usuario demo (`USUARIOS_DEMO` en
+`controllers/auth.controller.ts`); la contraseña se pide pero no se valida hasta que exista el backend.
+También hay accesos rápidos por rol. Por ejemplo: Supervisor **Dr. Roberto Salas** (DNI `10984523`),
+Funcionaria **Lic. Mariana Rios** (DNI `71239845`). La sesión dura 8 horas (`expiraEn`).
 
 ## 5. Estructura del código
 
 ```
-src/main/java/com/empresa/quejas/
-├── PortalQuejasApplication.java   (@EnableAsync)
-├── auth/        AdminUser (tabla administradores), Rol, EstadoAdmin, AdminDirectorio (usuario → id),
-│                AdminUserDetailsService, LoginController, LoginExitosoHandler,
-│                LoginFallidoHandler (bloqueo), LogoutAuditoriaHandler
-├── tickets/     Ticket (tabla reclamos, reglas de estado), TicketRespuesta (reclamo_seguimientos),
-│                Contribuyente y TipoReclamo (solo lectura), EstadoReclamo (valores de la BD),
-│                EstadoTicket (grupos de la bandeja), Prioridad, Canal, NumeracionResoluciones,
-│                TicketService, TicketController (bandeja, detalle, historial, acciones),
-│                InicioController, excepciones de conflicto y no encontrado
-├── auditoria/   EventoClick (portal_eventos_click), TipoInteraccion, ClickApiController (POST del tracker),
-│                AuditoriaService (@Async + resumen por hora), AuditoriaController
-├── metadata/    LogMetadata (tabla auditoria, origen WEB, JSON en datos), TipoEvento,
-│                RequestInfo (IP, navegador, SO, sesión), MetadataService, MetadataController
-├── notificaciones/ Notificacion (portal_notificaciones), EstadoNotificacion, DatosRespuesta,
-│                NotificacionService (publica el evento NotificacionProgramada),
-│                EnvioCorreo (arma el correo y el hilo), EnvioEnSegundoPlano (@Async + AFTER_COMMIT,
-│                escucha NotificacionProgramada), NotificacionController (estado y reenviar)
-├── config/      SecurityConfig, DatosDemo (@Profile("!cloud"))
-└── web/         DatosComunesAdvice (usuario y contadores para el menú), Filtros (paginación)
-
-src/main/resources/
-├── application.yml / application-cloud.yml / application-smtp.yml
-├── schema.sql   (solo H2: la secuencia seq_resolucion)
-├── templates/   fragments/layout.html (head, menú, avisos, paginación, celda de antigüedad),
-│                login, inicio, error, tickets/{bandeja,detalle,historial},
-│                auditoria/{clicks,logs}, metadata/perfil, correos/respuesta,
-│                tickets/correo (fragmento con el estado del correo)
-└── static/      css/app.css, js/tracker.js, js/correos.js (estado del correo sin recargar)
-
-src/test/java/.../PortalQuejasApplicationTests.java   (pruebas de humo con MockMvc y H2; incluye el flujo completo)
-src/test/java/.../TicketsDePrueba.java                (crea reclamos propios para cada prueba)
-src/test/java/.../notificaciones/                     EnvioCorreoTests, RedireccionCorreoTests (GreenMail)
-src/test/java/.../OracleConexionTests.java            (contra Oracle real; solo con -Doracle=true, escrituras revertidas)
+app/            page.tsx (elige la vista según el rol y la pestaña), layout.tsx, globals.css (tokens claro/oscuro)
+components/
+├── auth/       LoginForm
+├── layout/     Sidebar (menú por rol), NotificationToast, ConfirmModal, RoleBadge
+├── modals/     TicketDetailModal + ticket-detail/parts (cabecera, metadatos, línea de tiempo, AccionesForm), FaqModal
+├── roles/      una carpeta por rol: <Rol>View.tsx, use<Rol>*.ts (estado y llamadas), y subcarpetas por pestaña con parts/
+│   ├── funcionario/   bandeja, constancias
+│   └── supervisor/    supervision (panorama y por aprobar), reasignacion (carga por funcionario)
+└── shared/ui/  TabsBar, CardHeader, KpiCard, SearchInput, FormField, TicketLabels
+context/        AuthContext (sesión), ThemeContext (claro/oscuro)
+controllers/    auth, tickets, usuarios, auditoria, reportes, telemetria (API + datos simulados)
+services/       api-client.service (fetch + JWT + ApiError), storage.service (sesión en localStorage)
+types/          auth, ticket, ui, auditoria, telemetria
+utils/          ticket.utils (reglas por estado, carga, áreas), csv.utils
+docs/           Cambios_rama_supervisor_funcionario.md (todo lo de la rama), Plan_Supervisor_Funcionario.md y documentos de la etapa Oracle
 ```
 
-### Pantallas y permisos
-
-| Ruta | Pantalla | Acceso |
-|---|---|---|
-| `/login` | Login | Público |
-| `/` | Inicio: tickets por estado, vencidos, mis tickets | Admin y supervisor |
-| `/tickets?estado=...` | Bandeja: pendientes, por contestar, observados, resueltos (`RESPONDIDO`) | Admin y supervisor |
-| `/tickets/{id}` | Detalle y acciones del ticket | Admin y supervisor |
-| `GET /tickets/{id}/correos/{n}` | Fragmento con el estado del correo (lo consulta `correos.js`) | Admin y supervisor |
-| `POST /tickets/{id}/correos/{n}/reenviar` | Reenvía un correo que falló | Admin y supervisor |
-| `/historial` | Tickets archivados | Admin y supervisor |
-| `/metadata` | Mi metadata | Admin y supervisor |
-| `/metadata/admin/{usuario}` | Metadata de otro admin | Solo supervisor |
-| `/auditoria/clicks` | Clicks de usuarios | Solo supervisor |
-| `/auditoria/logs` | Logs de metadata | Solo supervisor |
-| `POST /api/auditoria/clicks` | Recibe eventos del tracker | Sesión iniciada + CSRF |
-
-### Flujo de un ticket
-
-Grupos de la bandeja (`EstadoTicket`) y su valor en `reclamos.estado` (`EstadoReclamo`):
+### Flujo de un reclamo (estados del front)
 
 ```
-PENDIENTE        REGISTRADO   --tomar-->            EN_ATENCION (por contestar) = EN_REVISION
-   ^                                                  |        |           |
-   +------------- devolver a pendientes --------------+        |           |
-                                                     pedir información   resolver
-                                                              v           v
-                                OBSERVADO <--(la app móvil lo devuelve a EN_REVISION)
-                                      |                     RESPONDIDO (resueltos) = FUNDADO,
-                                      +-------resolver----> FUNDADO_EN_PARTE, INFUNDADO o IMPROCEDENTE
-                                                              |
-                                                          archivar
-                                                              v
-                                                          ARCHIVADO
+pendiente de validación ─┐
+en evaluación ───────────┼─ Funcionario: atender (registrar avance → en evaluación,
+derivado ────────────────┘               o enviar a aprobación → por aprobar), derivar, evaluar constancia
+por aprobar ── Supervisor: aprobar → resuelto | devolver (motivo) → en evaluación
+Supervisor: reasignar en cualquier estado activo. resuelto / archivado: sin acciones.
 ```
 
-- Las reglas viven en la entidad `Ticket` (`tomar`, `liberar`, `agregarNota`, `observar`, `resolver`, `archivar`).
-- Una **nota interna** no cambia el estado ni la ve el contribuyente.
-- **Pedir información** y **resolver** crean un aviso en `portal_notificaciones` dentro de la misma
-  transacción; el correo sale después del commit (`EnvioEnSegundoPlano`). Si la acción falla,
-  no sale nada. Los correos de un ticket van en un solo hilo (`Message-ID`, `In-Reply-To`,
-  `References`) y el cuerpo solo lleva el nuevo mensaje. El pie indica que el correo no recibe
-  respuestas y que el contribuyente siga por la app. Mientras dice "Enviando", `correos.js` consulta el
-  estado cada 1,5 s y lo actualiza sin recargar (máximo un minuto). Si el contribuyente no tiene correo
-  no se crea el aviso (la tabla exige destinatario): queda `CORREO_FALLIDO` en la auditoría y el admin ve un aviso.
-- Plazo: se usa `reclamos.fecha_limite_atencion`. **Alerta** si faltan 3 días o menos
-  (`Ticket.DIAS_ALERTA`), **vencido** si ya pasó. Solo corre en `REGISTRADO` y `EN_REVISION`.
-- Todas las reglas, columnas y permisos están explicados en `docs/Conexion_Portal_Oracle.md`.
+### Endpoints que usa el front (para el grupo de backend)
+
+Tabla completa en `docs/Plan_Supervisor_Funcionario.md`, sección 10. Ojo: la tabla `reclamos` de Oracle
+no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus estados son otros.
 
 ## 6. Convenciones
 
-- **Idioma:** nombres de clases, métodos, variables, tablas y textos de la interfaz en español.
-- **Textos de la interfaz:** en lenguaje simple, sin tecnicismos; los errores dicen qué pasó
-  y cómo resolverlo; los botones dicen la acción exacta ("Tomar ticket", "Archivar").
-- **Controladores:** siempre con nombre explícito en `@RequestParam(name = "...")` y
-  `@PathVariable("...")`.
-- **`open-in-view: false`:** si una vista necesita relaciones, cargarlas en el servicio
-  (ver `TicketRepository.findConRespuestas`, con `join fetch`).
-- **Auditoría:** `MetadataService.registrar` usa `REQUIRES_NEW` para que el registro se guarde
-  aunque la acción falle. Toda acción nueva sobre tickets debe registrar su evento
-  (agregar el valor en `TipoEvento`). La tabla `auditoria` es compartida con la app móvil: el portal
-  solo escribe y lee las acciones de `TipoEvento` con `origen = 'WEB'`. No guardar contraseñas, hashes
-  ni tokens en `datos`.
-- **Entidades sobre Oracle:** ids UUID como `String` (`@UuidGenerator`); instantes en UTC en la BD y
-  `LocalDateTime` local en Java (`hibernate.jdbc.time_zone: UTC`); toda columna que la cuenta no puede
-  actualizar lleva `updatable = false`; no usar `orphanRemoval` ni borrar (no hay `DELETE`).
-  Las tablas de otros sistemas (`Contribuyente`, `TipoReclamo`) son `@Immutable` y solo mapean lo que el portal lee.
-- **Acciones sobre tickets:** los formularios envían la `version` del ticket; el servicio la
-  compara antes de modificar (`cargarVerificandoVersion`).
-- **Clicks:** para que un elemento aparezca con nombre claro en los reportes, agregar
-  `data-track="nombre-claro"` en el HTML. El usuario, la IP y la hora los pone el servidor,
-  nunca el navegador.
-- **Datos de ejemplo:** solo en `DatosDemo`, que nunca corre con el perfil `cloud`. Los correos
-  de ejemplo usan `@example.com` (dominio reservado, nunca llega a un buzón real).
-- **Pruebas:** las pruebas normales usan H2 y nunca tocan Oracle. `OracleConexionTests` solo corre con
-  `-Doracle=true` y todo lo que escribe lo revierte. No poner contraseñas en pruebas ni documentos.
-- **Correos:** la plantilla HTML lleva estilos en línea y colores copiados de `app.css` (los
-  clientes de correo no leen variables CSS). El envío no abre transacción para no retener
-  conexiones de la BD compartida mientras se espera al servidor SMTP.
-- **Credenciales:** nunca en el repositorio; solo variables de entorno o GitHub Secrets.
+- **Idioma:** nombres de variables, funciones y textos de la interfaz en español (los componentes de
+  Braulio mezclan algo de inglés: `handleSubmit`, `isLoading`; se respetan).
+- **Textos:** lenguaje simple; los errores dicen qué pasó y cómo resolverlo; los botones dicen la acción
+  exacta ("Devolver al funcionario", "Reasignar").
+- **Colores:** solo variables del tema (`var(--text-main)`, `var(--bg-card)`, `var(--border-color)`...),
+  nunca `--slate-*` fijos en componentes nuevos: no se leen en modo oscuro.
+- **Acciones nuevas sobre reclamos:** agregar el método al controlador (API + respaldo simulado con
+  `if (!usarDatosDemo(err)) throw err;` al inicio del `catch`; en los datos simulados usar `aplicarEnDemo`), el handler en el hook (avisar con
+  `mensajeErrorApi` y relanzar), el tipo
+  en `types/ticket.types.ts` (payload y `tipoAccion` si deja huella en la línea de tiempo), la regla en
+  `utils/ticket.utils.ts` y el endpoint en la tabla del plan.
+- **React:** cumplir las reglas de lint `react-hooks` (`set-state-in-effect`, `immutability`). Para reiniciar
+  un formulario se usa `key` (ver `TicketDetailModal`), no un `useEffect`.
+- **Pestañas por rol:** la pestaña activa la manda `app/page.tsx` (`initialTab`); si la vista tiene
+  pestañas propias, avisa con `onTabChange` para que el menú lateral quede marcado (ver `SupervisorView`).
+- **Vistas de Admin, Control Municipal y Control TI (de Braulio):** los cambios se le avisan y se documentan
+  (los de esta rama están en `docs/Cambios_rama_supervisor_funcionario.md`, sección 5).
+- **Credenciales:** nunca en el repositorio.
 
-### Diseño visual
+## 7. Errores conocidos
 
-- Base fría (`--fondo #F2F4F6`, `--acento #12606B`). El color fuerte se reserva para el
-  **tiempo de espera**: verde `--reciente`, ámbar `--alerta`, rojo `--vencido`.
-- El elemento distintivo es la **barra de antigüedad** de cada ticket (fragmento
-  `antiguedad(t)` en `layout.html`), repetida como firma en la pantalla de login.
-- Todos los colores están como variables en `:root` de `app.css`; no usar colores sueltos.
-- Responsive: el menú lateral pasa a barra superior por debajo de 860 px; las tablas se
-  desplazan horizontalmente.
+- **StrictMode en desarrollo:** React monta los efectos dos veces, así que en `npm run dev` cada pantalla pide sus
+  datos dos veces a la API. Es normal; en producción es una vez.
+- **Playwright + Edge:** cerrar un contexto en el que hubo una descarga (p. ej. "Exportar CSV") da `TargetClosedError`.
+  Es del entorno de pruebas, no de la app.
+- **Fin de línea:** git avisa "LF will be replaced by CRLF" en varios archivos; es solo un aviso.
 
-## 7. Errores conocidos y cómo evitarlos
-
-- **IntelliJ marca errores que Maven no tiene:** tras cambiar el `pom.xml` hay que recargar Maven
-  (ventana Maven > *Reload All Maven Projects*, o el ícono flotante *Load Maven Changes*).
-- **`th:replace` se evalúa antes que `th:if`** en el mismo elemento: poner el `th:if` en un
-  `th:block` que envuelva al `th:replace` (ver el estado del correo en `tickets/detalle.html`).
-
-- **Mapas con claves enum en Thymeleaf/SpEL:** usar `mapa.get(e)`, **no** `mapa[e]`.
-  Con corchetes, SpEL toma `e` como texto literal y falla con
-  `No enum constant EstadoTicket.e`. Este error rompió la pantalla de Inicio el 23/10/2026
-  y se corrigió en `inicio.html` y `tickets/bandeja.html`.
-- **Records en plantillas:** los componentes de un `record` se leen con sintaxis de método,
-  por ejemplo `${resumen.conteo()}`, `${resumen.vencidos()}`.
-- **Dos enums que se referencian entre sí** (`EstadoTicket` y `EstadoReclamo`) rompen el arranque
-  (`ExceptionInInitializerError` → "Could not create DynamicParameterizedType"). Solo `EstadoTicket` apunta a
-  `EstadoReclamo` en su constructor; `EstadoReclamo.getGrupo()` busca el grupo al usarlo.
-- **`ORA-01031` al guardar:** Hibernate incluyó en el `UPDATE` una columna que la cuenta no puede actualizar.
-  Marcarla `updatable = false` (ver la tabla de permisos en `docs/Conexion_Portal_Oracle.md`).
-- **Scripts largos en la terminal de Git Bash:** si un `python` o `cat` con heredoc falla con "unexpected EOF",
-  no aplicó nada; crear los archivos con el editor en lugar de la terminal.
-
-## 8. Bitácora de avance
+## 8. Bitácora
 
 | Fecha | Avance |
 |---|---|
-| 23/10/2026 | Se definió el alcance y la arquitectura (monolito Spring Boot + Thymeleaf, BD compartida). |
-| 23/10/2026 | Se creó el prototipo completo: login con bloqueo, inicio, bandeja, detalle con acciones, historial, auditoría de clicks, logs de metadata, metadata del admin, datos de ejemplo, pruebas de humo, pipeline de CI y README. |
-| 23/10/2026 | Primera ejecución en local: el login funciona. Se corrigió el error de la pantalla de Inicio (mapas con enum en SpEL). |
-| 26/10/2026 | Rama `feature/envio-correos`: correo al cliente con cada respuesta (hilo, reenvío, estado en el detalle), perfil `smtp` y pruebas con GreenMail. |
-| 27/10/2026 | Rama `conexion-bd`: se documenta la conexión a Oracle (cuenta de la app móvil) y se piden al responsable de la BD la cuenta del portal y las tablas que faltan (`docs/datos_faltantes.md`). |
-| 28/10/2026 | El responsable de la BD entrega la cuenta `SANMI_PORTAL_WEB`, `administradores`, `portal_notificaciones`, `portal_eventos_click` y las columnas nuevas de `reclamos`. El portal se conecta a Oracle: entidades sobre las tablas reales, login Argon2id, estados nuevos (observado, resuelto), tres acciones de atención (nota, pedir información, resolver), plazo por `fecha_limite_atencion`, auditoría en `auditoria`. 21 pruebas con H2 y 8 contra Oracle pasan. Detalle en `docs/Conexion_Portal_Oracle.md`. |
-
-**Estado actual:** el portal funciona con H2 (por defecto) y con la BD Oracle real (perfil `cloud`). Se probó
-en Oracle el login, las 10 pantallas y las escrituras dentro de transacciones revertidas. No se probó el envío
-de correo con un SMTP real ni escrituras confirmadas sobre los reclamos de prueba.
+| 23/10–28/10/2026 | Etapa Spring Boot + Thymeleaf y conexión a Oracle (ver historia de git y `docs/Conexion_Portal_Oracle.md`). |
+| 31/10/2026 | Braulio pasa el proyecto a Next.js (`9ddb046`): pantallas por rol, modo oscuro, datos simulados. |
+| 31/10/2026 | Rama `feature/supervisor-funcionario`: reglas por estado, pestaña de reasignación de carga, reasignación con el funcionario elegido, devolver al funcionario, filtros del supervisor, atender sin enviar a aprobación, arreglo del login (sin entrada automática; sin modo demo si el backend responde) y menú lateral sincronizado con las pestañas del supervisor. Auditoría: `tsc` y `build` OK; 42 + 12 + 6 + 6 comprobaciones en navegador. |
+| 31/10/2026 | Misma rama: datos simulados solo sin conexión en todos los controladores (`esSinConexion`, `mensajeErrorApi`); el formulario queda abierto si la acción falla; período de Control Municipal enviado al backend; lint en 0 (arranque sin `setState` en efectos: `AuthContext`, `ThemeContext`, `page.tsx`); pipeline a Node 22 con lint; README al día. **Todos los cambios de la rama: `docs/Cambios_rama_supervisor_funcionario.md`.** |
+| 01/11/2026 | Misma rama: los 12 arreglos de la auditoría independiente, probados en el navegador (34 comprobaciones: desarrollo, y producción con y sin modo demo). `npm run build` sin errores. |
 
 ## 9. Pendientes
 
-**Por confirmar con el equipo**
-- [ ] Qué significa "clicks de los usuarios": admins en el portal (supuesto actual) o clientes en la app.
-- [x] Motor de la BD: Oracle 19c en AWS RDS (28/10/2026).
-- [x] Nombres reales de las tablas y columnas: `reclamos`, `reclamo_seguimientos`, etc. (28/10/2026).
-- [ ] ¿"Tomar" debe ser visible para el contribuyente? (hoy sí, como en los reclamos de prueba; "devolver" y "archivar" son internos).
-- [ ] Formato de `numero_resolucion` (se copió `RES-RCL-AAAA-NNNNNN` de los reclamos de prueba).
-- [ ] Quién devuelve un reclamo de `OBSERVADO` a `EN_REVISION` (hoy lo supone la app móvil al subsanar).
-- [ ] Habilitar en AWS la IP del servidor donde se despliegue el portal.
+**Por decidir con el equipo**
+- [ ] Colores de los estados (punto 8 del plan): `globals.css` dice "sin colores", pero hay tokens `--status-*` sin usar.
+- [ ] Que el grupo de backend revise la tabla de endpoints y resuelva con el responsable de la BD las columnas que faltan en `reclamos`.
+- [ ] Qué significa "clicks de los usuarios" (admins en el portal o ciudadanos en la app).
 
-**Siguientes pasos técnicos**
-- [x] Verificar todas las pantallas y correr `mvn test`.
-- [ ] Crear el repositorio en GitHub, subir el código y proteger la rama `main`.
-- [x] Ajustar las entidades a la BD real, agregar el driver y la columna de versión (la agregó el responsable de la BD, con trigger).
-- [ ] Probar escrituras confirmadas (commit) sobre reclamos de prueba acordándolo con quien usa la app móvil.
-- [ ] Adjuntos del reclamo (`reclamo_adjuntos`): el portal tiene permiso de leer e insertar, pero aún no los muestra ni los sube.
-- [ ] Datos del predio, deuda y valor del reclamo en la pantalla de detalle (el portal puede leer esas tablas).
-- [x] Envío de la respuesta al cliente por correo (rama `feature/envio-correos`).
-- [ ] Probar el correo con un servidor real (cuenta Gmail del equipo + `CORREO_REDIRIGIR_A`).
-- [ ] Notificación en la app móvil cuando tenga su buzón de reclamos.
-- [ ] Reintento automático de correos fallidos (hoy solo se reenvía a mano).
-- [ ] Gestión de usuarios admin: hoy la hace el responsable de la BD (la cuenta del portal no puede insertar ni cambiar contraseñas).
-- [ ] Política de retención de clicks y guardado por lotes si el volumen es alto.
-- [ ] Paso de despliegue en el pipeline cuando se defina el proveedor.
+**Técnicos**
+- [x] Pipeline pasado de Maven a Node 22 (`npm ci`, `tsc --noEmit`, `npm run lint`, `npm run build`).
+- [x] Lint en 0 errores y 0 advertencias, y `npm run lint` en el pipeline.
+- [x] Respaldo simulado de `tickets.controller` solo sin conexión; el formulario queda abierto si la acción falla.
+- [x] `esSinConexion` en todos los controladores.
+- [x] Selector de período de Control Municipal: ahora se envía al backend (los datos simulados no cambian por período).
+- [ ] Control TI: "Dashboard Telemetría App" y "Privacidad y Onboarding" muestran lo mismo, y "Flujo de Eventos Anónimos" no está en el menú; definir qué va en cada una con Braulio.
+- [ ] Integrar con el backend cuando esté listo y quitar los datos simulados.
+- [ ] Pruebas automáticas en el repositorio (hoy solo hay scripts de Playwright fuera del repo).
+- [x] `README.md` actualizado (estructura `components/roles/`, Next.js 16, datos que no coincidían con el código).
+- [ ] `ConfirmModal` existe pero no se usa en ninguna pantalla.

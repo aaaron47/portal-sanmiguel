@@ -44,40 +44,83 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
+  let response: Response;
   try {
-    const response = await fetch(url, {
+    response = await fetch(url, {
       ...restOptions,
       headers: {
         ...defaultHeaders,
         ...headers,
       },
     });
-
-    if (!response.ok) {
-      let errorBody: unknown;
-      try {
-        errorBody = await response.json();
-      } catch {
-        errorBody = await response.text();
-      }
-      throw new ApiError(
-        `Error HTTP ${response.status}: ${response.statusText}`,
-        response.status,
-        errorBody
-      );
-    }
-
-    if (response.status === 204) {
-      return {} as T;
-    }
-
-    return (await response.json()) as T;
   } catch (err: unknown) {
-    if (err instanceof ApiError) {
-      throw err;
-    }
-    // Si hay fallo de red (ej. Backend remoto apagado), propagar un error estructurado
+    // Solo un fallo de fetch es "sin conexión" (status 0): backend apagado, sin red o CORS.
     const message = err instanceof Error ? err.message : 'Error de conexión de red';
     throw new ApiError(message, 0, null);
   }
+
+  // El cuerpo se lee como texto: leerlo como JSON y, si falla, como texto, fallaba porque ya estaba leído.
+  const texto = await response.text();
+
+  if (!response.ok) {
+    let errorBody: unknown = texto;
+    try {
+      errorBody = texto ? JSON.parse(texto) : null;
+    } catch {
+      // El cuerpo del error no es JSON: se guarda como texto.
+    }
+    throw new ApiError(`Error HTTP ${response.status}: ${response.statusText}`, response.status, errorBody);
+  }
+
+  if (response.status === 204) {
+    return {} as T;
+  }
+
+  // El backend respondió bien pero sin un JSON válido: es un error del backend, no "sin conexión"
+  // (si no, se aplicaría la acción también en los datos simulados).
+  try {
+    return JSON.parse(texto) as T;
+  } catch {
+    throw new ApiError('La respuesta del servidor no es válida', response.status, texto);
+  }
+}
+
+/**
+ * Si se permiten los datos simulados. En desarrollo (`npm run dev`) sí; en un build de producción solo con
+ * `NEXT_PUBLIC_MODO_DEMO=true`. Así, si el backend real se cae, nadie entra sin contraseña ni "guarda" en datos falsos.
+ */
+export const MODO_DEMO =
+  process.env.NEXT_PUBLIC_MODO_DEMO !== undefined
+    ? process.env.NEXT_PUBLIC_MODO_DEMO === 'true'
+    : process.env.NODE_ENV !== 'production';
+
+/** true si no se pudo llegar al backend (red caída, backend apagado o CORS). */
+export function esSinConexion(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 0;
+}
+
+/** Los controladores usan los datos simulados solo sin conexión y con el modo demo activo. */
+export function usarDatosDemo(err: unknown): boolean {
+  return MODO_DEMO && esSinConexion(err);
+}
+
+const MENSAJES_POR_ESTADO: Record<number, string> = {
+  0: 'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.',
+  401: 'Tu sesión venció. Cierra sesión y vuelve a entrar.',
+  403: 'No tienes permiso para hacer esta acción.',
+  404: 'No encontramos este registro. Recarga la página para ver la lista actualizada.',
+  409: 'Otra persona cambió estos datos mientras los tenías abiertos. Recarga la página para ver los cambios.',
+};
+
+/**
+ * Mensaje para el usuario según la respuesta del backend; `porDefecto` para el resto de casos.
+ * `propios` reemplaza el texto de algún estado (p. ej. un 409 al crear un usuario es "ya existe").
+ */
+export function mensajeErrorApi(
+  err: unknown,
+  porDefecto: string,
+  propios: Partial<Record<number, string>> = {}
+): string {
+  if (!(err instanceof ApiError)) return porDefecto;
+  return propios[err.status] ?? MENSAJES_POR_ESTADO[err.status] ?? porDefecto;
 }

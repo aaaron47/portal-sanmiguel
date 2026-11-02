@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Compilación del proyecto Java anterior (Maven); no es código de este front.
+    "target/**",
   ]),
 ]);
 

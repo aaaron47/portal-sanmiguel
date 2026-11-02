@@ -15,7 +15,7 @@ export interface TicketSeguimiento {
   autorNombre: string;
   autorRol: string;
   fecha: string;
-  tipoAccion: 'CREACION' | 'ATENCION' | 'DERIVACION' | 'APROBACION' | 'REASIGNACION' | 'EVALUACION_CONSTANCIA';
+  tipoAccion: 'CREACION' | 'ATENCION' | 'DERIVACION' | 'APROBACION' | 'DEVOLUCION' | 'REASIGNACION' | 'EVALUACION_CONSTANCIA';
   comentario: string; // Guarda texto enriquecido, derivaciones y evidencias según directiva ágil
 }
 
@@ -58,8 +58,25 @@ export interface DerivacionPayload {
   motivoDerivacion: string;
 }
 
+export interface DevolucionPayload {
+  motivoDevolucion: string;
+}
+
 export interface ReasignacionPayload {
   nuevoFuncionarioId: string;
   nuevoFuncionarioNombre: string;
   motivoReasignacion: string;
 }
+
+/** Acción abierta en el detalle de un reclamo. */
+export type AccionTicket =
+  | 'ninguna'
+  | 'atender'
+  | 'derivar'
+  | 'constancia'
+  | 'aprobar'
+  | 'devolver'
+  | 'reasignar';
+
+/** Estados que el funcionario puede elegir al atender (no puede resolver sin el supervisor). */
+export type EstadoAtencion = 'en evaluación' | 'por aprobar';

@@ -3,6 +3,7 @@ import { usuariosController } from '@/controllers/usuarios.controller';
 import { Usuario, ROLE_LABELS } from '@/types/auth.types';
 import { NotifyFn } from '@/types/ui.types';
 import { exportarCSV } from '@/utils/csv.utils';
+import { mensajeErrorApi } from '@/services/api-client.service';
 
 export type NuevoUsuario = Omit<Usuario, 'id' | 'creadoEn' | 'activo'>;
 
@@ -20,7 +21,7 @@ export function useUsuarios(onNotify: NotifyFn) {
     usuariosController
       .getUsuarios()
       .then(setUsuarios)
-      .catch(() => onNotify('error', 'Error al cargar datos administrativos'));
+      .catch((err) => onNotify('error', mensajeErrorApi(err, 'No se pudieron cargar los usuarios. Recarga la página.')));
   }, [onNotify]);
 
   const filtrados = usuarios.filter((u) => {
@@ -56,8 +57,8 @@ export function useUsuarios(onNotify: NotifyFn) {
       setUsuarios((prev) => prev.map((u) => (selectedIds.includes(u.id) ? { ...u, activo } : u)));
       onNotify('success', `${selectedIds.length} usuario(s) ${activo ? 'activado(s)' : 'desactivado(s)'}`);
       setSelectedIds([]);
-    } catch {
-      onNotify('error', 'No se pudo cambiar el estado de los usuarios');
+    } catch (err) {
+      onNotify('error', mensajeErrorApi(err, 'No se pudo cambiar el estado de los usuarios. Inténtalo de nuevo.'));
     }
   };
 
@@ -67,8 +68,14 @@ export function useUsuarios(onNotify: NotifyFn) {
       setUsuarios((prev) => [creado, ...prev]);
       setIsCreating(false);
       onNotify('success', `Usuario ${creado.nombreCompleto} creado correctamente`);
-    } catch {
-      onNotify('error', 'Error al crear usuario');
+    } catch (err) {
+      // El formulario queda abierto (isCreating sigue en true) para corregir y reintentar.
+      onNotify(
+        'error',
+        mensajeErrorApi(err, 'No se pudo crear el usuario. Inténtalo de nuevo.', {
+          409: 'Ya existe un usuario con ese DNI o correo. Revisa los datos.',
+        })
+      );
     }
   };
 

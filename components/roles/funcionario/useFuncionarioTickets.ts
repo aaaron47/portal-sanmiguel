@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { ticketsController } from '@/controllers/tickets.controller';
-import { Ticket, TicketEstado, TicketPrioridad } from '@/types/ticket.types';
+import { EstadoAtencion, Ticket, TicketEstado, TicketPrioridad } from '@/types/ticket.types';
 import { useAuth } from '@/context/AuthContext';
 import { NotifyFn } from '@/types/ui.types';
 import { exportarCSV } from '@/utils/csv.utils';
+import { mensajeErrorApi } from '@/services/api-client.service';
+import { MENSAJES_ERROR_RECLAMO } from '@/utils/ticket.utils';
 
 export type FiltroConstancia = 'todos' | 'con_constancia' | 'sin_constancia' | 'por_evaluar' | 'aprobada' | 'observada';
 
@@ -18,20 +20,22 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
   const [searchQuery, setSearchQuery] = useState('');
   const [soloAsignadosAMi, setSoloAsignadosAMi] = useState(false);
 
-  useEffect(() => {
-    cargarTickets();
-  }, [usuario]);
+  const area = usuario?.area;
 
-  const cargarTickets = async () => {
-    try {
-      const data = await ticketsController.getTickets({
-        area: usuario?.area,
+  useEffect(() => {
+    let cancelado = false;
+    ticketsController
+      .getTickets({ area })
+      .then((data) => {
+        if (!cancelado) setTickets(data);
+      })
+      .catch(() => {
+        if (!cancelado) onNotify('error', 'No se pudieron cargar los reclamos de tu área. Recarga la página.');
       });
-      setTickets(data);
-    } catch {
-      onNotify('error', 'Error al cargar los reclamos asignados a su área');
-    }
-  };
+    return () => {
+      cancelado = true;
+    };
+  }, [area, onNotify]);
 
   const abrirTicket = (ticket: Ticket, accion: 'ninguna' | 'atender' | 'derivar' | 'constancia' = 'ninguna') => {
     setSelectedTicket(ticket);
@@ -43,7 +47,7 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
     setModalAction('ninguna');
   };
 
-  const handleAtender = async (id: string, comentario: string, nuevoEstado: 'por aprobar' | 'resuelto' | 'en evaluación') => {
+  const handleAtender = async (id: string, comentario: string, nuevoEstado: EstadoAtencion) => {
     try {
       const actualizado = await ticketsController.atenderTicket(
         id, 
@@ -52,9 +56,15 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
       );
       setTickets(prev => prev.map(t => t.id === id ? actualizado : t));
       setSelectedTicket(actualizado);
-      onNotify('success', `Atención registrada para el expediente ${actualizado.folio}`);
-    } catch {
-      onNotify('error', 'Error al registrar atención');
+      onNotify(
+        'success',
+        nuevoEstado === 'por aprobar'
+          ? `Expediente ${actualizado.folio} enviado al supervisor para aprobación`
+          : `Avance registrado en el expediente ${actualizado.folio}`
+      );
+    } catch (err) {
+      onNotify('error', mensajeErrorApi(err, 'No se pudo guardar la atención. Inténtalo de nuevo.', MENSAJES_ERROR_RECLAMO));
+      throw err; // El formulario queda abierto con lo escrito.
     }
   };
 
@@ -65,11 +75,13 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
         { areaDestino, motivoDerivacion: motivo }, 
         usuario?.nombreCompleto || 'Funcionario'
       );
-      setTickets(prev => prev.map(t => t.id === id ? actualizado : t));
-      setSelectedTicket(actualizado);
-      onNotify('success', `Expediente derivado a ${areaDestino} correctamente`);
-    } catch {
-      onNotify('error', 'Error al derivar expediente');
+      // Ya pertenece a otra área: sale de esta bandeja y se cierra el detalle (no se puede seguir atendiendo).
+      setTickets(prev => prev.filter(t => t.id !== id));
+      cerrarModal();
+      onNotify('success', `Expediente ${actualizado.folio} derivado a ${areaDestino}; ya no aparece en tu bandeja`);
+    } catch (err) {
+      onNotify('error', mensajeErrorApi(err, 'No se pudo derivar el expediente. Inténtalo de nuevo.', MENSAJES_ERROR_RECLAMO));
+      throw err;
     }
   };
 
@@ -84,8 +96,9 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
       setTickets(prev => prev.map(t => t.id === id ? actualizado : t));
       setSelectedTicket(actualizado);
       onNotify('success', `Constancia formal ${estado} exitosamente`);
-    } catch {
-      onNotify('error', 'Error al evaluar constancia');
+    } catch (err) {
+      onNotify('error', mensajeErrorApi(err, 'No se pudo guardar la evaluación de la constancia. Inténtalo de nuevo.', MENSAJES_ERROR_RECLAMO));
+      throw err;
     }
   };
 
