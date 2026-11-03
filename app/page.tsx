@@ -17,7 +17,7 @@ const TAB_INICIAL: Record<UserRole, string> = {
   ADMIN: 'admin-usuarios',
   FUNCIONARIO: 'funcionario-bandeja',
   SUPERVISOR: 'supervisor-panorama',
-  CONTROL_MUNICIPAL: 'control-reportes',
+  CONTROL_MUNICIPAL: 'control-dashboard',
   CONTROL_TI: 'ti-telemetria',
 };
 
@@ -110,6 +110,7 @@ export default function HomePage() {
             <ControlMunicipalView
               initialTab={currentTab}
               onNotify={showNotification}
+              onTabChange={setCurrentTab}
             />
           )}
 
@@ -118,6 +119,7 @@ export default function HomePage() {
             <ControlTiView
               initialTab={currentTab}
               onNotify={showNotification}
+              onTabChange={setCurrentTab}
             />
           )}
         </main>

@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Layers, CheckCircle2, RotateCcw, Building2 } from 'lucide-react';
+import React from 'react';
+import { Building2 } from 'lucide-react';
 import { RoleViewProps } from '@/types/ui.types';
-import { TabsBar, TabItem } from '@/components/shared/ui/TabsBar';
 import { CardHeader, CardAside } from '@/components/shared/ui/CardHeader';
 import { TicketDetailModal } from '@/components/modals/TicketDetailModal';
 import { useSupervisorTickets } from './useSupervisorTickets';
@@ -19,39 +18,19 @@ const tabDesdeMenu = (initialTab: string): SupervisorTab =>
   initialTab === 'supervisor-aprobaciones'
     ? 'aprobaciones'
     : initialTab === 'supervisor-reasignaciones'
-    ? 'reasignaciones'
-    : 'panorama';
+      ? 'reasignaciones'
+      : 'panorama';
 
-const menuDesdeTab: Record<SupervisorTab, string> = {
-  panorama: 'supervisor-panorama',
-  aprobaciones: 'supervisor-aprobaciones',
-  reasignaciones: 'supervisor-reasignaciones',
-};
-
-const sinAccion = async () => {};
+const sinAccion = async () => { };
 
 export const SupervisorView: React.FC<RoleViewProps> = ({
   initialTab = 'supervisor-panorama',
   onNotify,
-  onTabChange,
 }) => {
-  // La pestaña sale del menú lateral; si la página no lo controla, se guarda aquí.
-  const [tabLocal, setTabLocal] = useState<SupervisorTab>(tabDesdeMenu(initialTab));
-  const subTab = onTabChange ? tabDesdeMenu(initialTab) : tabLocal;
-  const setSubTab = (tab: SupervisorTab) =>
-    onTabChange ? onTabChange(menuDesdeTab[tab]) : setTabLocal(tab);
+  // La pestaña activa proviene exclusivamente del menú lateral (Sidebar)
+  const subTab = tabDesdeMenu(initialTab);
 
   const s = useSupervisorTickets(onNotify);
-
-  const tabs: TabItem<SupervisorTab>[] = [
-    { id: 'panorama', label: `Panorama Integral (${s.tickets.length})`, icon: Layers },
-    {
-      id: 'aprobaciones',
-      label: `Por Aprobar (${s.tickets.filter(puedeAprobar).length})`,
-      icon: CheckCircle2,
-    },
-    { id: 'reasignaciones', label: 'Reasignación de Carga', icon: RotateCcw },
-  ];
 
   const ticketsFiltrados = s.tickets.filter((t) => {
     if (subTab === 'aprobaciones' && !puedeAprobar(t)) return false;
@@ -72,9 +51,7 @@ export const SupervisorView: React.FC<RoleViewProps> = ({
 
   return (
     <div>
-      <SupervisorKpis tickets={s.tickets} />
-
-      <TabsBar tabs={tabs} active={subTab} onChange={setSubTab} marginBottom="1.25rem" />
+      {subTab !== 'reasignaciones' && <SupervisorKpis tickets={s.tickets} />}
 
       {subTab === 'reasignaciones' ? (
         <ReasignacionPanel tickets={s.tickets} carga={s.carga} onSelectTicket={s.abrirTicket} />

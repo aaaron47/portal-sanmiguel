@@ -1,5 +1,4 @@
 import React from 'react';
-import { FileCheck, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Ticket } from '@/types/ticket.types';
 
 interface ConstanciasKpisProps {
@@ -14,55 +13,63 @@ export const ConstanciasKpis: React.FC<ConstanciasKpisProps> = ({ tickets }) => 
 
   return (
     <div className="kpi-grid">
-      <div className="kpi-card">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-          <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)', fontWeight: 600 }}>Total Solicitudes</span>
-          <FileCheck size={20} color="var(--primary-500)" />
-        </div>
-        <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)' }}>
-          {conConstancia.length}
-        </div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-          Constancias formales registradas
-        </div>
-      </div>
-
-      <div className="kpi-card">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-          <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)', fontWeight: 600 }}>Por Evaluar</span>
-          <Clock size={20} color="var(--primary-500)" />
-        </div>
-        <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)' }}>
-          {pendientes.length}
-        </div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-          Pendientes de dictamen técnico
+      {/* 1. Total Solicitudes */}
+      <div className="kpi-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '1rem 1.25rem' }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          Total Solicitudes
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <div style={{ fontSize: '1.9rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1 }}>
+            {conConstancia.length}
+          </div>
+          <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', lineHeight: 1.35 }}>
+            Constancias formales registradas
+          </div>
         </div>
       </div>
 
-      <div className="kpi-card">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-          <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)', fontWeight: 600 }}>Aprobadas</span>
-          <CheckCircle2 size={20} color="var(--primary-500)" />
-        </div>
-        <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)' }}>
-          {aprobadas.length}
-        </div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-          Constancias conformes
+      {/* 2. Por Evaluar */}
+      <div className="kpi-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '1rem 1.25rem' }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          Por Evaluar
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <div style={{ fontSize: '1.9rem', fontWeight: 800, color: 'var(--amber-600)', lineHeight: 1 }}>
+            {pendientes.length}
+          </div>
+          <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', lineHeight: 1.35 }}>
+            Pendientes de dictamen técnico
+          </div>
         </div>
       </div>
 
-      <div className="kpi-card">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-          <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)', fontWeight: 600 }}>Observadas</span>
-          <AlertTriangle size={20} color="var(--primary-500)" />
+      {/* 3. Aprobadas */}
+      <div className="kpi-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '1rem 1.25rem' }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          Aprobadas
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <div style={{ fontSize: '1.9rem', fontWeight: 800, color: 'var(--green-600)', lineHeight: 1 }}>
+            {aprobadas.length}
+          </div>
+          <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', lineHeight: 1.35 }}>
+            Constancias conformes
+          </div>
         </div>
-        <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)' }}>
-          {observadas.length}
-        </div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-          Con observaciones notificadas
+      </div>
+
+      {/* 4. Observadas */}
+      <div className="kpi-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '1rem 1.25rem' }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          Observadas
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <div style={{ fontSize: '1.9rem', fontWeight: 800, color: 'var(--red-600)', lineHeight: 1 }}>
+            {observadas.length}
+          </div>
+          <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', lineHeight: 1.35 }}>
+            Con observaciones notificadas
+          </div>
         </div>
       </div>
     </div>

@@ -31,7 +31,7 @@ export const ReasignacionPanel: React.FC<ReasignacionPanelProps> = ({ tickets, c
         <CardHeader
           icon={<Users size={20} />}
           title="Carga de trabajo por funcionario"
-          aside={<CardAside>Solo cuenta reclamos abiertos (no resueltos ni archivados)</CardAside>}
+          aside={<CardAside>Margen estándar: hasta 8 casos activos simultáneos por funcionario</CardAside>}
         />
         <CargaFuncionariosTable carga={carga} seleccionadoId={idEfectivo} onSeleccionar={setSeleccionadoId} />
       </div>

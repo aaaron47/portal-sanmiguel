@@ -63,8 +63,8 @@ export const ConstanciasTable: React.FC<ConstanciasTableProps> = ({ tickets, onS
                   {ticket.estadoConstancia === 'aprobada'
                     ? 'Aprobada'
                     : ticket.estadoConstancia === 'observada'
-                    ? 'Observada'
-                    : 'Por Evaluar'}
+                      ? 'Observada'
+                      : 'Por Evaluar'}
                 </span>
               </td>
               <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>

@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { NotifyFn } from '@/types/ui.types';
 import { exportarCSV } from '@/utils/csv.utils';
+import { apiClient, usarDatosDemo } from '@/services/api-client.service';
+import { telemetriaController } from '@/controllers/telemetria.controller';
+import { auditoriaController } from '@/controllers/auditoria.controller';
 
 export interface VariablesAcceso {
+  // 1. Políticas de Sesión y Autenticación
   sessionTimeoutMinutes: number;
   maxFailedLogins: number;
   minPasswordLength: number;
@@ -10,6 +14,10 @@ export interface VariablesAcceso {
   restrictToMunicipalNetwork: boolean;
   passwordExpirationDays: number;
   allowSimultaneousSessions: boolean;
+  // 2. Gobernanza de Datos y Telemetría Móvil (Ley N° 29733)
+  telemetriaActiva: boolean;
+  diasRetencionLogs: number;
+  versionTerminosVigente: string;
 }
 
 export interface PermisoRol {
@@ -28,6 +36,9 @@ const DEFAULT_VARIABLES: VariablesAcceso = {
   restrictToMunicipalNetwork: false,
   passwordExpirationDays: 90,
   allowSimultaneousSessions: false,
+  telemetriaActiva: true,
+  diasRetencionLogs: 60,
+  versionTerminosVigente: 'v1.3 (2026-10)',
 };
 
 const MATRIZ_PERMISOS: PermisoRol[] = [
@@ -69,29 +80,134 @@ const MATRIZ_PERMISOS: PermisoRol[] = [
 ];
 
 export function useControlAcceso(onNotify: NotifyFn) {
+  const [variablesGuardadas, setVariablesGuardadas] = useState<VariablesAcceso>(DEFAULT_VARIABLES);
   const [variables, setVariables] = useState<VariablesAcceso>(DEFAULT_VARIABLES);
   const [isSaving, setIsSaving] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [textoConfirmacion, setTextoConfirmacion] = useState('');
+
+  // Sincronizar con el backend al montar el componente
+  useEffect(() => {
+    let montado = true;
+    telemetriaController
+      .getResumen()
+      .then((resumen) => {
+        if (!montado) return;
+        const configInicial: VariablesAcceso = {
+          ...DEFAULT_VARIABLES,
+          telemetriaActiva: resumen.onboarding.telemetriaActiva,
+          diasRetencionLogs: resumen.onboarding.diasRetencionLogs,
+          versionTerminosVigente: resumen.onboarding.versionTerminosVigente,
+        };
+        setVariablesGuardadas(configInicial);
+        setVariables(configInicial);
+      })
+      .catch(() => {
+        // En caso de fallo de red, se mantienen los valores por defecto seguros
+      });
+
+    return () => {
+      montado = false;
+    };
+  }, []);
 
   const updateVariable = <K extends keyof VariablesAcceso>(key: K, value: VariablesAcceso[K]) => {
     setVariables((prev) => ({ ...prev, [key]: value }));
   };
 
-  const guardarCambios = async () => {
+  // Comparar si existen cambios con respecto a lo guardado
+  const hayCambios = useMemo(() => {
+    return (Object.keys(variablesGuardadas) as (keyof VariablesAcceso)[]).some(
+      (k) => variables[k] !== variablesGuardadas[k]
+    );
+  }, [variables, variablesGuardadas]);
+
+  // Lista detallada de cambios detectados para el modal y la auditoría
+  const resumenCambios = useMemo(() => {
+    const lista: string[] = [];
+    if (variables.sessionTimeoutMinutes !== variablesGuardadas.sessionTimeoutMinutes) {
+      lista.push(`Tiempo de Inactividad: ${variablesGuardadas.sessionTimeoutMinutes}m ➔ ${variables.sessionTimeoutMinutes}m`);
+    }
+    if (variables.passwordExpirationDays !== variablesGuardadas.passwordExpirationDays) {
+      lista.push(`Renovación de Contraseña: ${variablesGuardadas.passwordExpirationDays}d ➔ ${variables.passwordExpirationDays}d`);
+    }
+    if (variables.maxFailedLogins !== variablesGuardadas.maxFailedLogins) {
+      lista.push(`Intentos fallidos antes de bloqueo: ${variablesGuardadas.maxFailedLogins} ➔ ${variables.maxFailedLogins}`);
+    }
+    if (variables.minPasswordLength !== variablesGuardadas.minPasswordLength) {
+      lista.push(`Longitud mínima de contraseña: ${variablesGuardadas.minPasswordLength} ➔ ${variables.minPasswordLength} caracteres`);
+    }
+    if (variables.telemetriaActiva !== variablesGuardadas.telemetriaActiva) {
+      lista.push(`Telemetría Móvil: ${variablesGuardadas.telemetriaActiva ? 'ACTIVA' : 'EN PAUSA'} ➔ ${variables.telemetriaActiva ? 'REANUDADA (ACTIVA)' : 'PAUSADA (KILL-SWITCH ACTIVADO)'}`);
+    }
+    if (variables.diasRetencionLogs !== variablesGuardadas.diasRetencionLogs) {
+      lista.push(`Retención de Logs (Ley N° 29733): ${variablesGuardadas.diasRetencionLogs} días ➔ ${variables.diasRetencionLogs} días`);
+    }
+    if (variables.versionTerminosVigente !== variablesGuardadas.versionTerminosVigente) {
+      lista.push(`Versión Términos App: ${variablesGuardadas.versionTerminosVigente} ➔ ${variables.versionTerminosVigente} (Re-aceptación ciudadana obligatoria)`);
+    }
+    return lista;
+  }, [variables, variablesGuardadas]);
+
+  const solicitarGuardar = () => {
+    if (!hayCambios) return;
+    setTextoConfirmacion('');
+    setIsModalOpen(true);
+  };
+
+  const cancelarGuardar = () => {
+    setIsModalOpen(false);
+    setTextoConfirmacion('');
+  };
+
+  const confirmarYGuardar = async () => {
+    if (textoConfirmacion.trim().toLowerCase() !== 'realizar cambios' || isSaving) return;
+
     setIsSaving(true);
     try {
-      // Simular persistencia en backend
-      await new Promise((resolve) => setTimeout(resolve, 350));
-      onNotify('success', 'Variables de control de acceso actualizadas correctamente');
+      // 1. Guardar cambios de telemetría/gobernanza en Spring Boot
+      await telemetriaController.actualizarConfiguracionPrivacidad({
+        telemetriaActiva: variables.telemetriaActiva,
+        diasRetencionLogs: variables.diasRetencionLogs,
+        versionTerminosVigente: variables.versionTerminosVigente,
+      });
+
+      // 2. Guardar políticas de acceso en Spring Boot
+      try {
+        await apiClient('/seguridad/politicas-acceso', {
+          method: 'PUT',
+          body: JSON.stringify(variables),
+        });
+      } catch (err) {
+        if (!usarDatosDemo(err)) throw err;
+      }
+
+      // 3. Registrar formalmente en auditoría
+      await auditoriaController.registrarLog({
+        accion: 'ACTUALIZACION_POLITICA',
+        entidadAfectada: 'Políticas de Seguridad y Acceso',
+        detalles: `Configuración actualizada por Administrador. Modificaciones aplicadas: ${resumenCambios.join(' | ')}.`,
+      });
+
+      setVariablesGuardadas({ ...variables });
+      setIsModalOpen(false);
+      setTextoConfirmacion('');
+      onNotify('success', 'Todas las políticas de acceso y gobernanza fueron actualizadas con éxito y registradas en auditoría.');
     } catch {
-      onNotify('error', 'Error al guardar las variables de acceso');
+      onNotify('error', 'Error al guardar las políticas en el servidor. Intente nuevamente.');
     } finally {
       setIsSaving(false);
     }
   };
 
+  const descartarCambios = () => {
+    setVariables(variablesGuardadas);
+    onNotify('info', 'Cambios en borrador descartados.');
+  };
+
   const restablecerValores = () => {
     setVariables(DEFAULT_VARIABLES);
-    onNotify('info', 'Valores de acceso restablecidos por defecto');
+    onNotify('info', 'Valores de acceso reestablecidos por defecto (en borrador). Presione "Guardar Configuración" para aplicarlos.');
   };
 
   const descargarCSV = () => {
@@ -109,10 +225,19 @@ export function useControlAcceso(onNotify: NotifyFn) {
 
   return {
     variables,
+    variablesGuardadas,
     updateVariable,
+    hayCambios,
+    resumenCambios,
+    isModalOpen,
+    textoConfirmacion,
+    setTextoConfirmacion,
+    solicitarGuardar,
+    cancelarGuardar,
+    confirmarYGuardar,
+    descartarCambios,
     matrizPermisos: MATRIZ_PERMISOS,
     isSaving,
-    guardarCambios,
     restablecerValores,
     descargarCSV,
   };

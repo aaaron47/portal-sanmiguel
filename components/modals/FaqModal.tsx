@@ -23,10 +23,16 @@ const FAQS: FaqItem[] = [
     respuesta: 'El vecino registra su reclamo a través de los canales digitales. El expediente ingresa a la bandeja del funcionario de área asignada, quien puede responder directamente y elevar a "por aprobar" o derivar a otra gerencia técnica si corresponde según la Directiva Ágil.',
   },
   {
-    id: '2',
-    categoria: 'Directiva Ágil',
-    pregunta: '¿Por qué se derivan casos sin tablas intermedias?',
-    respuesta: 'Para eliminar la sobrecarga burocrática y agilizar la respuesta al vecino, la derivación se registra como un evento en la capa de seguimiento (reclamo_seguimiento) con motivo y área destino, sin requerir esquemas de derivación pesados ni trabas administrativas.',
+    id: 'cna-flujo',
+    categoria: 'Control Tributario',
+    pregunta: '¿Cuál es el flujo oficial de la Constancia de No Adeudo Tributario?',
+    respuesta: 'El procedimiento regulado bajo la Ley N° 27269 de Firmas y Certificados Digitales y el TUPA Institucional comprende 4 pasos: 1. Solicitud Vecinal (ingreso con DNI/RUC y código de predio para trámites notariales o registrales); 2. Fiscalización Automática (cruce de cuentas corrientes sin cuotas impagas en Impuesto Predial ni Arbitrios); 3. Firma Digital PAdES (estampado con certificado RENIEC, sellado de tiempo y código CVD único por la Subgerencia de Recaudación); y 4. Emisión con QR (PDF oficial verificable durante 30 días calendario).',
+  },
+  {
+    id: 'mcp-capacidades',
+    categoria: 'Reportería Inteligente',
+    pregunta: '¿Cuáles son las capacidades del Conector MCP (Model Context Protocol)?',
+    respuesta: 'El asistente MCP se conecta con el modelo local municipal y ofrece 3 capacidades clave: 1. Generación de Reportes Oficiales (R1 a R11 de morosos, PRICOS y efectividad); 2. Consultas SQL Parametrizadas (transforma preguntas en lenguaje natural en sentencias analíticas seguras y optimizadas); y 3. Renderizado y Sincronización en Apache Superset con métricas e indicadores en vivo.',
   },
   {
     id: '3',

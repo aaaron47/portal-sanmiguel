@@ -6,16 +6,16 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { UserRole, ROLE_LABELS } from '@/types/auth.types';
 import { MODO_DEMO } from '@/services/api-client.service';
-import { 
-  Users, 
-  ShieldAlert, 
-  Inbox, 
-  FileCheck, 
-  CheckCircle2, 
-  Layers, 
-  BarChart3, 
-  Activity, 
-  Smartphone, 
+import {
+  Users,
+  ShieldAlert,
+  Inbox,
+  FileCheck,
+  CheckCircle2,
+  Layers,
+  BarChart3,
+  Activity,
+  Smartphone,
   Eye,
   Sun,
   Moon,
@@ -23,7 +23,9 @@ import {
   LogOut,
   ArrowRightLeft,
   ChevronUp,
-  KeyRound
+  KeyRound,
+  Sparkles,
+  Table
 } from 'lucide-react';
 import { FaqModal } from '@/components/modals/FaqModal';
 
@@ -35,7 +37,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange }) => {
   const { usuario, rol, logout, switchRoleDemo } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  
+
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isFaqOpen, setIsFaqOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -164,18 +166,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange }) => 
             <>
               <span className="nav-section-title">Control Institucional</span>
               <button
-                className={`nav-item ${currentTab === 'control-reportes' ? 'active' : ''}`}
-                onClick={() => onTabChange('control-reportes')}
+                className={`nav-item ${currentTab === 'control-dashboard' || currentTab === 'control-reportes' ? 'active' : ''}`}
+                onClick={() => onTabChange('control-dashboard')}
               >
                 <BarChart3 size={18} />
-                Reportes de Cumplimiento
+                Dashboard General
+              </button>
+              <button
+                className={`nav-item ${currentTab === 'control-tributarios' ? 'active' : ''}`}
+                onClick={() => onTabChange('control-tributarios')}
+              >
+                <Table size={18} />
+                Reportes Tributarios
+              </button>
+              <button
+                className={`nav-item ${currentTab === 'control-ia' || currentTab === 'control-superset' ? 'active' : ''}`}
+                onClick={() => onTabChange('control-ia')}
+              >
+                <Sparkles size={18} />
+                Asistente MCP (Consultas IA)
               </button>
               <button
                 className={`nav-item ${currentTab === 'control-constancias' ? 'active' : ''}`}
                 onClick={() => onTabChange('control-constancias')}
               >
                 <FileCheck size={18} />
-                Constancias Emitidas
+                Constancias de No Adeudo
               </button>
             </>
           )}
@@ -220,25 +236,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange }) => 
 
               {/* Selector de Simulación de Rol: solo en modo demo (en producción permitiría cambiar de rol sin permiso) */}
               {MODO_DEMO && (
-              <div className="popover-section">
-                <label className="popover-label">
-                  <ArrowRightLeft size={13} /> Simular Rol (Demo):
-                </label>
-                <select
-                  value={rol || 'FUNCIONARIO'}
-                  onChange={(e) => {
-                    switchRoleDemo(e.target.value as UserRole);
-                    setIsProfileOpen(false);
-                  }}
-                  className="popover-select"
-                >
-                  <option value="ADMIN">1. Admin (Usuarios / Auditoría)</option>
-                  <option value="FUNCIONARIO">2. Funcionario (Atención)</option>
-                  <option value="SUPERVISOR">3. Supervisor (Aprobación)</option>
-                  <option value="CONTROL_MUNICIPAL">4. Control Municipal (OCI)</option>
-                  <option value="CONTROL_TI">5. Control TI (Telemetría)</option>
-                </select>
-              </div>
+                <div className="popover-section">
+                  <label className="popover-label">
+                    <ArrowRightLeft size={13} /> Simular Rol (Demo):
+                  </label>
+                  <select
+                    value={rol || 'FUNCIONARIO'}
+                    onChange={(e) => {
+                      switchRoleDemo(e.target.value as UserRole);
+                      setIsProfileOpen(false);
+                    }}
+                    className="popover-select"
+                  >
+                    <option value="ADMIN">1. Admin (Usuarios / Auditoría)</option>
+                    <option value="FUNCIONARIO">2. Funcionario (Atención)</option>
+                    <option value="SUPERVISOR">3. Supervisor (Aprobación)</option>
+                    <option value="CONTROL_MUNICIPAL">4. Control Municipal (OCI)</option>
+                    <option value="CONTROL_TI">5. Control TI (Telemetría)</option>
+                  </select>
+                </div>
               )}
 
               <div className="popover-divider" />
@@ -259,8 +275,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange }) => 
           {/* Barra Gemini Inferior */}
           <div className="gemini-footer-row">
             {/* Sección Izquierda: Perfil y Rol */}
-            <div 
-              className="gemini-account-left" 
+            <div
+              className="gemini-account-left"
               onClick={() => setIsProfileOpen(!isProfileOpen)}
               title="Ver cuenta y cambiar rol"
             >
@@ -275,9 +291,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange }) => 
                   {rol ? ROLE_LABELS[rol] : 'Funcionario'}
                 </span>
               </div>
-              <ChevronUp 
-                size={14} 
-                className={`gemini-chevron ${isProfileOpen ? 'open' : ''}`} 
+              <ChevronUp
+                size={14}
+                className={`gemini-chevron ${isProfileOpen ? 'open' : ''}`}
               />
             </div>
 

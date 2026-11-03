@@ -12,7 +12,7 @@ export const AuditoriaPanel: React.FC<{ onNotify: NotifyFn }> = ({ onNotify }) =
   const a = useAuditoria(onNotify);
 
   return (
-    <div className="card">
+    <div className="card" style={{ minHeight: 'calc(100vh - 4.5rem)', display: 'flex', flexDirection: 'column' }}>
       <CardHeader
         icon={<ShieldAlert size={20} />}
         title="Registros de Auditoría y Trazabilidad Administrativa"

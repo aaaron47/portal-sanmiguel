@@ -138,10 +138,14 @@
 
   /* Tipografía */
   --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
+  --text-muted: #cbd5e1;
+  --text-dim: #94a3b8;
   --text-inverse: #0f172a;
-  --input-placeholder: #64748b;
+  --input-placeholder: #94a3b8;
+  --slate-400: #cbd5e1;
+  --slate-500: #94a3b8;
+  --slate-600: #cbd5e1;
+  --slate-700: #e2e8f0;
 
   /* Sidebar en Modo Oscuro */
   --sidebar-bg: #0f172a;
@@ -233,7 +237,9 @@ input:focus, select:focus, textarea:focus {
 /* Layout del Portal */
 .app-layout {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
 }
 
 .main-content {
@@ -241,6 +247,9 @@ input:focus, select:focus, textarea:focus {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  height: 100vh;
+  max-height: 100vh;
+  overflow-y: auto;
   background-color: var(--bg-app);
 }
 
@@ -323,6 +332,9 @@ input:focus, select:focus, textarea:focus {
 /* Sidebar Lateral */
 .app-sidebar {
   width: 280px;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
   background: var(--sidebar-bg);
   color: var(--sidebar-text);
   display: flex;
@@ -759,6 +771,41 @@ input:focus, select:focus, textarea:focus {
 
 .data-table tr:hover {
   background-color: var(--bg-card-subtle);
+}
+
+/* Modo Oscuro: Mayor contraste y legibilidad para textos secundarios de tablas */
+[data-theme='dark'] .data-table {
+  --text-muted: #cbd5e1;
+  --text-dim: #cbd5e1;
+  --slate-400: #cbd5e1;
+  --slate-500: #cbd5e1;
+  --slate-600: #e2e8f0;
+}
+
+[data-theme='dark'] .data-table th {
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .data-table td {
+  color: #f8fafc;
+}
+
+[data-theme='dark'] .data-table td[style*="color: var(--slate-500)"],
+[data-theme='dark'] .data-table td[style*="color: var(--text-muted)"],
+[data-theme='dark'] .data-table td[style*="color: var(--text-dim)"],
+[data-theme='dark'] .data-table td[style*="color: var(--slate-400)"],
+[data-theme='dark'] .data-table td[style*="color: var(--slate-600)"],
+[data-theme='dark'] .data-table td [style*="color: var(--slate-500)"],
+[data-theme='dark'] .data-table td [style*="color: var(--text-muted)"],
+[data-theme='dark'] .data-table td [style*="color: var(--text-dim)"],
+[data-theme='dark'] .data-table td [style*="color: var(--slate-400)"],
+[data-theme='dark'] .data-table td [style*="color: var(--slate-600)"],
+[data-theme='dark'] .data-table td [style*="color: #64748b"],
+[data-theme='dark'] .data-table td [style*="color: #94a3b8"],
+[data-theme='dark'] .data-table td .text-secondary,
+[data-theme='dark'] .data-table td .text-muted,
+[data-theme='dark'] .data-table td small {
+  color: #cbd5e1 !important;
 }
 
 /* Botones */

@@ -4,7 +4,7 @@ import { KpisReporte } from '@/controllers/reportes.controller';
 import { KpiCard } from '@/components/shared/ui/KpiCard';
 
 export const ControlMunicipalKpis: React.FC<{ kpis: KpisReporte }> = ({ kpis }) => (
-  <div className="kpi-grid">
+  <div className="kpi-grid" style={{ marginBottom: '0.5rem' }}>
     <KpiCard
       icon={TrendingUp}
       label="Tasa de Resolución"

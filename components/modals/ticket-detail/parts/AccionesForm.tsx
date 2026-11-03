@@ -299,7 +299,7 @@ export const AccionesForm: React.FC<AccionesFormProps> = ({
             value={textoComentario}
             onChange={(e) => setTextoComentario(e.target.value)}
             placeholder="Escribe las observaciones, coordinaciones o el fundamento técnico..."
-            style={{ ...estiloCampo, resize: 'vertical' }}
+            style={{ ...estiloCampo, resize: 'vertical', minHeight: '80px', maxHeight: '180px' }}
             required={activeAction !== 'constancia'}
           />
         </div>

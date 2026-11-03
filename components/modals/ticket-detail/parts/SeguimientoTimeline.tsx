@@ -10,7 +10,14 @@ export const SeguimientoTimeline: React.FC<SeguimientoTimelineProps> = ({ seguim
     <h4 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.03em' }}>
       Historial de Seguimiento y Derivaciones
     </h4>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '0.75rem',
+      maxHeight: '200px',
+      overflowY: 'auto',
+      paddingRight: '0.4rem',
+    }}>
       {seguimientos.map((seg) => (
         <div
           key={seg.id}

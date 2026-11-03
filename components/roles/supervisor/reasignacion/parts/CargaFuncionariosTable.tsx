@@ -14,7 +14,7 @@ export const CargaFuncionariosTable: React.FC<CargaFuncionariosTableProps> = ({
   seleccionadoId,
   onSeleccionar,
 }) => {
-  const maximo = Math.max(1, ...carga.map((c) => c.activos));
+  const MARGEN_CAPACIDAD_MAXIMA = 8; // Margen estándar de casos activos simultáneos
 
   return (
     <div className="table-container">
@@ -26,7 +26,7 @@ export const CargaFuncionariosTable: React.FC<CargaFuncionariosTableProps> = ({
             <th style={{ textAlign: 'center' }}>Activos</th>
             <th style={{ textAlign: 'center' }}>Alta / Urgente</th>
             <th style={{ textAlign: 'center' }}>Por aprobar</th>
-            <th>Carga</th>
+            <th>Casos en Margen</th>
             <th>Acción</th>
           </tr>
         </thead>
@@ -40,6 +40,16 @@ export const CargaFuncionariosTable: React.FC<CargaFuncionariosTableProps> = ({
           ) : (
             carga.map((c) => {
               const seleccionado = c.id === seleccionadoId;
+              const porcentajeMargen = Math.min(100, Math.round((c.activos / MARGEN_CAPACIDAD_MAXIMA) * 100));
+              const estadoMargen =
+                c.activos === 0
+                  ? { texto: 'Libre', badge: 'badge-success', colorBarra: 'var(--green-500)' }
+                  : c.activos <= 3
+                    ? { texto: 'Holgado', badge: 'badge-success', colorBarra: 'var(--green-500)' }
+                    : c.activos <= 6
+                      ? { texto: 'Moderado', badge: 'badge-warning', colorBarra: 'var(--amber-500)' }
+                      : { texto: 'Al límite', badge: 'badge-danger', colorBarra: 'var(--red-500)' };
+
               return (
                 <tr
                   key={c.id}
@@ -60,19 +70,37 @@ export const CargaFuncionariosTable: React.FC<CargaFuncionariosTableProps> = ({
                     {c.criticos}
                   </td>
                   <td style={celdaNumero}>{c.porAprobar}</td>
-                  <td style={{ minWidth: '120px' }}>
-                    <div
-                      role="img"
-                      aria-label={`${c.activos} reclamos activos`}
-                      style={{ height: '8px', borderRadius: '9999px', background: 'var(--bg-card-subtle)', overflow: 'hidden' }}
-                    >
+                  <td style={{ minWidth: '160px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-main)' }}>
+                          {c.activos} de {MARGEN_CAPACIDAD_MAXIMA} casos
+                        </span>
+                        <span className={`badge ${estadoMargen.badge}`} style={{ fontSize: '0.65rem', padding: '0.12rem 0.35rem' }}>
+                          {estadoMargen.texto} ({porcentajeMargen}%)
+                        </span>
+                      </div>
                       <div
+                        role="img"
+                        aria-label={`${c.activos} de ${MARGEN_CAPACIDAD_MAXIMA} casos en su margen`}
                         style={{
-                          width: `${(c.activos / maximo) * 100}%`,
-                          height: '100%',
-                          background: 'var(--primary-500)',
+                          height: '6px',
+                          borderRadius: '9999px',
+                          background: 'var(--bg-card-subtle)',
+                          overflow: 'hidden',
+                          width: '100%',
                         }}
-                      />
+                      >
+                        <div
+                          style={{
+                            width: `${porcentajeMargen}%`,
+                            height: '100%',
+                            background: estadoMargen.colorBarra,
+                            borderRadius: '9999px',
+                            transition: 'width 0.3s ease',
+                          }}
+                        />
+                      </div>
                     </div>
                   </td>
                   <td>

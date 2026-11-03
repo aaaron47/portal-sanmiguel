@@ -2,32 +2,53 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
 
-      - name: Instalar dependencias
+      - name: Restaurar caché de compilación de Next.js
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            ${{ github.workspace }}/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/*.ts', '**/*.tsx') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
+
+      - name: Instalar dependencias exactas
         run: npm ci
 
-      - name: Revisar tipos
+      - name: Revisar tipos (TypeScript)
         run: npx tsc --noEmit
 
-      - name: Revisar estilo y reglas de React (lint)
+      - name: Revisar estilo y reglas de React (ESLint)
         run: npm run lint
 
-      - name: Compilar
+      - name: Compilar bundle de producción (Next.js)
         run: npm run build
+        env:
+          NEXT_PUBLIC_MODO_DEMO: 'true'
 
-      # El despliegue se agrega aquí cuando se defina el proveedor. La URL del backend
-      # (NEXT_PUBLIC_API_URL) debe venir de GitHub Secrets o variables del repositorio.
+      # El paso de despliegue continuo (CD) se activará una vez definido el proveedor (Vercel / Docker / VPS).

@@ -9,6 +9,25 @@ export interface TelemetriaEvento {
   fechaRegistro: string;
 }
 
+export interface OnboardingFunnelStep {
+  paso: number;
+  nombre: string;
+  descripcion: string;
+  usuariosCount: number;
+  porcentajeRetencion: number;
+  porcentajeAbandono: number;
+}
+
+export interface ConsentimientoAuditoriaLog {
+  id: string;
+  dispositivoHash: string;
+  aceptaAnalitica: boolean;
+  permiteNotificaciones: boolean;
+  versionTerminos: string;
+  fechaDecision: string;
+  ipAnonimizada: string;
+}
+
 export interface OnboardingStats {
   totalUsuariosRegistrados: number;
   onboardingCompletadoCount: number;
@@ -17,6 +36,17 @@ export interface OnboardingStats {
   aceptaAnaliticaPorcentaje: number;
   rechazaAnaliticaCount: number;
   rechazaAnaliticaPorcentaje: number;
+  // Permiso de Notificaciones Push
+  notificacionesPermitidasCount: number;
+  notificacionesPermitidasPorcentaje: number;
+  notificacionesBloqueadasCount: number;
+  notificacionesBloqueadasPorcentaje: number;
+  // Gobernanza y Controles de Privacidad
+  versionTerminosVigente: string;
+  fechaRevisionTerminos: string;
+  diasRetencionLogs: number;
+  telemetriaActiva: boolean;
+  embudoPasos: OnboardingFunnelStep[];
 }
 
 export interface DispositivoStats {

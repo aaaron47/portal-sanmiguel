@@ -1,17 +1,18 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import { UserRole } from '@/types/auth.types';
 import { MODO_DEMO } from '@/services/api-client.service';
-import { 
-  Building2, 
-  Lock, 
-  User, 
-  ArrowRight, 
-  ShieldCheck, 
-  Sparkles, 
-  AlertCircle 
+import {
+  Lock,
+  User,
+  ArrowRight,
+  ShieldCheck,
+  Sparkles,
+  AlertCircle
 } from 'lucide-react';
 
 interface LoginFormProps {
@@ -20,6 +21,7 @@ interface LoginFormProps {
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
   const { login } = useAuth();
+  const { theme } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
   const [emailOrDni, setEmailOrDni] = useState('');
   const [password, setPassword] = useState('');
@@ -79,23 +81,19 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
         maxWidth: '480px',
         padding: '2.5rem',
       }}>
-        {/* Cabecera del Portal */}
+        {/* Cabecera del Portal con Logo Institucional */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{
-            width: '56px',
-            height: '56px',
-            background: 'linear-gradient(135deg, var(--sky-600), var(--cyan-600))',
-            color: 'white',
-            borderRadius: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 1rem',
-            boxShadow: '0 10px 15px -3px rgba(2, 132, 199, 0.3)',
-          }}>
-            <Building2 size={30} />
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
+            <Image
+              src={theme === 'dark' ? '/logo-san-miguel-dark.png' : '/logo-san-miguel-light.png'}
+              alt="Municipalidad Distrital de San Miguel"
+              width={260}
+              height={94}
+              priority
+              style={{ objectFit: 'contain', width: 'auto', maxHeight: '76px' }}
+            />
           </div>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--slate-900)', letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--slate-900)', letterSpacing: '-0.02em' }}>
             Sistema Integrado San Miguel
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--slate-500)', marginTop: '0.25rem' }}>
@@ -183,124 +181,124 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
 
         {/* Accesos rápidos de prueba: solo en modo demo (nunca en producción con el backend real). */}
         {MODO_DEMO && (
-        <>
-        {/* Separador */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: '1.25rem 0' }}>
-          <div style={{ flex: 1, height: '1px', background: 'var(--slate-200)' }} />
-          <span style={{ fontSize: '0.75rem', color: 'var(--slate-400)', fontWeight: 600, textTransform: 'uppercase' }}>
-            O probar con los 5 roles
-          </span>
-          <div style={{ flex: 1, height: '1px', background: 'var(--slate-200)' }} />
-        </div>
+          <>
+            {/* Separador */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: '1.25rem 0' }}>
+              <div style={{ flex: 1, height: '1px', background: 'var(--slate-200)' }} />
+              <span style={{ fontSize: '0.75rem', color: 'var(--slate-400)', fontWeight: 600, textTransform: 'uppercase' }}>
+                O probar con los 5 roles
+              </span>
+              <div style={{ flex: 1, height: '1px', background: 'var(--slate-200)' }} />
+            </div>
 
-        {/* Accesos Rápidos por Rol (Heurística Nielsen 7: Flexibilidad y eficiencia) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <button
-            type="button"
-            onClick={() => handleQuickDemoLogin('ADMIN')}
-            style={{
-              padding: '0.5rem 0.75rem',
-              borderRadius: '8px',
-              border: '1px solid var(--violet-200)',
-              background: 'var(--violet-50)',
-              color: 'var(--violet-800)',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <span>1. Rol Administrador (Usuarios y Auditoría)</span>
-            <Sparkles size={14} />
-          </button>
+            {/* Accesos Rápidos por Rol (Heurística Nielsen 7: Flexibilidad y eficiencia) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => handleQuickDemoLogin('ADMIN')}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--violet-200)',
+                  background: 'var(--violet-50)',
+                  color: 'var(--violet-800)',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <span>1. Rol Administrador (Usuarios y Auditoría)</span>
+                <Sparkles size={14} />
+              </button>
 
-          <button
-            type="button"
-            onClick={() => handleQuickDemoLogin('FUNCIONARIO')}
-            style={{
-              padding: '0.5rem 0.75rem',
-              borderRadius: '8px',
-              border: '1px solid var(--sky-200)',
-              background: 'var(--sky-50)',
-              color: 'var(--sky-700)',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <span>2. Rol Funcionario (Atención y Constancias)</span>
-            <Sparkles size={14} />
-          </button>
+              <button
+                type="button"
+                onClick={() => handleQuickDemoLogin('FUNCIONARIO')}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--sky-200)',
+                  background: 'var(--sky-50)',
+                  color: 'var(--sky-700)',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <span>2. Rol Funcionario (Atención y Constancias)</span>
+                <Sparkles size={14} />
+              </button>
 
-          <button
-            type="button"
-            onClick={() => handleQuickDemoLogin('SUPERVISOR')}
-            style={{
-              padding: '0.5rem 0.75rem',
-              borderRadius: '8px',
-              border: '1px solid var(--amber-200)',
-              background: 'var(--amber-50)',
-              color: 'var(--amber-800)',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <span>3. Rol Supervisor (Aprobación y Panorama)</span>
-            <Sparkles size={14} />
-          </button>
+              <button
+                type="button"
+                onClick={() => handleQuickDemoLogin('SUPERVISOR')}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--amber-200)',
+                  background: 'var(--amber-50)',
+                  color: 'var(--amber-800)',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <span>3. Rol Supervisor (Aprobación y Panorama)</span>
+                <Sparkles size={14} />
+              </button>
 
-          <button
-            type="button"
-            onClick={() => handleQuickDemoLogin('CONTROL_MUNICIPAL')}
-            style={{
-              padding: '0.5rem 0.75rem',
-              borderRadius: '8px',
-              border: '1px solid var(--green-200)',
-              background: 'var(--green-50)',
-              color: 'var(--green-800)',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <span>4. Rol Control Municipal (Reportes OCI)</span>
-            <Sparkles size={14} />
-          </button>
+              <button
+                type="button"
+                onClick={() => handleQuickDemoLogin('CONTROL_MUNICIPAL')}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--green-200)',
+                  background: 'var(--green-50)',
+                  color: 'var(--green-800)',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <span>4. Rol Control Municipal (Reportes OCI)</span>
+                <Sparkles size={14} />
+              </button>
 
-          <button
-            type="button"
-            onClick={() => handleQuickDemoLogin('CONTROL_TI')}
-            style={{
-              padding: '0.5rem 0.75rem',
-              borderRadius: '8px',
-              border: '1px solid var(--fuchsia-200)',
-              background: 'var(--fuchsia-50)',
-              color: 'var(--fuchsia-800)',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <span>5. Rol Control TI (Telemetría App Móvil)</span>
-            <Sparkles size={14} />
-          </button>
-        </div>
-        </>
+              <button
+                type="button"
+                onClick={() => handleQuickDemoLogin('CONTROL_TI')}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--fuchsia-200)',
+                  background: 'var(--fuchsia-50)',
+                  color: 'var(--fuchsia-800)',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <span>5. Rol Control TI (Telemetría App Móvil)</span>
+                <Sparkles size={14} />
+              </button>
+            </div>
+          </>
         )}
 
         <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.75rem', color: 'var(--slate-400)' }}>
