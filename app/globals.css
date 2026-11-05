@@ -180,6 +180,23 @@
   --status-archived-text: #cbd5e1;
 }
 
+/* El login se ve siempre claro, también con el modo oscuro activo: se reponen los tokens que cambia [data-theme='dark'] */
+.login-claro {
+  color-scheme: light;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --bg-card: var(--white);
+  --bg-card-subtle: var(--slate-100);
+  --border-color: var(--slate-200);
+  --border-focus: var(--sky-500);
+  --text-main: var(--slate-900);
+  --text-muted: var(--slate-500);
+  --text-dim: var(--slate-400);
+  --input-placeholder: var(--slate-400);
+}
+
 * {
   box-sizing: border-box;
   padding: 0;

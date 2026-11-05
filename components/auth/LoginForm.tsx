@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/context/ThemeContext';
 import { UserRole } from '@/types/auth.types';
 import { MODO_DEMO } from '@/services/api-client.service';
 import {
@@ -21,7 +20,6 @@ interface LoginFormProps {
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
   const { login } = useAuth();
-  const { theme } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
   const [emailOrDni, setEmailOrDni] = useState('');
   const [password, setPassword] = useState('');
@@ -64,7 +62,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
   };
 
   return (
-    <div style={{
+    <div className="login-claro" style={{
       minHeight: '100vh',
       display: 'flex',
       alignItems: 'center',
@@ -85,7 +83,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
             <Image
-              src={theme === 'dark' ? '/logo-san-miguel-dark.png' : '/logo-san-miguel-light.png'}
+              src="/logo-san-miguel-light.png" // El login siempre es claro: el logo blanco del modo oscuro no se vería
               alt="Municipalidad Distrital de San Miguel"
               width={260}
               height={94}
