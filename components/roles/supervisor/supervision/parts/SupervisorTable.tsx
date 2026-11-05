@@ -59,7 +59,7 @@ export const SupervisorTable: React.FC<SupervisorTableProps> = ({
                     {ticket.folio}
                   </td>
                   <td>
-                    <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{ticket.areaAsignada}</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{ticket.areaAsignada || 'Sin área'}</span>
                   </td>
                   <td>
                     <span style={{ fontSize: '0.85rem', color: 'var(--text-main)' }}>

@@ -6,7 +6,8 @@ export type TicketEstado =
   | 'resuelto'
   | 'archivado';
 
-export type TicketPrioridad = 'BAJA' | 'MEDIA' | 'ALTA' | 'URGENTE';
+/** Valores que acepta la BD (reclamos.prioridad): no existe URGENTE. */
+export type TicketPrioridad = 'BAJA' | 'MEDIA' | 'ALTA';
 
 export interface TicketSeguimiento {
   id: string;

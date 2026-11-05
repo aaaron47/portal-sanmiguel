@@ -39,7 +39,7 @@ export const ReclamosTable: React.FC<ReclamosTableProps> = ({ tickets, onSelectT
               </td>
               <td>
                 <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{ticket.ciudadanoNombre}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>DNI: {ticket.ciudadanoDni}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>DNI: {ticket.ciudadanoDni || '—'}</div>
               </td>
               <td>
                 <div style={{ fontWeight: 500, maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-main)' }} title={ticket.asunto}>

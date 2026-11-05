@@ -154,7 +154,7 @@ export const PrivacidadOnboardingPanel: React.FC<PrivacidadOnboardingPanelProps>
             </div>
           </div>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Retención actual: <strong>{stats.diasRetencionLogs} días</strong>
+            Retención actual: <strong>{stats.mesesRetencionUso} meses</strong>
           </span>
         </div>
       </div>
@@ -252,10 +252,10 @@ export const PrivacidadOnboardingPanel: React.FC<PrivacidadOnboardingPanelProps>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
             <span className="badge badge-primary" style={{ fontSize: '0.9rem', padding: '0.35rem 0.75rem' }}>
-              {stats.diasRetencionLogs} Días
+              {stats.mesesRetencionUso} meses
             </span>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-              (Próxima purga: Domingo 03:00 hrs)
+              (purga mensual automática)
             </span>
           </div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-dim)', background: 'var(--bg-card-subtle)', padding: '0.4rem 0.65rem', borderRadius: '6px' }}>

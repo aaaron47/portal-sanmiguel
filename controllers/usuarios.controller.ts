@@ -98,6 +98,12 @@ const MOCK_USUARIOS: Usuario[] = [
   },
 ];
 
+/**
+ * Respuesta de `POST /usuarios`: el usuario creado y su contraseña temporal. El backend la entrega una sola vez
+ * (en la BD queda solo su hash). No se guarda en el navegador: se muestra al Admin para que la entregue.
+ */
+export type UsuarioCreado = Usuario & { contrasenaTemporal?: string };
+
 export class UsuariosController {
   async getUsuarios(): Promise<Usuario[]> {
     try {
@@ -109,9 +115,9 @@ export class UsuariosController {
     }
   }
 
-  async crearUsuario(data: Omit<Usuario, 'id' | 'creadoEn' | 'activo'>): Promise<Usuario> {
+  async crearUsuario(data: Omit<Usuario, 'id' | 'creadoEn' | 'activo'>): Promise<UsuarioCreado> {
     try {
-      return await apiClient<Usuario>('/usuarios', {
+      return await apiClient<UsuarioCreado>('/usuarios', {
         method: 'POST',
         body: JSON.stringify(data),
       });

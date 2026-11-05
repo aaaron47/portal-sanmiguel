@@ -6,7 +6,7 @@ import { puedeAprobar } from '@/utils/ticket.utils';
 
 export const SupervisorKpis: React.FC<{ tickets: Ticket[] }> = ({ tickets }) => {
   const porAprobar = tickets.filter(puedeAprobar).length;
-  const urgentes = tickets.filter((t) => t.prioridad === 'URGENTE').length;
+  const prioridadAlta = tickets.filter((t) => t.prioridad === 'ALTA').length;
   const resueltos = tickets.filter((t) => t.estado === 'resuelto').length;
 
   return (
@@ -27,8 +27,8 @@ export const SupervisorKpis: React.FC<{ tickets: Ticket[] }> = ({ tickets }) => 
       />
       <KpiCard
         icon={AlertTriangle}
-        label="Casos Críticos / Urgentes"
-        value={urgentes}
+        label="Casos de Prioridad Alta"
+        value={prioridadAlta}
         bg="var(--red-50)"
         color="var(--red-600)"
       />

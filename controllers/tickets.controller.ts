@@ -65,7 +65,7 @@ const MOCK_TICKETS: Ticket[] = [
     funcionarioAsignadoId: 'USR-FUN-09',
     funcionarioAsignadoNombre: 'Ing. Fernando Rojas',
     estado: 'por aprobar',
-    prioridad: 'URGENTE',
+    prioridad: 'ALTA',
     tieneConstancia: true,
     estadoConstancia: 'aprobada',
     fechaCreacion: '2026-10-26 14:00',

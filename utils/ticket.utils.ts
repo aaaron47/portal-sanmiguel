@@ -38,7 +38,7 @@ export interface FuncionarioOpcion {
 
 export interface CargaFuncionario extends FuncionarioOpcion {
   activos: number;
-  criticos: number; // ALTA o URGENTE
+  criticos: number; // prioridad ALTA
   porAprobar: number;
 }
 
@@ -73,7 +73,7 @@ export function calcularCarga(funcionarios: FuncionarioOpcion[], tickets: Ticket
   const activos = tickets.filter(esActivo);
   const contar = (lista: Ticket[]) => ({
     activos: lista.length,
-    criticos: lista.filter((t) => t.prioridad === 'ALTA' || t.prioridad === 'URGENTE').length,
+    criticos: lista.filter((t) => t.prioridad === 'ALTA').length,
     porAprobar: lista.filter((t) => t.estado === 'por aprobar').length,
   });
 

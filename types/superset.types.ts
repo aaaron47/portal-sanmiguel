@@ -24,4 +24,6 @@ export interface SupersetChatMessage {
   metricas?: SupersetMetricItem[];
   sqlGenerado?: string;
   estado?: 'pensando' | 'completado' | 'error';
+  /** true si el asistente no respondió y se muestra un ejemplo con datos ficticios (se avisa en pantalla). */
+  esEjemplo?: boolean;
 }

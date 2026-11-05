@@ -110,17 +110,50 @@ const MENSAJES_POR_ESTADO: Record<number, string> = {
   403: 'No tienes permiso para hacer esta acción.',
   404: 'No encontramos este registro. Recarga la página para ver la lista actualizada.',
   409: 'Otra persona cambió estos datos mientras los tenías abiertos. Recarga la página para ver los cambios.',
+  501: 'Esta acción todavía no está disponible.',
 };
+
+/** Mensajes según el código que manda el backend (`error.code`), más precisos que el estado HTTP. */
+const MENSAJES_POR_CODIGO: Record<string, string> = {
+  account_locked:
+    'Tu cuenta está bloqueada por varios intentos fallidos. Vuelve a intentarlo en 15 minutos o pide ayuda al supervisor.',
+  not_implemented: 'Esta acción todavía no está disponible.',
+};
+
+/** Cuerpo de error del backend: `{"error": {"code", "message", "details"?}}`. */
+function cuerpoError(err: unknown): { code?: string; message?: string } | undefined {
+  if (!(err instanceof ApiError) || typeof err.data !== 'object' || err.data === null) return undefined;
+  const error = (err.data as { error?: unknown }).error;
+  return typeof error === 'object' && error !== null ? (error as { code?: string; message?: string }) : undefined;
+}
+
+/** Código de error del backend (p. ej. `account_locked`, `dni_exists`), o undefined si no lo trae. */
+export function codigoErrorApi(err: unknown): string | undefined {
+  return cuerpoError(err)?.code;
+}
 
 /**
  * Mensaje para el usuario según la respuesta del backend; `porDefecto` para el resto de casos.
- * `propios` reemplaza el texto de algún estado (p. ej. un 409 al crear un usuario es "ya existe").
+ * `propios` reemplaza el texto por código del backend (p. ej. `dni_exists`) o por estado HTTP (p. ej. 409).
+ * Orden: propio por código, código conocido, mensaje del backend en 409/422 (salvo conflicto de versión),
+ * propio por estado, estado conocido y, al final, `porDefecto`.
  */
 export function mensajeErrorApi(
   err: unknown,
   porDefecto: string,
-  propios: Partial<Record<number, string>> = {}
+  propios: Partial<Record<number | string, string>> = {}
 ): string {
   if (!(err instanceof ApiError)) return porDefecto;
-  return propios[err.status] ?? MENSAJES_POR_ESTADO[err.status] ?? porDefecto;
+  const cuerpo = cuerpoError(err);
+  const codigo = cuerpo?.code;
+  if (codigo && propios[codigo]) return propios[codigo] as string;
+  // Un código conocido gana sobre el texto por estado: p. ej. account_locked también llega como 401.
+  if (codigo && MENSAJES_POR_CODIGO[codigo]) return MENSAJES_POR_CODIGO[codigo];
+  // En validaciones (422) y en reglas de negocio (409, p. ej. invalid_state) el backend explica qué pasó
+  // ("Esta acción solo se puede hacer con el reclamo en evaluación"). El conflicto de versión usa el texto por estado.
+  if ((err.status === 409 || err.status === 422) && codigo && codigo !== 'version_conflict' && cuerpo?.message) {
+    return cuerpo.message;
+  }
+  if (propios[err.status]) return propios[err.status] as string;
+  return MENSAJES_POR_ESTADO[err.status] ?? porDefecto;
 }
