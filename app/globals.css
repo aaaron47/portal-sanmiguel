@@ -29,6 +29,7 @@
   --green-100: #dcfce7;
   --green-200: #bbf7d0;
   --green-300: #86efac;
+  --green-500: #22c55e;
   --green-600: #16a34a;
   --green-700: #15803d;
   --green-800: #166534;
@@ -177,6 +178,23 @@
   --status-resolved-text: #86efac;
   --status-archived-bg: rgba(148, 163, 184, 0.15);
   --status-archived-text: #cbd5e1;
+}
+
+/* El login se ve siempre claro, también con el modo oscuro activo: se reponen los tokens que cambia [data-theme='dark'] */
+.login-claro {
+  color-scheme: light;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --bg-card: var(--white);
+  --bg-card-subtle: var(--slate-100);
+  --border-color: var(--slate-200);
+  --border-focus: var(--sky-500);
+  --text-main: var(--slate-900);
+  --text-muted: var(--slate-500);
+  --text-dim: var(--slate-400);
+  --input-placeholder: var(--slate-400);
 }
 
 * {

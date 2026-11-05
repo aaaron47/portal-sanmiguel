@@ -9,17 +9,24 @@ convenciones y lo que falta. Mantenerla al día cuando cambie algo importante.
 > tablas reales) queda como referencia en `docs/Conexion_Portal_Oracle.md`, `docs/Conexion_BD.md`
 > y `docs/datos_faltantes.md`, y en la historia de git.
 
-## ▶ Para retomar (01/11/2026, auditoría cerrada)
+## ▶ Para retomar (05/11/2026)
 
-Rama `feature/supervisor-funcionario`, **sin subir a GitHub**. La auditoría independiente encontró 12 problemas.
-**Están corregidos y probados** (detalle en `docs/Cambios_rama_supervisor_funcionario.md`, sección 10).
+La rama `feature/supervisor-funcionario` ya está en `main` (PR #4, aprobado por Braulio el 02/11).
+Encima, Ulises subió `4cbbef9` directo a `main`: paginación en tablas, Modo Privacidad (Ley 29733), pantallas
+nuevas de Control Municipal (Superset, reportes tributarios, constancias de no adeudo, asistente MCP) y de
+Control TI (Privacidad y Onboarding), README y `ci.yml`. En Supervisor quitó las pestañas internas: ahora la
+pestaña sale solo del menú lateral.
 
-Hecho: `tsc`, `lint` y `npm run build` sin errores. En el navegador pasan las 100 comprobaciones anteriores y otras
-34 de los arreglos: 24 en desarrollo, 6 en producción sin modo demo y 4 con `NEXT_PUBLIC_MODO_DEMO=true`.
+Revisado el 05/11 sobre `4cbbef9`: `tsc`, `lint` y `build` sin errores. En el navegador funcionan el menú y la
+paginación del supervisor, la aprobación, la reasignación, la bandeja del funcionario y sus constancias.
 
-Siguientes pasos, en orden:
-1. Subir la rama y abrir el PR a `main` (el pipeline correrá por primera vez en GitHub).
-2. Avisar a Braulio: sección 5 y sección 10 (#5 y #11) del documento de cambios.
+Pendiente:
+1. Rama `fix/barra-carga-funcionarios` (sin subir): `CargaFuncionariosTable` y `ControlAccesoPanel` usaban
+   `var(--green-500)`, que no existía; se agregó en `globals.css`. Con 0 a 3 casos activos la barra de carga no
+   se veía. Subir la rama, abrir el PR y avisar a Ulises. Queda por hablar con él: el tope de 8 casos está fijo en
+   el componente.
+2. Avisar a Braulio: sección 5 y sección 10 (#5 y #11) de `docs/Cambios_rama_supervisor_funcionario.md`.
+3. `origin/eduardo` (`faf4854`) solo agrega archivos `.idea/`; no conviene unirlo a `main` así.
 
 Notas para las pruebas en el navegador:
 - El botón "N" de Next.js en desarrollo queda encima del perfil del menú lateral y no deja hacer clic con
@@ -70,6 +77,9 @@ npm run build        # compilación de producción
 
 - La URL del backend sale de `NEXT_PUBLIC_API_URL` (por defecto `http://localhost:8080/api`). Sin backend
   levantado, todo funciona con datos simulados. Las variables van en `.env*` (ignorado por git).
+- **Despliegue en `https` (Vercel) con backend en `http`:** se define `BACKEND_URL` (solo servidor) y
+  `NEXT_PUBLIC_API_URL=/api/v1/portal`; `next.config.ts` reenvía `/api/*` al backend y así el navegador no bloquea
+  las llamadas ("mixed content"). Sin `BACKEND_URL` no se reenvía nada.
 - No hay pruebas automáticas en el repositorio. Las comprobaciones en navegador se hicieron con
   Playwright + Microsoft Edge desde una carpeta temporal fuera del repo.
 - `target/` (compilación del proyecto Java anterior) y `docs/*.docx` están en `.gitignore`.
@@ -154,6 +164,8 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
 | 31/10/2026 | Rama `feature/supervisor-funcionario`: reglas por estado, pestaña de reasignación de carga, reasignación con el funcionario elegido, devolver al funcionario, filtros del supervisor, atender sin enviar a aprobación, arreglo del login (sin entrada automática; sin modo demo si el backend responde) y menú lateral sincronizado con las pestañas del supervisor. Auditoría: `tsc` y `build` OK; 42 + 12 + 6 + 6 comprobaciones en navegador. |
 | 31/10/2026 | Misma rama: datos simulados solo sin conexión en todos los controladores (`esSinConexion`, `mensajeErrorApi`); el formulario queda abierto si la acción falla; período de Control Municipal enviado al backend; lint en 0 (arranque sin `setState` en efectos: `AuthContext`, `ThemeContext`, `page.tsx`); pipeline a Node 22 con lint; README al día. **Todos los cambios de la rama: `docs/Cambios_rama_supervisor_funcionario.md`.** |
 | 01/11/2026 | Misma rama: los 12 arreglos de la auditoría independiente, probados en el navegador (34 comprobaciones: desarrollo, y producción con y sin modo demo). `npm run build` sin errores. |
+| 02/11/2026 | PR #4 unido a `main`. Ulises sube `4cbbef9` (paginación, Modo Privacidad, pantallas nuevas de Control Municipal y Control TI). |
+| 05/11/2026 | Revisión de `main` tras `4cbbef9`: `tsc`, `lint` y `build` OK; flujos de Supervisor y Funcionario OK en el navegador. Se agrega `--green-500` en `globals.css` (rama `fix/barra-carga-funcionarios`); comprobado en el navegador. |
 
 ## 9. Pendientes
 
