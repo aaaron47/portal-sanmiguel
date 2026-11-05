@@ -16,7 +16,7 @@ const MOCK_RESUMEN_TELEMETRIA: TelemetriaResumen = {
     notificacionesBloqueadasPorcentaje: 22.2,
     versionTerminosVigente: 'v1.3 (2026-10)',
     fechaRevisionTerminos: '2026-10-15',
-    diasRetencionLogs: 60,
+    mesesRetencionUso: 12,
     telemetriaActiva: true,
     embudoPasos: [
       { paso: 1, nombre: 'Bienvenida e Instalación', descripcion: 'Primer inicio y visualización del splash de bienvenida', usuariosCount: 12450, porcentajeRetencion: 100, porcentajeAbandono: 0 },
@@ -178,7 +178,6 @@ export class TelemetriaController {
 
   async actualizarConfiguracionPrivacidad(config: {
     versionTerminosVigente?: string;
-    diasRetencionLogs?: number;
     telemetriaActiva?: boolean;
   }): Promise<OnboardingStats> {
     try {
@@ -191,9 +190,6 @@ export class TelemetriaController {
       if (config.versionTerminosVigente !== undefined) {
         MOCK_RESUMEN_TELEMETRIA.onboarding.versionTerminosVigente = config.versionTerminosVigente;
         MOCK_RESUMEN_TELEMETRIA.onboarding.fechaRevisionTerminos = new Date().toISOString().split('T')[0];
-      }
-      if (config.diasRetencionLogs !== undefined) {
-        MOCK_RESUMEN_TELEMETRIA.onboarding.diasRetencionLogs = config.diasRetencionLogs;
       }
       if (config.telemetriaActiva !== undefined) {
         MOCK_RESUMEN_TELEMETRIA.onboarding.telemetriaActiva = config.telemetriaActiva;

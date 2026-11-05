@@ -80,7 +80,6 @@ export const ReclamosFiltros: React.FC<ReclamosFiltrosProps> = ({
         <option value="BAJA">Prioridad Baja</option>
         <option value="MEDIA">Prioridad Media</option>
         <option value="ALTA">Prioridad Alta</option>
-        <option value="URGENTE">Prioridad Urgente</option>
       </select>
     </div>
 

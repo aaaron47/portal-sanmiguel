@@ -70,10 +70,10 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
         });
         if (res.ok) {
           const data = await res.json();
-          return data;
+          return { ...data, esEjemplo: false };
         }
       } catch {
-        // Fallback local analítico
+        // Sin asistente: se arma un ejemplo con datos ficticios, marcado como tal en pantalla.
       }
 
       const q = textoConsulta.toLowerCase();
@@ -120,7 +120,9 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
       }
 
       return {
-        texto: `El modelo analítico MCP interpretó tu consulta. Se procesaron los parámetros tributarios según el catálogo oficial y se estructuró la agregación SQL.`,
+        texto:
+          'El asistente no está disponible en este momento. Te muestro un ejemplo con datos ficticios del tipo de reporte que genera para esta consulta.',
+        esEjemplo: true,
         dashboardSugeridoId: dashboardId,
         graficoTitulo: tituloGrafico,
         sqlGenerado: sql,
@@ -138,6 +140,7 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
         graficoTitulo: resp.graficoTitulo,
         sqlGenerado: resp.sqlGenerado,
         metricas: resp.metricas,
+        esEjemplo: resp.esEjemplo,
       };
 
       setMensajes((prev) => [...prev, respuestaBot]);
@@ -335,6 +338,23 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
               fontSize: '0.85rem',
               border: m.rol === 'user' ? 'none' : '1px solid var(--border-color)',
             }}>
+              {m.esEjemplo && (
+                <div
+                  role="note"
+                  style={{
+                    marginBottom: '0.5rem',
+                    padding: '0.35rem 0.6rem',
+                    borderRadius: '6px',
+                    background: 'var(--amber-100)',
+                    border: '1px solid var(--amber-500)',
+                    color: 'var(--amber-700)',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  Datos de ejemplo: no son cifras reales de la municipalidad.
+                </div>
+              )}
               <div>{m.texto}</div>
 
               {/* Consulta SQL generada por el MCP */}

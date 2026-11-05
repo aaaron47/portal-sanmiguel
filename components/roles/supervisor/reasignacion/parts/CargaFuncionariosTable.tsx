@@ -24,7 +24,7 @@ export const CargaFuncionariosTable: React.FC<CargaFuncionariosTableProps> = ({
             <th>Funcionario</th>
             <th>Área</th>
             <th style={{ textAlign: 'center' }}>Activos</th>
-            <th style={{ textAlign: 'center' }}>Alta / Urgente</th>
+            <th style={{ textAlign: 'center' }}>Prioridad alta</th>
             <th style={{ textAlign: 'center' }}>Por aprobar</th>
             <th>Casos en Margen</th>
             <th>Acción</th>

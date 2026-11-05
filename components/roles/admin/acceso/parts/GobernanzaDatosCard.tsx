@@ -6,21 +6,19 @@ import { VariablesAcceso } from '../useControlAcceso';
 
 interface GobernanzaDatosCardProps {
   telemetriaActiva: boolean;
-  diasRetencionLogs: number;
+  mesesRetencionUso: number;
   versionTerminosVigente: string;
   onChange: <K extends keyof VariablesAcceso>(key: K, value: VariablesAcceso[K]) => void;
   modificadoTelemetria?: boolean;
-  modificadoRetencion?: boolean;
   modificadoTerminos?: boolean;
 }
 
 export const GobernanzaDatosCard: React.FC<GobernanzaDatosCardProps> = ({
   telemetriaActiva,
-  diasRetencionLogs,
+  mesesRetencionUso,
   versionTerminosVigente,
   onChange,
   modificadoTelemetria,
-  modificadoRetencion,
   modificadoTerminos,
 }) => {
   return (
@@ -74,33 +72,20 @@ export const GobernanzaDatosCard: React.FC<GobernanzaDatosCardProps> = ({
           background: 'var(--bg-card)',
           padding: '1rem',
           borderRadius: '10px',
-          border: modificadoRetencion ? '1.5px solid var(--amber-500)' : '1px solid var(--border-color)',
+          border: '1px solid var(--border-color)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Clock size={16} color="var(--sky-600)" />
               <strong style={{ fontSize: '0.825rem', color: 'var(--text-main)' }}>Política de Retención Legal</strong>
             </div>
-            {modificadoRetencion && (
-              <span className="badge badge-danger" style={{ fontSize: '0.65rem' }}>Modificado</span>
-            )}
           </div>
           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 0.75rem' }}>
-            Plazo de caducidad para la purga automática de eventos anónimos de la base de datos municipal.
+            Plazo de conservación de los registros de uso. La base de datos borra cada mes los que lo superan.
           </p>
-          <div style={{ display: 'flex', gap: '0.35rem' }}>
-            {[30, 60, 90].map((dias) => (
-              <button
-                key={dias}
-                type="button"
-                onClick={() => onChange('diasRetencionLogs', dias)}
-                className={`btn ${diasRetencionLogs === dias ? 'btn-primary' : 'btn-secondary'}`}
-                style={{ flex: 1, fontSize: '0.75rem', padding: '0.4rem' }}
-              >
-                {dias} Días
-              </button>
-            ))}
-          </div>
+          <span className="badge badge-primary" style={{ fontSize: '0.85rem', padding: '0.35rem 0.75rem' }}>
+            {mesesRetencionUso} meses
+          </span>
         </div>
 
         {/* Control 3: Versión de Términos */}

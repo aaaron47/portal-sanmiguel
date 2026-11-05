@@ -97,7 +97,7 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
                       />
                     </td>
                     <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '0.78rem', padding: '0.5rem 0.65rem' }}>
-                      {u.dni}
+                      {u.dni || '—'}
                     </td>
                     <td style={{ padding: '0.5rem 0.65rem' }}>
                       <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.825rem' }}>{u.nombreCompleto}</div>
@@ -109,7 +109,7 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
                       </span>
                     </td>
                     <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '0.5rem 0.65rem' }}>
-                      {u.area || 'General'}
+                      {u.area || '—'}
                     </td>
                     <td style={{ padding: '0.5rem 0.65rem' }}>
                       {u.activo ? (

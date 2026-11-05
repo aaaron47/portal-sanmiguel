@@ -60,11 +60,10 @@ export const ControlAccesoPanel: React.FC<{ onNotify: NotifyFn }> = ({ onNotify 
       {/* Sección 3: Gobernanza de Datos y Seguridad Legal (Misma pestaña, guardado unificado) */}
       <GobernanzaDatosCard
         telemetriaActiva={c.variables.telemetriaActiva}
-        diasRetencionLogs={c.variables.diasRetencionLogs}
+        mesesRetencionUso={c.variables.mesesRetencionUso}
         versionTerminosVigente={c.variables.versionTerminosVigente}
         onChange={c.updateVariable}
         modificadoTelemetria={c.variables.telemetriaActiva !== c.variablesGuardadas.telemetriaActiva}
-        modificadoRetencion={c.variables.diasRetencionLogs !== c.variablesGuardadas.diasRetencionLogs}
         modificadoTerminos={c.variables.versionTerminosVigente !== c.variablesGuardadas.versionTerminosVigente}
       />
 
