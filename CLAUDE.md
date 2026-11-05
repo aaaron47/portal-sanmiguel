@@ -80,6 +80,10 @@ npm run build        # compilación de producción
 - **Despliegue en `https` (Vercel) con backend en `http`:** se define `BACKEND_URL` (solo servidor) y
   `NEXT_PUBLIC_API_URL=/api/v1/portal`; `next.config.ts` reenvía `/api/*` al backend y así el navegador no bloquea
   las llamadas ("mixed content"). Sin `BACKEND_URL` no se reenvía nada.
+- **Despliegue temporal (05/11/2026):** https://portalsanmiguel.vercel.app, proyecto `portalsanmiguel` en la cuenta
+  Vercel `aaronarana29-9818`, conectado a la copia `aaaron47/portal-sanmiguel` (remoto `copia`). Cada push a `main`
+  de la copia se despliega solo. Variables: `NEXT_PUBLIC_API_URL=/api/v1/portal`, `BACKEND_URL=http://32.200.209.224`
+  (backend de Willy en EC2), `NEXT_PUBLIC_MODO_DEMO=false`. `vercel.json` fija el preset de Next.js.
 - No hay pruebas automáticas en el repositorio. Las comprobaciones en navegador se hicieron con
   Playwright + Microsoft Edge desde una carpeta temporal fuera del repo.
 - `target/` (compilación del proyecto Java anterior) y `docs/*.docx` están en `.gitignore`.
