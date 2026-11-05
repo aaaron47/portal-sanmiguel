@@ -77,6 +77,9 @@ npm run build        # compilación de producción
 
 - La URL del backend sale de `NEXT_PUBLIC_API_URL` (por defecto `http://localhost:8080/api`). Sin backend
   levantado, todo funciona con datos simulados. Las variables van en `.env*` (ignorado por git).
+- **Despliegue en `https` (Vercel) con backend en `http`:** se define `BACKEND_URL` (solo servidor) y
+  `NEXT_PUBLIC_API_URL=/api/v1/portal`; `next.config.ts` reenvía `/api/*` al backend y así el navegador no bloquea
+  las llamadas ("mixed content"). Sin `BACKEND_URL` no se reenvía nada.
 - No hay pruebas automáticas en el repositorio. Las comprobaciones en navegador se hicieron con
   Playwright + Microsoft Edge desde una carpeta temporal fuera del repo.
 - `target/` (compilación del proyecto Java anterior) y `docs/*.docx` están en `.gitignore`.
