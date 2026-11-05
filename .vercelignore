@@ -1,0 +1,6 @@
+# No subir a Vercel credenciales locales ni restos de la etapa Java
+.env
+.env.*
+target/
+docs/*.docx
+.idea/
