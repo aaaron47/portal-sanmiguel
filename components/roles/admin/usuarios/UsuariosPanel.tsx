@@ -6,6 +6,7 @@ import { NotifyFn } from '@/types/ui.types';
 import { CardHeader } from '@/components/shared/ui/CardHeader';
 import { useUsuarios } from './useUsuarios';
 import { CrearUsuarioForm } from './parts/CrearUsuarioForm';
+import { ContrasenaTemporalAviso } from './parts/ContrasenaTemporalAviso';
 import { UsuariosToolbar } from './parts/UsuariosToolbar';
 import { UsuariosTable } from './parts/UsuariosTable';
 
@@ -15,6 +16,10 @@ export const UsuariosPanel: React.FC<{ onNotify: NotifyFn }> = ({ onNotify }) =>
   return (
     <div className="card">
       <CardHeader icon={<Users size={20} />} title="Cuentas de Acceso y Gestión de Personal" />
+
+      {u.credencialNueva && (
+        <ContrasenaTemporalAviso credencial={u.credencialNueva} onCerrar={u.cerrarCredencialNueva} />
+      )}
 
       {u.isCreating && <CrearUsuarioForm onSubmit={u.crearUsuario} onCancel={() => u.setIsCreating(false)} />}
 

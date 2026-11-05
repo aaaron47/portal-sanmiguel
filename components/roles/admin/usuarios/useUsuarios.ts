@@ -7,6 +7,13 @@ import { mensajeErrorApi } from '@/services/api-client.service';
 
 export type NuevoUsuario = Omit<Usuario, 'id' | 'creadoEn' | 'activo'>;
 
+/** Datos de acceso de una cuenta recién creada: solo en memoria, hasta que el Admin cierra el aviso. */
+export interface CredencialNueva {
+  nombreCompleto: string;
+  usuario: string;
+  contrasenaTemporal: string;
+}
+
 /** Estado y acciones de la viñeta "Usuarios del Sistema". */
 export function useUsuarios(onNotify: NotifyFn) {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -16,6 +23,7 @@ export function useUsuarios(onNotify: NotifyFn) {
   const [filtroEstado, setFiltroEstado] = useState<string>('todos');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [credencialNueva, setCredencialNueva] = useState<CredencialNueva | null>(null);
 
   useEffect(() => {
     usuariosController
@@ -64,15 +72,21 @@ export function useUsuarios(onNotify: NotifyFn) {
 
   const crearUsuario = async (data: NuevoUsuario) => {
     try {
-      const creado = await usuariosController.crearUsuario(data);
+      const { contrasenaTemporal, ...creado } = await usuariosController.crearUsuario(data);
       setUsuarios((prev) => [creado, ...prev]);
       setIsCreating(false);
+      if (contrasenaTemporal) {
+        // El usuario de acceso es el DNI (lo define el backend al crear la cuenta).
+        setCredencialNueva({ nombreCompleto: creado.nombreCompleto, usuario: creado.dni, contrasenaTemporal });
+      }
       onNotify('success', `Usuario ${creado.nombreCompleto} creado correctamente`);
     } catch (err) {
       // El formulario queda abierto (isCreating sigue en true) para corregir y reintentar.
       onNotify(
         'error',
         mensajeErrorApi(err, 'No se pudo crear el usuario. Inténtalo de nuevo.', {
+          dni_exists: 'Ya existe una cuenta con ese DNI. Revisa los datos.',
+          email_exists: 'Ya existe una cuenta con ese correo. Revisa los datos.',
           409: 'Ya existe un usuario con ese DNI o correo. Revisa los datos.',
         })
       );
@@ -112,6 +126,8 @@ export function useUsuarios(onNotify: NotifyFn) {
     isCreating,
     setIsCreating,
     crearUsuario,
+    credencialNueva,
+    cerrarCredencialNueva: () => setCredencialNueva(null),
     descargarCSV,
   };
 }

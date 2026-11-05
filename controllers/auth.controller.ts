@@ -1,4 +1,4 @@
-import { apiClient, ApiError, esSinConexion, MODO_DEMO } from '@/services/api-client.service';
+import { apiClient, ApiError, esSinConexion, mensajeErrorApi, MODO_DEMO } from '@/services/api-client.service';
 import { storageService } from '@/services/storage.service';
 import { AuthSession, LoginCredentials, UserRole, Usuario } from '@/types/auth.types';
 
@@ -78,10 +78,14 @@ export class AuthController {
     } catch (err) {
       // Si el backend respondió (p. ej. 401 por contraseña incorrecta), no se entra en modo demo.
       if (err instanceof ApiError && !esSinConexion(err)) {
+        // account_locked (5 intentos fallidos) tiene su propio aviso; el resto de 401 es usuario o contraseña.
         throw new Error(
-          err.status === 401 || err.status === 403
-            ? 'El DNI, el correo o la contraseña no son correctos. Revisa los datos e inténtalo de nuevo.'
-            : 'No se pudo iniciar sesión. Inténtalo de nuevo en unos minutos.'
+          mensajeErrorApi(err, 'No se pudo iniciar sesión. Inténtalo de nuevo en unos minutos.', {
+            invalid_credentials: 'El DNI, el correo o la contraseña no son correctos. Revisa los datos e inténtalo de nuevo.',
+            401: 'El DNI, el correo o la contraseña no son correctos. Revisa los datos e inténtalo de nuevo.',
+            403: 'El DNI, el correo o la contraseña no son correctos. Revisa los datos e inténtalo de nuevo.',
+            429: 'Demasiados intentos seguidos. Espera un minuto y vuelve a intentarlo.',
+          })
         );
       }
       // Sin conexión y fuera del modo demo (producción): nunca se entra sin el backend.

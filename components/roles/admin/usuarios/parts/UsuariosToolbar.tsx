@@ -2,6 +2,7 @@ import React from 'react';
 import { UserPlus, Download } from 'lucide-react';
 import { SearchInput } from '@/components/shared/ui/SearchInput';
 import { UserRole, ROLE_LABELS } from '@/types/auth.types';
+import { useAreas } from '@/components/shared/hooks/useAreas';
 
 interface UsuariosToolbarProps {
   searchQuery: string;
@@ -20,18 +21,6 @@ interface UsuariosToolbarProps {
   onDescargarCSV: () => void;
 }
 
-const AREAS = [
-  'Fiscalización y Control',
-  'Obras Públicas',
-  'Limpieza Pública',
-  'Parques y Jardines',
-  'Tránsito y Transporte',
-  'Seguridad Ciudadana',
-  'Gerencia de Informática y TI',
-  'Secretaría General',
-  'Administración',
-];
-
 export const UsuariosToolbar: React.FC<UsuariosToolbarProps> = ({
   searchQuery,
   onSearch,
@@ -47,7 +36,9 @@ export const UsuariosToolbar: React.FC<UsuariosToolbarProps> = ({
   onDesactivar,
   onToggleCrear,
   onDescargarCSV,
-}) => (
+}) => {
+  const { areas } = useAreas();
+  return (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.25rem' }}>
     {/* Fila superior: Buscador y Filtros por Rol, Área y Estado */}
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.65rem', alignItems: 'center' }}>
@@ -95,9 +86,9 @@ export const UsuariosToolbar: React.FC<UsuariosToolbarProps> = ({
         aria-label="Filtrar por área municipal"
       >
         <option value="todas">Todas las Áreas</option>
-        {AREAS.map((a) => (
-          <option key={a} value={a}>
-            {a}
+        {areas.map((a) => (
+          <option key={a.id} value={a.nombre}>
+            {a.nombre}
           </option>
         ))}
       </select>
@@ -162,3 +153,4 @@ export const UsuariosToolbar: React.FC<UsuariosToolbarProps> = ({
     </div>
   </div>
 );
+};

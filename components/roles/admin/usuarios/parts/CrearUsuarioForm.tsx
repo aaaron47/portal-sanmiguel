@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { UserRole, ROLE_LABELS } from '@/types/auth.types';
 import { FormField, inputStyle } from '@/components/shared/ui/FormField';
 import { NuevoUsuario } from '../useUsuarios';
+import { useAreas } from '@/components/shared/hooks/useAreas';
 
 interface CrearUsuarioFormProps {
   onSubmit: (data: NuevoUsuario) => Promise<void>;
@@ -13,11 +14,14 @@ export const CrearUsuarioForm: React.FC<CrearUsuarioFormProps> = ({ onSubmit, on
   const [nombreCompleto, setNombreCompleto] = useState('');
   const [email, setEmail] = useState('');
   const [rol, setRol] = useState<UserRole>('FUNCIONARIO');
-  const [area, setArea] = useState('Fiscalización y Control');
+  const [area, setArea] = useState('');
+  const { areas, error: errorAreas } = useAreas();
+  // El backend exige área para un funcionario (su bandeja depende del área); para los demás roles es opcional.
+  const areaObligatoria = rol === 'FUNCIONARIO';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!dni || !nombreCompleto || !email) return;
+    if (!dni || !nombreCompleto || !email || (areaObligatoria && !area)) return;
     onSubmit({ dni, nombreCompleto, email, rol, area });
   };
 
@@ -29,7 +33,7 @@ export const CrearUsuarioForm: React.FC<CrearUsuarioFormProps> = ({ onSubmit, on
       <h4 style={{ fontSize: '0.9rem', marginBottom: '0.75rem', fontWeight: 700 }}>Registrar Nuevo Personal Municipal</h4>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
         <FormField label="DNI:">
-          <input type="text" maxLength={8} required value={dni} onChange={(e) => setDni(e.target.value)} placeholder="Ej. 74589123" style={inputStyle} />
+          <input type="text" inputMode="numeric" pattern="[0-9]{8}" title="8 dígitos" maxLength={8} required value={dni} onChange={(e) => setDni(e.target.value)} placeholder="Ej. 74589123" style={inputStyle} />
         </FormField>
         <FormField label="Nombres y Apellidos:">
           <input type="text" required value={nombreCompleto} onChange={(e) => setNombreCompleto(e.target.value)} placeholder="Ej. Juan Pérez" style={inputStyle} />
@@ -47,7 +51,19 @@ export const CrearUsuarioForm: React.FC<CrearUsuarioFormProps> = ({ onSubmit, on
           </select>
         </FormField>
         <FormField label="Área:">
-          <input type="text" value={area} onChange={(e) => setArea(e.target.value)} placeholder="Fiscalización, Obras, etc." style={inputStyle} />
+          <select value={area} onChange={(e) => setArea(e.target.value)} required={areaObligatoria} style={inputStyle}>
+            <option value="">{areaObligatoria ? 'Elige el área' : 'Sin área'}</option>
+            {areas.map((a) => (
+              <option key={a.id} value={a.nombre}>
+                {a.nombre}
+              </option>
+            ))}
+          </select>
+          {errorAreas && (
+            <span style={{ fontSize: '0.75rem', color: 'var(--red-600)' }}>
+              No se pudieron cargar las áreas. Recarga la página.
+            </span>
+          )}
         </FormField>
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>

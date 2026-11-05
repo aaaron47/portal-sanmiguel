@@ -16,7 +16,8 @@ export interface VariablesAcceso {
   allowSimultaneousSessions: boolean;
   // 2. Gobernanza de Datos y Telemetría Móvil (Ley N° 29733)
   telemetriaActiva: boolean;
-  diasRetencionLogs: number;
+  /** Solo informativo: la purga mensual de la BD conserva 12 meses (RETENCION_USO_MESES). */
+  mesesRetencionUso: number;
   versionTerminosVigente: string;
 }
 
@@ -37,7 +38,7 @@ const DEFAULT_VARIABLES: VariablesAcceso = {
   passwordExpirationDays: 90,
   allowSimultaneousSessions: false,
   telemetriaActiva: true,
-  diasRetencionLogs: 60,
+  mesesRetencionUso: 12,
   versionTerminosVigente: 'v1.3 (2026-10)',
 };
 
@@ -96,7 +97,7 @@ export function useControlAcceso(onNotify: NotifyFn) {
         const configInicial: VariablesAcceso = {
           ...DEFAULT_VARIABLES,
           telemetriaActiva: resumen.onboarding.telemetriaActiva,
-          diasRetencionLogs: resumen.onboarding.diasRetencionLogs,
+          mesesRetencionUso: resumen.onboarding.mesesRetencionUso,
           versionTerminosVigente: resumen.onboarding.versionTerminosVigente,
         };
         setVariablesGuardadas(configInicial);
@@ -140,9 +141,6 @@ export function useControlAcceso(onNotify: NotifyFn) {
     if (variables.telemetriaActiva !== variablesGuardadas.telemetriaActiva) {
       lista.push(`Telemetría Móvil: ${variablesGuardadas.telemetriaActiva ? 'ACTIVA' : 'EN PAUSA'} ➔ ${variables.telemetriaActiva ? 'REANUDADA (ACTIVA)' : 'PAUSADA (KILL-SWITCH ACTIVADO)'}`);
     }
-    if (variables.diasRetencionLogs !== variablesGuardadas.diasRetencionLogs) {
-      lista.push(`Retención de Logs (Ley N° 29733): ${variablesGuardadas.diasRetencionLogs} días ➔ ${variables.diasRetencionLogs} días`);
-    }
     if (variables.versionTerminosVigente !== variablesGuardadas.versionTerminosVigente) {
       lista.push(`Versión Términos App: ${variablesGuardadas.versionTerminosVigente} ➔ ${variables.versionTerminosVigente} (Re-aceptación ciudadana obligatoria)`);
     }
@@ -168,7 +166,6 @@ export function useControlAcceso(onNotify: NotifyFn) {
       // 1. Guardar cambios de telemetría/gobernanza en Spring Boot
       await telemetriaController.actualizarConfiguracionPrivacidad({
         telemetriaActiva: variables.telemetriaActiva,
-        diasRetencionLogs: variables.diasRetencionLogs,
         versionTerminosVigente: variables.versionTerminosVigente,
       });
 

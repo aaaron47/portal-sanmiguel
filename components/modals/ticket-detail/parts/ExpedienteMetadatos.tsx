@@ -23,7 +23,7 @@ export const ExpedienteMetadatos: React.FC<ExpedienteMetadatosProps> = ({ ticket
         <User size={14} color="var(--primary-500)" /> Ciudadano:
       </div>
       <div style={{ fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>
-        {ticket.ciudadanoNombre} (DNI: {ticket.ciudadanoDni})
+        {ticket.ciudadanoNombre} (DNI: {ticket.ciudadanoDni || '—'})
       </div>
     </div>
     <div>
@@ -31,7 +31,7 @@ export const ExpedienteMetadatos: React.FC<ExpedienteMetadatosProps> = ({ ticket
         <MapPin size={14} color="var(--primary-500)" /> Área Responsable:
       </div>
       <div style={{ fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>
-        {ticket.areaAsignada}
+        {ticket.areaAsignada || 'Sin área asignada'}
       </div>
     </div>
     <div>

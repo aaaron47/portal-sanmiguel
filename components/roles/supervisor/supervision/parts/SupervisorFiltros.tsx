@@ -18,7 +18,7 @@ interface SupervisorFiltrosProps {
 }
 
 const ESTADOS: TicketEstado[] = [...ESTADOS_ACTIVOS, 'resuelto', 'archivado'];
-const PRIORIDADES: TicketPrioridad[] = ['URGENTE', 'ALTA', 'MEDIA', 'BAJA'];
+const PRIORIDADES: TicketPrioridad[] = ['ALTA', 'MEDIA', 'BAJA'];
 
 const estiloSelect: React.CSSProperties = {
   padding: '0.5rem',

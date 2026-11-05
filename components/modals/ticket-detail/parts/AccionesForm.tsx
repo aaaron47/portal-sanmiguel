@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Send, CornerDownRight, CheckCircle, RotateCcw, FileCheck2, Undo2 } from 'lucide-react';
 import { UserRole } from '@/types/auth.types';
+import { useAreas } from '@/components/shared/hooks/useAreas';
 import { AccionTicket, EstadoAtencion, Ticket } from '@/types/ticket.types';
 import {
   FuncionarioOpcion,
@@ -50,17 +51,8 @@ const TITULOS: Record<Exclude<AccionTicket, 'ninguna'>, string> = {
   reasignar: 'Reasignar a otro funcionario',
 };
 
-const AREAS_DERIVACION = [
-  'Obras Públicas',
-  'Fiscalización y Control',
-  'Limpieza Pública',
-  'Parques y Jardines',
-  'Tránsito y Transporte',
-  'Seguridad Ciudadana',
-];
-
-/** Primera área distinta de la actual del reclamo (no se deriva al área donde ya está). */
-const areaDestinoInicial = (t: Ticket) => AREAS_DERIVACION.find((a) => a !== t.areaAsignada) ?? AREAS_DERIVACION[0];
+/** Primera área distinta de la actual del reclamo (no se deriva al área donde ya está); vacío si aún no cargan. */
+const areaDestinoInicial = (t: Ticket, nombres: string[]) => nombres.find((a) => a !== t.areaAsignada) ?? '';
 
 const estiloCampo: React.CSSProperties = {
   width: '100%',
@@ -108,7 +100,10 @@ export const AccionesForm: React.FC<AccionesFormProps> = ({
     initialAction !== 'ninguna' && permitida(initialAction) ? initialAction : 'ninguna'
   );
   const [textoComentario, setTextoComentario] = useState('');
-  const [areaDestino, setAreaDestino] = useState(() => areaDestinoInicial(ticket));
+  // Áreas reales de la BD (GET /areas), no una lista fija.
+  const { areas } = useAreas();
+  const nombresAreas = areas.map((a) => a.nombre);
+  const [areaDestino, setAreaDestino] = useState('');
   const [nuevoFuncionarioId, setNuevoFuncionarioId] = useState('');
   const [estadoAtencion, setEstadoAtencion] = useState<EstadoAtencion>('en evaluación');
   const [estadoConstanciaDecision, setEstadoConstanciaDecision] = useState<'aprobada' | 'observada'>('aprobada');
@@ -125,7 +120,7 @@ export const AccionesForm: React.FC<AccionesFormProps> = ({
 
   // Al abrir una acción, sus campos parten del reclamo tal como está ahora (pudo cambiar tras otra acción).
   const abrirAccion = (accion: AccionTicket) => {
-    setAreaDestino(areaDestinoInicial(ticket));
+    setAreaDestino(areaDestinoInicial(ticket, nombresAreas));
     setEstadoAtencion('en evaluación');
     setActiveAction(accion);
   };
@@ -219,9 +214,11 @@ export const AccionesForm: React.FC<AccionesFormProps> = ({
               id="areaDestino"
               value={areaDestino}
               onChange={(e) => setAreaDestino(e.target.value)}
+              required
               style={estiloCampo}
             >
-              {AREAS_DERIVACION.filter((a) => a !== ticket.areaAsignada).map((a) => (
+              <option value="">Elige el área de destino</option>
+              {nombresAreas.filter((a) => a !== ticket.areaAsignada).map((a) => (
                 <option key={a} value={a}>{a}</option>
               ))}
             </select>
@@ -253,7 +250,7 @@ export const AccionesForm: React.FC<AccionesFormProps> = ({
             )}
             {ticket.funcionarioAsignadoNombre && (
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                Asignado ahora: {ticket.funcionarioAsignadoNombre}
+                Asignado ahora: {ticket.funcionarioAsignadoNombre || 'nadie todavía'}
               </p>
             )}
           </div>

@@ -44,7 +44,8 @@ export interface OnboardingStats {
   // Gobernanza y Controles de Privacidad
   versionTerminosVigente: string;
   fechaRevisionTerminos: string;
-  diasRetencionLogs: number;
+  /** Meses que se conservan los registros de uso (configuracion_sistema.RETENCION_USO_MESES). Solo lectura. */
+  mesesRetencionUso: number;
   telemetriaActiva: boolean;
   embudoPasos: OnboardingFunnelStep[];
 }
