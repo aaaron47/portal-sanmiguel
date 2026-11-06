@@ -1,13 +1,5 @@
 import { apiClient, usarDatosDemo } from '@/services/api-client.service';
-import { 
-  Ticket, 
-  TicketFiltros, 
-  TicketSeguimiento, 
-  RespuestaPayload, 
-  DerivacionPayload, 
-  DevolucionPayload,
-  ReasignacionPayload 
-} from '@/types/ticket.types';
+import { AccionCodigo, DatosAccion, Ticket, TicketFiltros } from '@/types/ticket.types';
 
 // Mock dataset representativo de la base de datos municipal para pruebas de flujos
 const MOCK_TICKETS: Ticket[] = [
@@ -64,7 +56,8 @@ const MOCK_TICKETS: Ticket[] = [
     areaAsignada: 'Obras Públicas',
     funcionarioAsignadoId: 'USR-FUN-09',
     funcionarioAsignadoNombre: 'Ing. Fernando Rojas',
-    estado: 'por aprobar',
+    estado: 'en evaluación',
+    respuestaPorAprobar: true,
     prioridad: 'ALTA',
     tieneConstancia: true,
     estadoConstancia: 'aprobada',
@@ -133,7 +126,7 @@ const MOCK_TICKETS: Ticket[] = [
     areaAsignada: 'Fiscalización y Control',
     funcionarioAsignadoId: 'USR-FUN-02',
     funcionarioAsignadoNombre: 'Lic. Mariana Rios',
-    estado: 'derivado',
+    estado: 'pendiente de asignación',
     prioridad: 'MEDIA',
     tieneConstancia: true,
     estadoConstancia: 'sin_evaluar',
@@ -163,7 +156,7 @@ const MOCK_TICKETS: Ticket[] = [
     areaAsignada: 'Limpieza Pública',
     funcionarioAsignadoId: 'USR-FUN-08',
     funcionarioAsignadoNombre: 'Sr. Walter Quispe',
-    estado: 'resuelto',
+    estado: 'cerrado',
     prioridad: 'ALTA',
     tieneConstancia: false,
     fechaCreacion: '2026-10-25 08:30',
@@ -183,41 +176,22 @@ const MOCK_TICKETS: Ticket[] = [
   }
 ];
 
-/** Fecha y hora locales en el formato de los datos ("AAAA-MM-DD HH:mm"); toISOString() daba la hora UTC. */
-function fechaLocal(): string {
-  const d = new Date();
-  const dos = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())} ${dos(d.getHours())}:${dos(d.getMinutes())}`;
-}
-
-/**
- * Modo demo: aplica una acción sobre los reclamos simulados (agrega la entrada en la línea de tiempo,
- * aplica los cambios y actualiza la fecha). Un solo lugar para las 6 acciones.
- */
-function aplicarEnDemo(
-  id: string,
-  seguimiento: Pick<TicketSeguimiento, 'autorNombre' | 'autorRol' | 'tipoAccion' | 'comentario'>,
-  cambios: Partial<Ticket>
-): Ticket {
-  const ticketIndex = MOCK_TICKETS.findIndex((t) => t.id === id);
-  if (ticketIndex === -1) throw new Error('Reclamo no encontrado');
-
-  const nuevoSeguimiento: TicketSeguimiento = {
-    id: `SEG-${Date.now()}`,
-    reclamoId: id,
-    autorId: 'CURRENT_USER',
-    fecha: fechaLocal(),
-    ...seguimiento,
-  };
-
-  MOCK_TICKETS[ticketIndex] = {
-    ...MOCK_TICKETS[ticketIndex],
-    ...cambios,
-    fechaActualizacion: nuevoSeguimiento.fecha,
-    seguimientos: [...MOCK_TICKETS[ticketIndex].seguimientos, nuevoSeguimiento],
-  };
-  return MOCK_TICKETS[ticketIndex];
-}
+/** Ruta de cada acción del flujo bajo /tickets/{id}/. */
+const RUTAS_ACCION: Record<AccionCodigo, string> = {
+  RECIBIR: 'recibir',
+  VALIDAR: 'validar',
+  OBSERVAR: 'observar',
+  ASIGNAR: 'asignar',
+  REASIGNAR: 'reasignar',
+  DEVOLVER_PARA_REASIGNAR: 'devolver-para-reasignar',
+  EVALUAR: 'evaluacion',
+  ELABORAR_RESPUESTA: 'respuesta',
+  APROBAR_RESPUESTA: 'respuesta/aprobar',
+  OBSERVAR_RESPUESTA: 'respuesta/observar',
+  CERRAR: 'cerrar',
+  DECLARAR_IMPROCEDENTE: 'improcedente',
+  NOTA: 'nota',
+};
 
 export class TicketsController {
   async getTickets(filtros?: TicketFiltros): Promise<Ticket[]> {
@@ -265,127 +239,21 @@ export class TicketsController {
     }
   }
 
-  async atenderTicket(id: string, payload: RespuestaPayload, usuarioNombre: string): Promise<Ticket> {
-    try {
-      return await apiClient<Ticket>(`/tickets/${id}/atender`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    } catch (err) {
-      // Datos simulados solo sin conexión y en modo demo; si no, el error llega a la vista.
-      if (!usarDatosDemo(err)) throw err;
-      return aplicarEnDemo(
-        id,
-        { autorNombre: usuarioNombre, autorRol: 'Funcionario', tipoAccion: 'ATENCION', comentario: payload.comentarioRespuesta },
-        { estado: payload.nuevoEstado }
-      );
-    }
-  }
-
-  async derivarTicket(id: string, payload: DerivacionPayload, usuarioNombre: string): Promise<Ticket> {
-    try {
-      return await apiClient<Ticket>(`/tickets/${id}/derivar`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    } catch (err) {
-      if (!usarDatosDemo(err)) throw err;
-      return aplicarEnDemo(
-        id,
-        {
-          autorNombre: usuarioNombre,
-          autorRol: 'Funcionario',
-          tipoAccion: 'DERIVACION',
-          // Se guarda en el campo comentario según directiva de "Cero Sobreingeniería"
-          comentario: `DERIVACIÓN A [${payload.areaDestino}]: ${payload.motivoDerivacion}`,
-        },
-        { estado: 'derivado', areaAsignada: payload.areaDestino }
-      );
-    }
-  }
-
-  async aprobarTicket(id: string, comentarioAprobacion: string, supervisorNombre: string): Promise<Ticket> {
-    try {
-      return await apiClient<Ticket>(`/tickets/${id}/aprobar`, {
-        method: 'POST',
-        body: JSON.stringify({ comentarioAprobacion }),
-      });
-    } catch (err) {
-      if (!usarDatosDemo(err)) throw err;
-      return aplicarEnDemo(
-        id,
-        {
-          autorNombre: supervisorNombre,
-          autorRol: 'Supervisor',
-          tipoAccion: 'APROBACION',
-          comentario: `APROBACIÓN DE RESOLUCIÓN: ${comentarioAprobacion}`,
-        },
-        { estado: 'resuelto' }
-      );
-    }
-  }
-
-  async devolverTicket(id: string, payload: DevolucionPayload, supervisorNombre: string): Promise<Ticket> {
-    try {
-      return await apiClient<Ticket>(`/tickets/${id}/devolver`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    } catch (err) {
-      if (!usarDatosDemo(err)) throw err;
-      return aplicarEnDemo(
-        id,
-        {
-          autorNombre: supervisorNombre,
-          autorRol: 'Supervisor',
-          tipoAccion: 'DEVOLUCION',
-          comentario: `DEVOLUCIÓN PARA CORREGIR: ${payload.motivoDevolucion}`,
-        },
-        { estado: 'en evaluación' }
-      );
-    }
-  }
-
-  async reasignarTicket(id: string, payload: ReasignacionPayload, supervisorNombre: string): Promise<Ticket> {
-    try {
-      return await apiClient<Ticket>(`/tickets/${id}/reasignar`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    } catch (err) {
-      if (!usarDatosDemo(err)) throw err;
-      return aplicarEnDemo(
-        id,
-        {
-          autorNombre: supervisorNombre,
-          autorRol: 'Supervisor',
-          tipoAccion: 'REASIGNACION',
-          comentario: `REASIGNADO A ${payload.nuevoFuncionarioNombre}: ${payload.motivoReasignacion}`,
-        },
-        { funcionarioAsignadoId: payload.nuevoFuncionarioId, funcionarioAsignadoNombre: payload.nuevoFuncionarioNombre }
-      );
-    }
-  }
-
-  async evaluarConstancia(id: string, estado: 'aprobada' | 'observada', observaciones: string, funcionarioNombre: string): Promise<Ticket> {
-    try {
-      return await apiClient<Ticket>(`/tickets/${id}/evaluar-constancia`, {
-        method: 'POST',
-        body: JSON.stringify({ estado, observaciones }),
-      });
-    } catch (err) {
-      if (!usarDatosDemo(err)) throw err;
-      return aplicarEnDemo(
-        id,
-        {
-          autorNombre: funcionarioNombre,
-          autorRol: 'Funcionario',
-          tipoAccion: 'EVALUACION_CONSTANCIA',
-          comentario: `EVALUACIÓN DE CONSTANCIA [${estado.toUpperCase()}]: ${observaciones}`,
-        },
-        { estadoConstancia: estado }
-      );
-    }
+  /**
+   * Ejecuta una acción del flujo y devuelve el reclamo actualizado. Envía la `version` que se mostraba: si otra
+   * persona lo cambió, el backend responde 409 version_conflict. En modo demo no hay acciones (necesitan el servidor).
+   */
+  async ejecutarAccion(ticket: Ticket, accion: AccionCodigo, datos: DatosAccion): Promise<Ticket> {
+    const cuerpo: Record<string, unknown> =
+      accion === 'REASIGNAR'
+        ? { nuevoFuncionarioId: datos.funcionarioId, motivoReasignacion: datos.motivo }
+        : { ...datos };
+    delete cuerpo.funcionarioNombre;
+    cuerpo.version = ticket.version;
+    return apiClient<Ticket>(`/tickets/${ticket.id}/${RUTAS_ACCION[accion]}`, {
+      method: 'POST',
+      body: JSON.stringify(cuerpo),
+    });
   }
 }
 

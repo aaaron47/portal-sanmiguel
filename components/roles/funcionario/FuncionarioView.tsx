@@ -46,11 +46,7 @@ export const FuncionarioView: React.FC<RoleViewProps> = ({ initialTab = 'funcion
           rolUsuario="FUNCIONARIO"
           initialAction={f.modalAction}
           onClose={f.cerrarModal}
-          onAtender={f.handleAtender}
-          onDerivar={f.handleDerivar}
-          onAprobar={async () => {}}
-          onReasignar={async () => {}}
-          onEvaluarConstancia={f.handleEvaluarConstancia}
+          onAccion={f.handleAccion}
         />
       )}
     </div>

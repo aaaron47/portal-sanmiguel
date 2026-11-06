@@ -10,7 +10,7 @@ import { SupervisorKpis } from './supervision/parts/SupervisorKpis';
 import { SupervisorFiltros } from './supervision/parts/SupervisorFiltros';
 import { SupervisorTable } from './supervision/parts/SupervisorTable';
 import { ReasignacionPanel } from './reasignacion/ReasignacionPanel';
-import { puedeAprobar } from '@/utils/ticket.utils';
+import { cumpleFiltroEstado, puedeAprobar } from '@/utils/ticket.utils';
 
 type SupervisorTab = 'panorama' | 'aprobaciones' | 'reasignaciones';
 
@@ -20,8 +20,6 @@ const tabDesdeMenu = (initialTab: string): SupervisorTab =>
     : initialTab === 'supervisor-reasignaciones'
       ? 'reasignaciones'
       : 'panorama';
-
-const sinAccion = async () => { };
 
 export const SupervisorView: React.FC<RoleViewProps> = ({
   initialTab = 'supervisor-panorama',
@@ -34,7 +32,7 @@ export const SupervisorView: React.FC<RoleViewProps> = ({
 
   const ticketsFiltrados = s.tickets.filter((t) => {
     if (subTab === 'aprobaciones' && !puedeAprobar(t)) return false;
-    if (subTab === 'panorama' && s.filtroEstado !== 'todos' && t.estado !== s.filtroEstado) return false;
+    if (subTab === 'panorama' && !cumpleFiltroEstado(t, s.filtroEstado)) return false;
     if (s.filtroPrioridad !== 'todos' && t.prioridad !== s.filtroPrioridad) return false;
     if (s.filtroArea !== 'todas' && t.areaAsignada !== s.filtroArea) return false;
     if (s.searchQuery) {
@@ -61,7 +59,7 @@ export const SupervisorView: React.FC<RoleViewProps> = ({
             icon={<Building2 size={20} />}
             title={
               subTab === 'aprobaciones'
-                ? 'Revisión y Aprobación de Resoluciones'
+                ? 'Respuestas por aprobar'
                 : 'Supervisión de Reclamos Vecinales'
             }
             aside={
@@ -87,7 +85,7 @@ export const SupervisorView: React.FC<RoleViewProps> = ({
             onSelectTicket={s.abrirTicket}
             mensajeVacio={
               subTab === 'aprobaciones'
-                ? 'No hay resoluciones esperando tu aprobación.'
+                ? 'No hay respuestas esperando tu aprobación.'
                 : undefined
             }
           />
@@ -101,12 +99,7 @@ export const SupervisorView: React.FC<RoleViewProps> = ({
           initialAction={s.modalAction}
           funcionarios={s.funcionarios}
           onClose={s.cerrarModal}
-          onAtender={sinAccion}
-          onDerivar={sinAccion}
-          onAprobar={s.handleAprobar}
-          onDevolver={s.handleDevolver}
-          onReasignar={s.handleReasignar}
-          onEvaluarConstancia={sinAccion}
+          onAccion={s.handleAccion}
         />
       )}
     </div>

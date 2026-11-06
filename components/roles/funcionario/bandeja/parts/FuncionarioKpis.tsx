@@ -2,6 +2,7 @@ import React from 'react';
 import { Inbox, Clock, FileCheck2 } from 'lucide-react';
 import { Ticket } from '@/types/ticket.types';
 import { KpiCard } from '@/components/shared/ui/KpiCard';
+import { esActivo } from '@/utils/ticket.utils';
 
 interface FuncionarioKpisProps {
   tickets: Ticket[];
@@ -9,9 +10,7 @@ interface FuncionarioKpisProps {
 }
 
 export const FuncionarioKpis: React.FC<FuncionarioKpisProps> = ({ tickets, area }) => {
-  const pendientes = tickets.filter(
-    (t) => t.estado === 'en evaluación' || t.estado === 'pendiente de validación'
-  ).length;
+  const pendientes = tickets.filter(esActivo).length;
 
   const constanciasPorEvaluar = tickets.filter(
     (t) => t.tieneConstancia && t.estadoConstancia === 'sin_evaluar'
@@ -28,7 +27,7 @@ export const FuncionarioKpis: React.FC<FuncionarioKpisProps> = ({ tickets, area 
       />
       <KpiCard
         icon={Clock}
-        label="En Evaluación / Pendientes"
+        label="Abiertos (sin responder)"
         value={pendientes}
         bg="var(--amber-100)"
         color="var(--amber-700)"

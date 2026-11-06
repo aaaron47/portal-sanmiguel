@@ -1,7 +1,7 @@
 import React from 'react';
 import { SearchInput } from '@/components/shared/ui/SearchInput';
-import { TicketEstado, TicketPrioridad } from '@/types/ticket.types';
-import { ESTADOS_ACTIVOS } from '@/utils/ticket.utils';
+import { TicketFiltroEstado, TicketPrioridad } from '@/types/ticket.types';
+import { ESTADOS } from '@/utils/ticket.utils';
 
 interface SupervisorFiltrosProps {
   searchQuery: string;
@@ -11,13 +11,12 @@ interface SupervisorFiltrosProps {
   onAreaChange: (val: string) => void;
   /** En la pestaña "Por aprobar" el estado ya está fijo y no se muestra. */
   mostrarEstado?: boolean;
-  filtroEstado: TicketEstado | 'todos';
-  onEstadoChange: (val: TicketEstado | 'todos') => void;
+  filtroEstado: TicketFiltroEstado | 'todos';
+  onEstadoChange: (val: TicketFiltroEstado | 'todos') => void;
   filtroPrioridad: TicketPrioridad | 'todos';
   onPrioridadChange: (val: TicketPrioridad | 'todos') => void;
 }
 
-const ESTADOS: TicketEstado[] = [...ESTADOS_ACTIVOS, 'resuelto', 'archivado'];
 const PRIORIDADES: TicketPrioridad[] = ['ALTA', 'MEDIA', 'BAJA'];
 
 const estiloSelect: React.CSSProperties = {
@@ -59,13 +58,14 @@ export const SupervisorFiltros: React.FC<SupervisorFiltrosProps> = ({
       <select
         aria-label="Filtrar por estado"
         value={filtroEstado}
-        onChange={(e) => onEstadoChange(e.target.value as TicketEstado | 'todos')}
+        onChange={(e) => onEstadoChange(e.target.value as TicketFiltroEstado | 'todos')}
         style={{ ...estiloSelect, textTransform: 'capitalize' }}
       >
         <option value="todos">Todos los estados</option>
         {ESTADOS.map((e) => (
           <option key={e} value={e}>{e}</option>
         ))}
+        <option value="por aprobar">por aprobar (respuesta en revisión)</option>
       </select>
     )}
 

@@ -1,12 +1,11 @@
 import React from 'react';
 import { Inbox } from 'lucide-react';
-import { Ticket, TicketEstado, TicketPrioridad } from '@/types/ticket.types';
+import { Ticket, TicketFiltroEstado, TicketPrioridad } from '@/types/ticket.types';
 import { FiltroConstancia } from '../useFuncionarioTickets';
 import { CardHeader, CardAside } from '@/components/shared/ui/CardHeader';
 import { FuncionarioKpis } from './parts/FuncionarioKpis';
 import { ReclamosFiltros } from './parts/ReclamosFiltros';
 import { ReclamosTable } from './parts/ReclamosTable';
-import { puedeAtender } from '@/utils/ticket.utils';
 
 interface BandejaPanelProps {
   tickets: Ticket[];
@@ -14,15 +13,15 @@ interface BandejaPanelProps {
   area?: string;
   searchQuery: string;
   onSearchChange: (value: string) => void;
-  filtroEstado: TicketEstado | 'todos';
-  onEstadoChange: (estado: TicketEstado | 'todos') => void;
+  filtroEstado: TicketFiltroEstado | 'todos';
+  onEstadoChange: (estado: TicketFiltroEstado | 'todos') => void;
   filtroPrioridad: TicketPrioridad | 'todos';
   onPrioridadChange: (prioridad: TicketPrioridad | 'todos') => void;
   filtroConstancia: FiltroConstancia;
   onConstanciaChange: (constancia: FiltroConstancia) => void;
   soloAsignadosAMi: boolean;
   onSoloAsignadosChange: (val: boolean) => void;
-  onSelectTicket: (ticket: Ticket, action?: 'atender' | 'derivar' | 'constancia') => void;
+  onSelectTicket: (ticket: Ticket) => void;
   onDescargarCSV: () => void;
 }
 
@@ -73,7 +72,7 @@ export const BandejaPanel: React.FC<BandejaPanelProps> = ({
 
       <ReclamosTable
         tickets={ticketsFiltrados}
-        onSelectTicket={(t) => onSelectTicket(t, puedeAtender(t) ? 'atender' : undefined)}
+        onSelectTicket={(t) => onSelectTicket(t)}
       />
     </div>
   </div>

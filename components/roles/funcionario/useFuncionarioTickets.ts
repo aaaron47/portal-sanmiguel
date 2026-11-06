@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { ticketsController } from '@/controllers/tickets.controller';
-import { EstadoAtencion, Ticket, TicketEstado, TicketPrioridad } from '@/types/ticket.types';
+import { AccionCodigo, AccionTicket, DatosAccion, Ticket, TicketFiltroEstado, TicketPrioridad } from '@/types/ticket.types';
 import { useAuth } from '@/context/AuthContext';
 import { NotifyFn } from '@/types/ui.types';
 import { exportarCSV } from '@/utils/csv.utils';
 import { mensajeErrorApi } from '@/services/api-client.service';
-import { MENSAJES_ERROR_RECLAMO } from '@/utils/ticket.utils';
+import { MENSAJES_ERROR_RECLAMO, cumpleFiltroEstado, mensajeExitoAccion, textoEstado } from '@/utils/ticket.utils';
 
 export type FiltroConstancia = 'todos' | 'con_constancia' | 'sin_constancia' | 'por_evaluar' | 'aprobada' | 'observada';
 
@@ -13,19 +13,18 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
   const { usuario } = useAuth();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  const [modalAction, setModalAction] = useState<'ninguna' | 'atender' | 'derivar' | 'constancia'>('ninguna');
-  const [filtroEstado, setFiltroEstado] = useState<TicketEstado | 'todos'>('todos');
+  const [modalAction, setModalAction] = useState<AccionTicket>('ninguna');
+  const [filtroEstado, setFiltroEstado] = useState<TicketFiltroEstado | 'todos'>('todos');
   const [filtroPrioridad, setFiltroPrioridad] = useState<TicketPrioridad | 'todos'>('todos');
   const [filtroConstancia, setFiltroConstancia] = useState<FiltroConstancia>('todos');
   const [searchQuery, setSearchQuery] = useState('');
   const [soloAsignadosAMi, setSoloAsignadosAMi] = useState(false);
 
-  const area = usuario?.area;
-
   useEffect(() => {
     let cancelado = false;
+    // Sin filtro de área: el backend ya devuelve los de su área y los que aún no tienen área (por validar).
     ticketsController
-      .getTickets({ area })
+      .getTickets()
       .then((data) => {
         if (!cancelado) setTickets(data);
       })
@@ -35,11 +34,18 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
     return () => {
       cancelado = true;
     };
-  }, [area, onNotify]);
+  }, [onNotify]);
 
-  const abrirTicket = (ticket: Ticket, accion: 'ninguna' | 'atender' | 'derivar' | 'constancia' = 'ninguna') => {
+  const abrirTicket = (ticket: Ticket, accion: AccionTicket = 'ninguna') => {
     setSelectedTicket(ticket);
     setModalAction(accion);
+    // La lista no trae evaluaciones ni versiones de la respuesta: se pide el detalle.
+    ticketsController
+      .getTicketById(ticket.id)
+      .then((detalle) => setSelectedTicket((actual) => (actual?.id === detalle.id ? detalle : actual)))
+      .catch(() => {
+        // Se queda con lo de la lista; las acciones igual comprueban la versión en el servidor.
+      });
   };
 
   const cerrarModal = () => {
@@ -47,64 +53,22 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
     setModalAction('ninguna');
   };
 
-  const handleAtender = async (id: string, comentario: string, nuevoEstado: EstadoAtencion) => {
+  const handleAccion = async (ticket: Ticket, accion: AccionCodigo, datos: DatosAccion) => {
     try {
-      const actualizado = await ticketsController.atenderTicket(
-        id, 
-        { comentarioRespuesta: comentario, nuevoEstado }, 
-        usuario?.nombreCompleto || 'Funcionario'
-      );
-      setTickets(prev => prev.map(t => t.id === id ? actualizado : t));
+      const actualizado = await ticketsController.ejecutarAccion(ticket, accion, datos);
+      setTickets((prev) => prev.map((t) => (t.id === actualizado.id ? actualizado : t)));
       setSelectedTicket(actualizado);
-      onNotify(
-        'success',
-        nuevoEstado === 'por aprobar'
-          ? `Expediente ${actualizado.folio} enviado al supervisor para aprobación`
-          : `Avance registrado en el expediente ${actualizado.folio}`
-      );
+      setModalAction('ninguna');
+      onNotify('success', mensajeExitoAccion(accion, actualizado, datos));
     } catch (err) {
-      onNotify('error', mensajeErrorApi(err, 'No se pudo guardar la atención. Inténtalo de nuevo.', MENSAJES_ERROR_RECLAMO));
+      onNotify('error', mensajeErrorApi(err, 'No se pudo guardar la acción. Inténtalo de nuevo.', MENSAJES_ERROR_RECLAMO));
       throw err; // El formulario queda abierto con lo escrito.
-    }
-  };
-
-  const handleDerivar = async (id: string, areaDestino: string, motivo: string) => {
-    try {
-      const actualizado = await ticketsController.derivarTicket(
-        id, 
-        { areaDestino, motivoDerivacion: motivo }, 
-        usuario?.nombreCompleto || 'Funcionario'
-      );
-      // Ya pertenece a otra área: sale de esta bandeja y se cierra el detalle (no se puede seguir atendiendo).
-      setTickets(prev => prev.filter(t => t.id !== id));
-      cerrarModal();
-      onNotify('success', `Expediente ${actualizado.folio} derivado a ${areaDestino}; ya no aparece en tu bandeja`);
-    } catch (err) {
-      onNotify('error', mensajeErrorApi(err, 'No se pudo derivar el expediente. Inténtalo de nuevo.', MENSAJES_ERROR_RECLAMO));
-      throw err;
-    }
-  };
-
-  const handleEvaluarConstancia = async (id: string, estado: 'aprobada' | 'observada', observaciones: string) => {
-    try {
-      const actualizado = await ticketsController.evaluarConstancia(
-        id, 
-        estado, 
-        observaciones, 
-        usuario?.nombreCompleto || 'Funcionario'
-      );
-      setTickets(prev => prev.map(t => t.id === id ? actualizado : t));
-      setSelectedTicket(actualizado);
-      onNotify('success', `Constancia formal ${estado} exitosamente`);
-    } catch (err) {
-      onNotify('error', mensajeErrorApi(err, 'No se pudo guardar la evaluación de la constancia. Inténtalo de nuevo.', MENSAJES_ERROR_RECLAMO));
-      throw err;
     }
   };
 
   const ticketsFiltrados = tickets.filter(t => {
     if (soloAsignadosAMi && t.funcionarioAsignadoId !== usuario?.id) return false;
-    if (filtroEstado !== 'todos' && t.estado !== filtroEstado) return false;
+    if (!cumpleFiltroEstado(t, filtroEstado)) return false;
     if (filtroPrioridad !== 'todos' && t.prioridad !== filtroPrioridad) return false;
     if (filtroConstancia !== 'todos') {
       if (filtroConstancia === 'con_constancia' && !t.tieneConstancia) return false;
@@ -143,7 +107,7 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
       t.ciudadanoNombre,
       t.ciudadanoDni,
       t.asunto,
-      t.estado,
+      textoEstado(t),
       t.prioridad,
       t.tieneConstancia ? 'Solicitada' : 'No Requerida',
       t.tieneConstancia
@@ -181,9 +145,7 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
     setSearchQuery,
     soloAsignadosAMi,
     setSoloAsignadosAMi,
-    handleAtender,
-    handleDerivar,
-    handleEvaluarConstancia,
+    handleAccion,
     descargarCSV,
   };
 }

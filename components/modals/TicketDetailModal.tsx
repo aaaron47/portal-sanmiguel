@@ -1,10 +1,11 @@
 import React from 'react';
-import { AccionTicket, EstadoAtencion, Ticket } from '@/types/ticket.types';
+import { AccionTicket, OnAccionTicket, Ticket } from '@/types/ticket.types';
 import { UserRole } from '@/types/auth.types';
 import { FuncionarioOpcion } from '@/utils/ticket.utils';
 import { ExpedienteHeader } from './ticket-detail/parts/ExpedienteHeader';
 import { ExpedienteMetadatos } from './ticket-detail/parts/ExpedienteMetadatos';
 import { ExpedienteDescripcion } from './ticket-detail/parts/ExpedienteDescripcion';
+import { ExpedienteFlujo } from './ticket-detail/parts/ExpedienteFlujo';
 import { SeguimientoTimeline } from './ticket-detail/parts/SeguimientoTimeline';
 import { AccionesForm } from './ticket-detail/parts/AccionesForm';
 
@@ -12,15 +13,10 @@ interface TicketDetailModalProps {
   ticket: Ticket;
   rolUsuario: UserRole;
   initialAction?: AccionTicket;
-  /** Funcionarios a los que el supervisor puede reasignar el reclamo. */
+  /** Funcionarios a los que el supervisor puede asignar o reasignar el reclamo. */
   funcionarios?: FuncionarioOpcion[];
   onClose: () => void;
-  onAtender: (id: string, comentario: string, nuevoEstado: EstadoAtencion) => Promise<void>;
-  onDerivar: (id: string, areaDestino: string, motivo: string) => Promise<void>;
-  onAprobar: (id: string, comentario: string) => Promise<void>;
-  onDevolver?: (id: string, motivo: string) => Promise<void>;
-  onReasignar: (id: string, nuevoFuncionarioId: string, nuevoNombre: string, motivo: string) => Promise<void>;
-  onEvaluarConstancia: (id: string, estado: 'aprobada' | 'observada', observaciones: string) => Promise<void>;
+  onAccion: OnAccionTicket;
 }
 
 export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
@@ -29,12 +25,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   initialAction = 'ninguna',
   funcionarios,
   onClose,
-  onAtender,
-  onDerivar,
-  onAprobar,
-  onDevolver,
-  onReasignar,
-  onEvaluarConstancia,
+  onAccion,
 }) => {
   return (
     <div className="modal-overlay">
@@ -44,20 +35,16 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         <div className="modal-body">
           <ExpedienteMetadatos ticket={ticket} />
           <ExpedienteDescripcion descripcion={ticket.descripcion} />
+          <ExpedienteFlujo ticket={ticket} />
           <SeguimientoTimeline seguimientos={ticket.seguimientos} />
           <AccionesForm
-            // Un formulario nuevo por reclamo y acción inicial: así arranca limpio sin efectos.
-            key={`${ticket.id}-${initialAction}`}
+            // Un formulario nuevo por reclamo, versión y acción inicial: así arranca limpio sin efectos.
+            key={`${ticket.id}-${ticket.version ?? ''}-${initialAction}`}
             ticket={ticket}
             rolUsuario={rolUsuario}
             initialAction={initialAction}
             funcionarios={funcionarios}
-            onAtender={onAtender}
-            onDerivar={onDerivar}
-            onAprobar={onAprobar}
-            onDevolver={onDevolver}
-            onReasignar={onReasignar}
-            onEvaluarConstancia={onEvaluarConstancia}
+            onAccion={onAccion}
           />
         </div>
 
