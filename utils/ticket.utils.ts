@@ -1,31 +1,55 @@
-import { Ticket, TicketEstado } from '@/types/ticket.types';
+import {
+  AccionCodigo,
+  CategoriaReclamo,
+  DatosAccion,
+  ResultadoReclamo,
+  Ticket,
+  TicketEstado,
+  TicketFiltroEstado,
+} from '@/types/ticket.types';
 import { Usuario } from '@/types/auth.types';
 
-/** Estados en los que el reclamo sigue abierto (no resuelto ni archivado). */
+/** Estados en los que el reclamo sigue abierto (aún no se responde al ciudadano). */
 export const ESTADOS_ACTIVOS: TicketEstado[] = [
+  'registrado',
   'pendiente de validación',
+  'pendiente de asignación',
   'en evaluación',
-  'derivado',
-  'por aprobar',
 ];
 
-/** Estados en los que el funcionario puede trabajar el reclamo. */
-const ESTADOS_EN_ATENCION: TicketEstado[] = ['pendiente de validación', 'en evaluación', 'derivado'];
+/** Todos los estados, en el orden del flujo. */
+export const ESTADOS: TicketEstado[] = [...ESTADOS_ACTIVOS, 'respondido', 'cerrado', 'improcedente'];
 
 export const esActivo = (t: Ticket) => ESTADOS_ACTIVOS.includes(t.estado);
 
-// Reglas del Funcionario
-export const puedeAtender = (t: Ticket) => ESTADOS_EN_ATENCION.includes(t.estado);
-export const puedeDerivar = (t: Ticket) => ESTADOS_EN_ATENCION.includes(t.estado);
-export const puedeEvaluarConstancia = (t: Ticket) => t.tieneConstancia && ESTADOS_EN_ATENCION.includes(t.estado);
+/** El backend dice qué puede hacer quien consulta (`accionesPermitidas`) y lo vuelve a comprobar al guardar. */
+export const puede = (t: Ticket, accion: AccionCodigo) => Boolean(t.accionesPermitidas?.includes(accion));
 
-// Reglas del Supervisor
-export const puedeAprobar = (t: Ticket) => t.estado === 'por aprobar';
-export const puedeDevolver = (t: Ticket) => t.estado === 'por aprobar';
-export const puedeReasignar = (t: Ticket) => esActivo(t);
+/** Acciones que avanzan el reclamo (todas menos la nota interna). */
+export const tieneAccionesPendientes = (t: Ticket) => Boolean(t.accionesPermitidas?.some((a) => a !== 'NOTA'));
 
-export const funcionarioTieneAcciones = (t: Ticket) =>
-  puedeAtender(t) || puedeDerivar(t) || puedeEvaluarConstancia(t);
+export const puedeAprobar = (t: Ticket) => puede(t, 'APROBAR_RESPUESTA');
+export const puedeReasignar = (t: Ticket) => puede(t, 'REASIGNAR');
+export const puedeAsignar = (t: Ticket) => puede(t, 'ASIGNAR');
+
+/** Estado o filtro "por aprobar". */
+export const cumpleFiltroEstado = (t: Ticket, filtro: TicketFiltroEstado | 'todos') =>
+  filtro === 'todos' || (filtro === 'por aprobar' ? Boolean(t.respuestaPorAprobar) : t.estado === filtro);
+
+/** Texto del estado para mostrar: "en evaluación · por aprobar" si hay una respuesta esperando. */
+export const textoEstado = (t: Ticket) => (t.respuestaPorAprobar ? `${t.estado} · por aprobar` : t.estado);
+
+export const ETIQUETAS_CATEGORIA: Record<CategoriaReclamo, string> = {
+  INFORMACION_TRIBUTARIA: 'Información tributaria',
+  TRAMITES: 'Trámites',
+  ATENCION_CIUDADANO: 'Atención al ciudadano',
+};
+
+export const ETIQUETAS_RESULTADO: Record<ResultadoReclamo, string> = {
+  FUNDADO: 'Fundado',
+  FUNDADO_EN_PARTE: 'Fundado en parte',
+  INFUNDADO: 'Infundado',
+};
 
 /** Funcionario al que se le puede asignar un reclamo. */
 export interface FuncionarioOpcion {
@@ -74,7 +98,7 @@ export function calcularCarga(funcionarios: FuncionarioOpcion[], tickets: Ticket
   const contar = (lista: Ticket[]) => ({
     activos: lista.length,
     criticos: lista.filter((t) => t.prioridad === 'ALTA').length,
-    porAprobar: lista.filter((t) => t.estado === 'por aprobar').length,
+    porAprobar: lista.filter((t) => t.respuestaPorAprobar).length,
   });
 
   // Los inactivos solo aparecen si todavía tienen reclamos activos (hay que reasignarlos).
@@ -103,3 +127,37 @@ export const MENSAJES_ERROR_RECLAMO: Partial<Record<number, string>> = {
   404: 'No encontramos este reclamo. Recarga la página para ver la lista actualizada.',
   409: 'Otra persona cambió este reclamo mientras lo tenías abierto. Cierra el detalle y vuelve a abrirlo para ver los cambios.',
 };
+
+/** Aviso tras una acción del flujo, con el estado en que quedó el reclamo. */
+export function mensajeExitoAccion(accion: AccionCodigo, t: Ticket, datos: DatosAccion): string {
+  switch (accion) {
+    case 'RECIBIR':
+      return `Reclamo ${t.folio} recibido; queda pendiente de validación`;
+    case 'VALIDAR':
+      return `Reclamo ${t.folio} validado; queda pendiente de asignación`;
+    case 'OBSERVAR':
+      return `Se pidió información al ciudadano del reclamo ${t.folio}`;
+    case 'ASIGNAR':
+      return `Reclamo ${t.folio} asignado a ${t.funcionarioAsignadoNombre || 'el funcionario'} (${t.areaAsignada})`;
+    case 'REASIGNAR':
+      return `Reclamo ${t.folio} reasignado a ${datos.funcionarioNombre || t.funcionarioAsignadoNombre || 'otro funcionario'}`;
+    case 'DEVOLVER_PARA_REASIGNAR':
+      return `Reclamo ${t.folio} devuelto al supervisor para reasignar`;
+    case 'EVALUAR':
+      return `Evaluación registrada en el reclamo ${t.folio}`;
+    case 'ELABORAR_RESPUESTA':
+      return t.respuestaPorAprobar
+        ? `Respuesta del reclamo ${t.folio} enviada al supervisor para su aprobación`
+        : `Respuesta enviada al ciudadano; el reclamo ${t.folio} quedó respondido`;
+    case 'APROBAR_RESPUESTA':
+      return `Respuesta aprobada y enviada al ciudadano (${t.numeroResolucion || t.folio})`;
+    case 'OBSERVAR_RESPUESTA':
+      return `Respuesta del reclamo ${t.folio} devuelta al funcionario con tus observaciones`;
+    case 'CERRAR':
+      return `Reclamo ${t.folio} cerrado`;
+    case 'DECLARAR_IMPROCEDENTE':
+      return `Reclamo ${t.folio} declarado improcedente; se avisó al ciudadano`;
+    case 'NOTA':
+      return `Nota agregada al reclamo ${t.folio}`;
+  }
+}

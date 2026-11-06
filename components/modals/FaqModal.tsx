@@ -20,7 +20,7 @@ const FAQS: FaqItem[] = [
     id: '1',
     categoria: 'Atención de Reclamos',
     pregunta: '¿Cómo funciona el flujo de atención de un reclamo vecinal?',
-    respuesta: 'El vecino registra su reclamo a través de los canales digitales. El expediente ingresa a la bandeja del funcionario de área asignada, quien puede responder directamente y elevar a "por aprobar" o derivar a otra gerencia técnica si corresponde según la Directiva Ágil.',
+    respuesta: 'El vecino registra su reclamo en la app (registrado). El funcionario lo recibe y lo valida o pide información al ciudadano (pendiente de validación). El supervisor asigna el área y el funcionario (pendiente de asignación). El funcionario registra su evaluación y elabora la respuesta (en evaluación); si la prioridad es alta o el tipo de reclamo lo exige, el supervisor la aprueba antes de enviarla (respondido). Luego se cierra el caso (cerrado). Si no procede, se declara improcedente con el motivo.',
   },
   {
     id: 'cna-flujo',

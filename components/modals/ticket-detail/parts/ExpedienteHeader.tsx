@@ -15,7 +15,7 @@ export const ExpedienteHeader: React.FC<ExpedienteHeaderProps> = ({ ticket, onCl
         <span style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--primary-500)', fontFamily: 'var(--font-mono)' }}>
           {ticket.folio}
         </span>
-        <StatusBadge estado={ticket.estado} />
+        <StatusBadge estado={ticket.estado} porAprobar={ticket.respuestaPorAprobar} />
         <PriorityLabel prioridad={ticket.prioridad} />
       </div>
       <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>

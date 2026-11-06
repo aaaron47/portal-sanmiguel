@@ -1,14 +1,15 @@
 import React from 'react';
 import { Filter, Download } from 'lucide-react';
-import { TicketEstado, TicketPrioridad } from '@/types/ticket.types';
+import { TicketFiltroEstado, TicketPrioridad } from '@/types/ticket.types';
 import { FiltroConstancia } from '../../useFuncionarioTickets';
 import { SearchInput } from '@/components/shared/ui/SearchInput';
+import { ESTADOS } from '@/utils/ticket.utils';
 
 interface ReclamosFiltrosProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
-  filtroEstado: TicketEstado | 'todos';
-  onEstadoChange: (estado: TicketEstado | 'todos') => void;
+  filtroEstado: TicketFiltroEstado | 'todos';
+  onEstadoChange: (estado: TicketFiltroEstado | 'todos') => void;
   filtroPrioridad: TicketPrioridad | 'todos';
   onPrioridadChange: (prioridad: TicketPrioridad | 'todos') => void;
   filtroConstancia: FiltroConstancia;
@@ -43,7 +44,7 @@ export const ReclamosFiltros: React.FC<ReclamosFiltrosProps> = ({
       <Filter size={15} color="var(--text-muted)" />
       <select
         value={filtroEstado}
-        onChange={(e) => onEstadoChange(e.target.value as TicketEstado | 'todos')}
+        onChange={(e) => onEstadoChange(e.target.value as TicketFiltroEstado | 'todos')}
         style={{
           padding: '0.45rem 0.6rem',
           borderRadius: '8px',
@@ -54,11 +55,10 @@ export const ReclamosFiltros: React.FC<ReclamosFiltrosProps> = ({
         }}
       >
         <option value="todos">Todos los Estados</option>
-        <option value="pendiente de validación">Pendiente de Validación</option>
-        <option value="en evaluación">En Evaluación</option>
-        <option value="derivado">Derivado</option>
-        <option value="por aprobar">Por Aprobar</option>
-        <option value="resuelto">Resuelto</option>
+        {ESTADOS.map((e) => (
+          <option key={e} value={e}>{e[0].toUpperCase() + e.slice(1)}</option>
+        ))}
+        <option value="por aprobar">Por aprobar (respuesta en revisión)</option>
       </select>
     </div>
 

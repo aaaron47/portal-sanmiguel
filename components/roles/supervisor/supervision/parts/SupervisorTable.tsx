@@ -72,7 +72,7 @@ export const SupervisorTable: React.FC<SupervisorTableProps> = ({
                     </div>
                   </td>
                   <td>
-                    <StatusBadge estado={ticket.estado} />
+                    <StatusBadge estado={ticket.estado} porAprobar={ticket.respuestaPorAprobar} />
                   </td>
                   <td>
                     <PriorityLabel prioridad={ticket.prioridad} />
@@ -84,12 +84,12 @@ export const SupervisorTable: React.FC<SupervisorTableProps> = ({
                       </button>
                       {modoReasignacion
                         ? puedeReasignar(ticket) && (
-                            <button onClick={() => onSelectTicket(ticket, 'reasignar')} className="btn btn-primary" style={estiloBoton}>
+                            <button onClick={() => onSelectTicket(ticket, 'REASIGNAR')} className="btn btn-primary" style={estiloBoton}>
                               Reasignar
                             </button>
                           )
                         : puedeAprobar(ticket) && (
-                            <button onClick={() => onSelectTicket(ticket, 'aprobar')} className="btn btn-success" style={estiloBoton}>
+                            <button onClick={() => onSelectTicket(ticket, 'APROBAR_RESPUESTA')} className="btn btn-success" style={estiloBoton}>
                               Aprobar
                             </button>
                           )}

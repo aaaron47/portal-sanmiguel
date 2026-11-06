@@ -54,8 +54,8 @@ Notas para las pruebas en el navegador:
 | **Datos simulados mientras no exista el backend** | Cada método del controlador llama primero a la API (`apiClient`) y, si no hay conexión, usa los datos simulados del mismo archivo (`MOCK_*`). Así el grupo de backend ve qué endpoint implementar. |
 | **Datos simulados solo sin conexión y en modo demo** (`usarDatosDemo(err)` en `api-client.service.ts`; `MODO_DEMO` activo en `npm run dev`, en producción solo con `NEXT_PUBLIC_MODO_DEMO=true`) | Si el backend responde con error (401, 403, 409...), no se aplica nada en los datos simulados: el error llega a la vista, que lo muestra con `mensajeErrorApi`. En el login, una contraseña incorrecta no entra en modo demo. |
 | **Los handlers de las vistas avisan y relanzan el error** | `AccionesForm` solo cierra el formulario si la acción salió bien; si falla, queda abierto con lo escrito. |
-| **Reglas de acciones por estado en un solo archivo** (`utils/ticket.utils.ts`) | Las usan el formulario de acciones y las tablas; no repetir condiciones en los componentes. |
-| **El funcionario no resuelve**: envía a aprobación y el supervisor aprueba o devuelve | Lo exige el README (visto bueno del supervisor). |
+| **Las acciones permitidas las dice el backend** (`accionesPermitidas`; `puede()` en `utils/ticket.utils.ts`) | Una sola fuente de reglas; el backend las vuelve a comprobar al guardar. |
+| **Revisión del supervisor** si la prioridad es ALTA o el tipo de reclamo lo exige | Así lo define la BD (`requiere_revision_supervisor`, trigger `trg_rcl_flujo`). |
 
 ## 3. Stack
 
@@ -115,15 +115,21 @@ utils/          ticket.utils (reglas por estado, carga, áreas), csv.utils
 docs/           Cambios_rama_supervisor_funcionario.md (todo lo de la rama), Plan_Supervisor_Funcionario.md y documentos de la etapa Oracle
 ```
 
-### Flujo de un reclamo (estados del front)
+### Flujo de un reclamo (estados de la BD, desde el 05/11/2026)
 
 ```
-pendiente de validación ─┐
-en evaluación ───────────┼─ Funcionario: atender (registrar avance → en evaluación,
-derivado ────────────────┘               o enviar a aprobación → por aprobar), derivar, evaluar constancia
-por aprobar ── Supervisor: aprobar → resuelto | devolver (motivo) → en evaluación
-Supervisor: reasignar en cualquier estado activo. resuelto / archivado: sin acciones.
+registrado ─recibir/validar─> pendiente de validación ─validar (categoría)─> pendiente de asignación
+pendiente de asignación ─asignar (Supervisor: área, funcionario, prioridad)─> en evaluación
+en evaluación: evaluar → elaborar respuesta → (prioridad ALTA o tipo con revisión) por aprobar → Supervisor aprueba u observa
+respuesta enviada → respondido ─cerrar─> cerrado
+pendiente de validación / en evaluación ─declarar improcedente─> improcedente
 ```
+
+- **Los botones salen de `accionesPermitidas`** del backend (`puede(t, accion)` en `utils/ticket.utils.ts`); el front no
+  decide reglas por estado. Todas las acciones pasan por `ticketsController.ejecutarAccion` y envían la `version`.
+- "por aprobar" no es un estado: es `respuestaPorAprobar` (filtro y marca en el estado).
+- El Admin no ve reclamos (acuerdo del grupo). Control Municipal solo lee.
+- En modo demo (sin backend) los reclamos se ven pero las acciones no se simulan.
 
 ### Endpoints que usa el front (para el grupo de backend)
 
@@ -138,11 +144,9 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
   exacta ("Devolver al funcionario", "Reasignar").
 - **Colores:** solo variables del tema (`var(--text-main)`, `var(--bg-card)`, `var(--border-color)`...),
   nunca `--slate-*` fijos en componentes nuevos: no se leen en modo oscuro.
-- **Acciones nuevas sobre reclamos:** agregar el método al controlador (API + respaldo simulado con
-  `if (!usarDatosDemo(err)) throw err;` al inicio del `catch`; en los datos simulados usar `aplicarEnDemo`), el handler en el hook (avisar con
-  `mensajeErrorApi` y relanzar), el tipo
-  en `types/ticket.types.ts` (payload y `tipoAccion` si deja huella en la línea de tiempo), la regla en
-  `utils/ticket.utils.ts` y el endpoint en la tabla del plan.
+- **Acciones nuevas sobre reclamos:** la regla vive en el backend (`AtencionReclamos`). En el front: el código en
+  `AccionCodigo` (`types/ticket.types.ts`), su ruta en `RUTAS_ACCION` (`tickets.controller.ts`), el botón y el formulario
+  en `AccionesForm` y el aviso en `mensajeExitoAccion`.
 - **React:** cumplir las reglas de lint `react-hooks` (`set-state-in-effect`, `immutability`). Para reiniciar
   un formulario se usa `key` (ver `TicketDetailModal`), no un `useEffect`.
 - **Pestañas por rol:** la pestaña activa la manda `app/page.tsx` (`initialTab`); si la vista tiene
@@ -169,6 +173,7 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
 | 31/10/2026 | Misma rama: datos simulados solo sin conexión en todos los controladores (`esSinConexion`, `mensajeErrorApi`); el formulario queda abierto si la acción falla; período de Control Municipal enviado al backend; lint en 0 (arranque sin `setState` en efectos: `AuthContext`, `ThemeContext`, `page.tsx`); pipeline a Node 22 con lint; README al día. **Todos los cambios de la rama: `docs/Cambios_rama_supervisor_funcionario.md`.** |
 | 01/11/2026 | Misma rama: los 12 arreglos de la auditoría independiente, probados en el navegador (34 comprobaciones: desarrollo, y producción con y sin modo demo). `npm run build` sin errores. |
 | 02/11/2026 | PR #4 unido a `main`. Ulises sube `4cbbef9` (paginación, Modo Privacidad, pantallas nuevas de Control Municipal y Control TI). |
+| 05/11/2026 | Rama `feature/flujo-reclamos`: los 7 estados de la BD y el flujo completo del personal (recibir, validar, pedir información, asignar, evaluar, responder, aprobar u observar, cerrar, improcedente, nota) según `accionesPermitidas`, con `version`. Probado en el navegador contra el backend en H2 de punta a punta. |
 | 05/11/2026 | Revisión de `main` tras `4cbbef9`: `tsc`, `lint` y `build` OK; flujos de Supervisor y Funcionario OK en el navegador. Se agrega `--green-500` en `globals.css` (rama `fix/barra-carga-funcionarios`); comprobado en el navegador. |
 
 ## 9. Pendientes

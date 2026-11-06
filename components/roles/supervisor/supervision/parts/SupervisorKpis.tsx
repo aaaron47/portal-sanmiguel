@@ -7,7 +7,7 @@ import { puedeAprobar } from '@/utils/ticket.utils';
 export const SupervisorKpis: React.FC<{ tickets: Ticket[] }> = ({ tickets }) => {
   const porAprobar = tickets.filter(puedeAprobar).length;
   const prioridadAlta = tickets.filter((t) => t.prioridad === 'ALTA').length;
-  const resueltos = tickets.filter((t) => t.estado === 'resuelto').length;
+  const resueltos = tickets.filter((t) => t.estado === 'respondido' || t.estado === 'cerrado').length;
 
   return (
     <div className="kpi-grid">
@@ -34,7 +34,7 @@ export const SupervisorKpis: React.FC<{ tickets: Ticket[] }> = ({ tickets }) => 
       />
       <KpiCard
         icon={UserCheck}
-        label="Resueltos Conformes"
+        label="Respondidos o cerrados"
         value={resueltos}
         bg="var(--green-100)"
         color="var(--green-600)"

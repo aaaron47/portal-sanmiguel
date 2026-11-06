@@ -55,7 +55,7 @@ export const ConstanciasTable: React.FC<ConstanciasTableProps> = ({ tickets, onS
                 </div>
               </td>
               <td>
-                <StatusBadge estado={ticket.estado} />
+                <StatusBadge estado={ticket.estado} porAprobar={ticket.respuestaPorAprobar} />
               </td>
               <td>
                 {/* Requisito 2: Quitar color de etiqueta de valores de Constancia (Solo texto) */}

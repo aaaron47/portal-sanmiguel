@@ -12,7 +12,7 @@ import { ConstanciasTable } from './parts/ConstanciasTable';
 
 interface ConstanciasPanelProps {
   tickets: Ticket[];
-  onSelectTicket: (ticket: Ticket, action?: 'atender' | 'derivar' | 'constancia') => void;
+  onSelectTicket: (ticket: Ticket) => void;
   onNotify?: NotifyFn;
 }
 
@@ -108,7 +108,7 @@ export const ConstanciasPanel: React.FC<ConstanciasPanelProps> = ({
 
         <ConstanciasTable
           tickets={constanciasFiltradas}
-          onSelectTicket={(t) => onSelectTicket(t, 'constancia')}
+          onSelectTicket={(t) => onSelectTicket(t)}
         />
       </div>
     </div>

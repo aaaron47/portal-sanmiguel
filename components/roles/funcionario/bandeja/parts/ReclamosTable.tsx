@@ -2,7 +2,7 @@ import React from 'react';
 import { AlertCircle, ExternalLink } from 'lucide-react';
 import { Ticket } from '@/types/ticket.types';
 import { StatusBadge, PriorityLabel } from '@/components/shared/ui/TicketLabels';
-import { funcionarioTieneAcciones } from '@/utils/ticket.utils';
+import { tieneAccionesPendientes } from '@/utils/ticket.utils';
 
 interface ReclamosTableProps {
   tickets: Ticket[];
@@ -48,7 +48,7 @@ export const ReclamosTable: React.FC<ReclamosTableProps> = ({ tickets, onSelectT
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Ingreso: {ticket.fechaCreacion}</div>
               </td>
               <td>
-                <StatusBadge estado={ticket.estado} />
+                <StatusBadge estado={ticket.estado} porAprobar={ticket.respuestaPorAprobar} />
               </td>
               <td>
                 <PriorityLabel prioridad={ticket.prioridad} />
@@ -72,7 +72,7 @@ export const ReclamosTable: React.FC<ReclamosTableProps> = ({ tickets, onSelectT
                   className="btn btn-secondary"
                   style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
                 >
-                  <ExternalLink size={14} /> {funcionarioTieneAcciones(ticket) ? 'Atender' : 'Ver'}
+                  <ExternalLink size={14} /> {tieneAccionesPendientes(ticket) ? 'Atender' : 'Ver'}
                 </button>
               </td>
             </tr>
