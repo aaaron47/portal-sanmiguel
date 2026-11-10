@@ -62,7 +62,9 @@ export interface FuncionarioOpcion {
 
 export interface CargaFuncionario extends FuncionarioOpcion {
   activos: number;
-  criticos: number; // prioridad ALTA
+  alta: number;
+  media: number;
+  baja: number;
   porAprobar: number;
 }
 
@@ -92,12 +94,14 @@ export function construirFuncionarios(usuarios: Usuario[], tickets: Ticket[]): F
   return [...mapa.values()].sort((a, b) => a.nombre.localeCompare(b.nombre));
 }
 
-/** Carga de reclamos activos por funcionario, de mayor a menor. Incluye "Sin asignar" si hay. */
+/** Carga de reclamos activos por funcionario, ordenados por defecto de mayor a menor número de casos. Incluye "Sin asignar" si hay. */
 export function calcularCarga(funcionarios: FuncionarioOpcion[], tickets: Ticket[]): CargaFuncionario[] {
   const activos = tickets.filter(esActivo);
   const contar = (lista: Ticket[]) => ({
     activos: lista.length,
-    criticos: lista.filter((t) => t.prioridad === 'ALTA').length,
+    alta: lista.filter((t) => t.prioridad === 'ALTA').length,
+    media: lista.filter((t) => t.prioridad === 'MEDIA').length,
+    baja: lista.filter((t) => t.prioridad === 'BAJA').length,
     porAprobar: lista.filter((t) => t.respuestaPorAprobar).length,
   });
 
@@ -111,7 +115,7 @@ export function calcularCarga(funcionarios: FuncionarioOpcion[], tickets: Ticket
     carga.push({ id: SIN_ASIGNAR_ID, nombre: 'Sin asignar', activo: true, ...contar(sinAsignar) });
   }
 
-  return carga.sort((a, b) => b.activos - a.activos || b.criticos - a.criticos);
+  return carga.sort((a, b) => b.activos - a.activos || b.alta - a.alta);
 }
 
 /** Áreas presentes en los reclamos y en los funcionarios, sin repetir y ordenadas. */

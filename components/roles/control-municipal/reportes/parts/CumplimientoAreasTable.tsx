@@ -11,7 +11,6 @@ export const CumplimientoAreasTable: React.FC<{ areas: ReportePorArea[] }> = ({ 
           <th>Resueltos</th>
           <th>En Trámite</th>
           <th>Efectividad</th>
-          <th>Nivel</th>
         </tr>
       </thead>
       <tbody>
@@ -23,28 +22,26 @@ export const CumplimientoAreasTable: React.FC<{ areas: ReportePorArea[] }> = ({ 
             <td style={{ color: 'var(--orange-600)' }}>{area.enProceso}</td>
             <td>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{ flex: 1, height: '8px', background: 'var(--slate-200)', borderRadius: '4px', overflow: 'hidden', minWidth: '80px' }}>
+                <div
+                  style={{
+                    flex: 1,
+                    height: '8px',
+                    background: 'var(--slate-200)',
+                    borderRadius: '4px',
+                    overflow: 'hidden',
+                    minWidth: '80px',
+                  }}
+                >
                   <div
                     style={{
-                      width: `${area.porcentajeCumplimiento}%`,
+                      width: `${Math.min(100, Math.max(0, area.porcentajeCumplimiento))}%`,
                       height: '100%',
-                      background: area.porcentajeCumplimiento > 90 ? 'var(--green-600)' : 'var(--sky-600)',
+                      background: 'var(--sky-600)',
                     }}
                   />
                 </div>
                 <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>{area.porcentajeCumplimiento}%</span>
               </div>
-            </td>
-            <td>
-              <span
-                style={{
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  color: area.porcentajeCumplimiento >= 90 ? 'var(--green-600)' : 'var(--amber-600)',
-                }}
-              >
-                {area.porcentajeCumplimiento >= 90 ? 'Excelente' : 'Aceptable'}
-              </span>
             </td>
           </tr>
         ))}

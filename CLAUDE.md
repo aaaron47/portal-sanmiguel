@@ -23,8 +23,8 @@ paginación del supervisor, la aprobación, la reasignación, la bandeja del fun
 Pendiente:
 1. Rama `fix/barra-carga-funcionarios` (sin subir): `CargaFuncionariosTable` y `ControlAccesoPanel` usaban
    `var(--green-500)`, que no existía; se agregó en `globals.css`. Con 0 a 3 casos activos la barra de carga no
-   se veía. Subir la rama, abrir el PR y avisar a Ulises. Queda por hablar con él: el tope de 8 casos está fijo en
-   el componente.
+   se veía. Subir la rama, abrir el PR y avisar a Ulises. Se eliminó el tope artificial de 8 casos; la tabla
+   ahora muestra la carga real con ordenamiento por columnas (casos activos, prioridad alta, por aprobar y nombre).
 2. Avisar a Braulio: sección 5 y sección 10 (#5 y #11) de `docs/Cambios_rama_supervisor_funcionario.md`.
 3. `origin/eduardo` (`faf4854`) solo agrega archivos `.idea/`; no conviene unirlo a `main` así.
 

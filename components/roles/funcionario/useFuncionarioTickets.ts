@@ -125,6 +125,14 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
     onNotify('success', 'Archivo CSV descargado con éxito');
   };
 
+  const limpiarFiltros = () => {
+    setSearchQuery('');
+    setFiltroEstado('todos');
+    setFiltroPrioridad('todos');
+    setFiltroConstancia('todos');
+    setSoloAsignadosAMi(false);
+  };
+
   return {
     usuario,
     tickets,
@@ -145,6 +153,7 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
     setSearchQuery,
     soloAsignadosAMi,
     setSoloAsignadosAMi,
+    limpiarFiltros,
     handleAccion,
     descargarCSV,
   };

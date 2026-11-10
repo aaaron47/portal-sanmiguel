@@ -1,54 +1,140 @@
 import React from 'react';
+import { ArrowDown, ArrowUp } from 'lucide-react';
 import { CargaFuncionario } from '@/utils/ticket.utils';
+
+export type CriterioOrdenCarga = 'activos' | 'alta' | 'media' | 'baja' | 'porAprobar' | 'nombre';
 
 interface CargaFuncionariosTableProps {
   carga: CargaFuncionario[];
+  campoOrden: CriterioOrdenCarga;
+  direccionOrden: 'asc' | 'desc';
+  onAlternarOrden: (campo: CriterioOrdenCarga) => void;
   seleccionadoId: string | null;
   onSeleccionar: (id: string) => void;
 }
 
-const celdaNumero: React.CSSProperties = { textAlign: 'center', fontWeight: 600, color: 'var(--text-main)' };
+const celdaNumero: React.CSSProperties = {
+  textAlign: 'center',
+  fontWeight: 600,
+  color: 'var(--text-main)',
+};
+
+const btnCabecera: React.CSSProperties = {
+  background: 'transparent',
+  border: 'none',
+  color: 'inherit',
+  font: 'inherit',
+  fontWeight: 700,
+  cursor: 'pointer',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '0.3rem',
+  padding: 0,
+};
 
 export const CargaFuncionariosTable: React.FC<CargaFuncionariosTableProps> = ({
   carga,
+  campoOrden,
+  direccionOrden,
+  onAlternarOrden,
   seleccionadoId,
   onSeleccionar,
 }) => {
-  const MARGEN_CAPACIDAD_MAXIMA = 8; // Margen estándar de casos activos simultáneos
+  const iconoOrden = (campo: CriterioOrdenCarga) => {
+    if (campoOrden !== campo) return null;
+    return direccionOrden === 'desc' ? (
+      <ArrowDown size={14} color="var(--sky-600)" />
+    ) : (
+      <ArrowUp size={14} color="var(--sky-600)" />
+    );
+  };
 
   return (
     <div className="table-container">
       <table className="data-table">
         <thead>
           <tr>
-            <th>Funcionario</th>
+            <th>
+              <button
+                type="button"
+                onClick={() => onAlternarOrden('nombre')}
+                style={btnCabecera}
+                title="Ordenar por nombre de funcionario"
+              >
+                Funcionario
+                {iconoOrden('nombre')}
+              </button>
+            </th>
             <th>Área</th>
-            <th style={{ textAlign: 'center' }}>Activos</th>
-            <th style={{ textAlign: 'center' }}>Prioridad alta</th>
-            <th style={{ textAlign: 'center' }}>Por aprobar</th>
-            <th>Casos en Margen</th>
-            <th>Acción</th>
+            <th style={{ textAlign: 'center' }}>
+              <button
+                type="button"
+                onClick={() => onAlternarOrden('alta')}
+                style={btnCabecera}
+                title="Ordenar por prioridad Alta"
+              >
+                Alta
+                {iconoOrden('alta')}
+              </button>
+            </th>
+            <th style={{ textAlign: 'center' }}>
+              <button
+                type="button"
+                onClick={() => onAlternarOrden('media')}
+                style={btnCabecera}
+                title="Ordenar por prioridad Media"
+              >
+                Media
+                {iconoOrden('media')}
+              </button>
+            </th>
+            <th style={{ textAlign: 'center' }}>
+              <button
+                type="button"
+                onClick={() => onAlternarOrden('baja')}
+                style={btnCabecera}
+                title="Ordenar por prioridad Baja"
+              >
+                Baja
+                {iconoOrden('baja')}
+              </button>
+            </th>
+            <th style={{ textAlign: 'center' }}>
+              <button
+                type="button"
+                onClick={() => onAlternarOrden('porAprobar')}
+                style={btnCabecera}
+                title="Ordenar por respuestas pendientes de aprobación"
+              >
+                Por aprobar
+                {iconoOrden('porAprobar')}
+              </button>
+            </th>
+            <th style={{ textAlign: 'center' }}>
+              <button
+                type="button"
+                onClick={() => onAlternarOrden('activos')}
+                style={btnCabecera}
+                title="Ordenar por total de casos activos"
+              >
+                Casos activos
+                {iconoOrden('activos')}
+              </button>
+            </th>
+            <th style={{ textAlign: 'center' }}>Acción</th>
           </tr>
         </thead>
         <tbody>
           {carga.length === 0 ? (
             <tr>
-              <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-                No hay funcionarios activos registrados.
+              <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                No hay funcionarios registrados para el filtro seleccionado.
               </td>
             </tr>
           ) : (
             carga.map((c) => {
               const seleccionado = c.id === seleccionadoId;
-              const porcentajeMargen = Math.min(100, Math.round((c.activos / MARGEN_CAPACIDAD_MAXIMA) * 100));
-              const estadoMargen =
-                c.activos === 0
-                  ? { texto: 'Libre', badge: 'badge-success', colorBarra: 'var(--green-500)' }
-                  : c.activos <= 3
-                    ? { texto: 'Holgado', badge: 'badge-success', colorBarra: 'var(--green-500)' }
-                    : c.activos <= 6
-                      ? { texto: 'Moderado', badge: 'badge-warning', colorBarra: 'var(--amber-500)' }
-                      : { texto: 'Al límite', badge: 'badge-danger', colorBarra: 'var(--red-500)' };
+              const estaLibre = c.activos === 0;
 
               return (
                 <tr
@@ -59,58 +145,69 @@ export const CargaFuncionariosTable: React.FC<CargaFuncionariosTableProps> = ({
                   <td style={{ fontWeight: 600, color: 'var(--text-main)' }}>
                     {c.nombre}
                     {!c.activo && (
-                      <span style={{ marginLeft: '0.4rem', fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>
-                        (inactivo: reasigna sus reclamos)
+                      <span
+                        style={{
+                          marginLeft: '0.4rem',
+                          fontSize: '0.75rem',
+                          fontWeight: 500,
+                          color: 'var(--text-muted)',
+                        }}
+                      >
+                        (inactivo)
                       </span>
                     )}
                   </td>
                   <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{c.area || '—'}</td>
-                  <td style={celdaNumero}>{c.activos}</td>
-                  <td style={{ ...celdaNumero, color: c.criticos > 0 ? 'var(--red-600)' : 'var(--text-muted)' }}>
-                    {c.criticos}
+                  
+                  {/* Prioridad Alta: solo número */}
+                  <td style={celdaNumero}>
+                    <span style={{ color: c.alta > 0 ? 'var(--red-600)' : 'var(--text-muted)', fontWeight: c.alta > 0 ? 700 : 500 }}>
+                      {c.alta}
+                    </span>
                   </td>
-                  <td style={celdaNumero}>{c.porAprobar}</td>
-                  <td style={{ minWidth: '160px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                        <span style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-main)' }}>
-                          {c.activos} de {MARGEN_CAPACIDAD_MAXIMA} casos
-                        </span>
-                        <span className={`badge ${estadoMargen.badge}`} style={{ fontSize: '0.65rem', padding: '0.12rem 0.35rem' }}>
-                          {estadoMargen.texto} ({porcentajeMargen}%)
-                        </span>
-                      </div>
-                      <div
-                        role="img"
-                        aria-label={`${c.activos} de ${MARGEN_CAPACIDAD_MAXIMA} casos en su margen`}
-                        style={{
-                          height: '6px',
-                          borderRadius: '9999px',
-                          background: 'var(--bg-card-subtle)',
-                          overflow: 'hidden',
-                          width: '100%',
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: `${porcentajeMargen}%`,
-                            height: '100%',
-                            background: estadoMargen.colorBarra,
-                            borderRadius: '9999px',
-                            transition: 'width 0.3s ease',
-                          }}
-                        />
-                      </div>
-                    </div>
+
+                  {/* Prioridad Media: solo número */}
+                  <td style={celdaNumero}>
+                    <span style={{ color: c.media > 0 ? 'var(--amber-700)' : 'var(--text-muted)', fontWeight: c.media > 0 ? 700 : 500 }}>
+                      {c.media}
+                    </span>
                   </td>
-                  <td>
+
+                  {/* Prioridad Baja: solo número */}
+                  <td style={celdaNumero}>
+                    <span style={{ color: c.baja > 0 ? 'var(--text-main)' : 'var(--text-muted)' }}>
+                      {c.baja}
+                    </span>
+                  </td>
+
+                  {/* Por aprobar: solo número */}
+                  <td style={celdaNumero}>
+                    <span style={{ color: c.porAprobar > 0 ? 'var(--sky-700)' : 'var(--text-muted)', fontWeight: c.porAprobar > 0 ? 700 : 500 }}>
+                      {c.porAprobar}
+                    </span>
+                  </td>
+
+                  {/* Casos activos */}
+                  <td style={celdaNumero}>
+                    {estaLibre ? (
+                      <span className="badge badge-success" style={{ fontSize: '0.75rem', padding: '0.15rem 0.45rem' }}>
+                        0
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                        {c.activos}
+                      </span>
+                    )}
+                  </td>
+
+                  <td style={{ textAlign: 'center' }}>
                     <button
                       onClick={() => onSeleccionar(c.id)}
                       className={`btn ${seleccionado ? 'btn-primary' : 'btn-secondary'}`}
-                      style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
-                      disabled={c.activos === 0}
+                      style={{ padding: '0.3rem 0.65rem', fontSize: '0.75rem' }}
+                      disabled={estaLibre}
                     >
-                      {c.activos === 0 ? 'Sin reclamos' : seleccionado ? 'Viendo reclamos' : 'Ver reclamos'}
+                      {estaLibre ? 'Sin reclamos' : seleccionado ? 'Viendo reclamos' : 'Ver reclamos'}
                     </button>
                   </td>
                 </tr>

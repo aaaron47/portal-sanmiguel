@@ -6,7 +6,7 @@ import { SupersetEmbedViewer } from './SupersetEmbedViewer';
 import { SupersetChatAssistant } from './SupersetChatAssistant';
 
 export const SupersetReportesView: React.FC = () => {
-  const [dashboardId, setDashboardId] = useState('D1');
+  const [dashboardId, setDashboardId] = useState('reportes-tributarios');
 
   return (
     <div>
@@ -24,9 +24,6 @@ export const SupersetReportesView: React.FC = () => {
         gap: '0.75rem',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ padding: '0.5rem', borderRadius: '10px', background: 'var(--sky-600)', color: 'white' }}>
-            <Sparkles size={20} />
-          </div>
           <div>
             <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: 'var(--text-main)' }}>
               Reportería Inteligente con MCP & Apache Superset

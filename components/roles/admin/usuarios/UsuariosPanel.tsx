@@ -32,6 +32,7 @@ export const UsuariosPanel: React.FC<{ onNotify: NotifyFn }> = ({ onNotify }) =>
         onFiltroAreaChange={u.setFiltroArea}
         filtroEstado={u.filtroEstado}
         onFiltroEstadoChange={u.setFiltroEstado}
+        onLimpiarFiltros={u.limpiarFiltros}
         selectedCount={u.selectedIds.length}
         isCreating={u.isCreating}
         onActivar={() => u.cambiarEstadoSeleccion(true)}

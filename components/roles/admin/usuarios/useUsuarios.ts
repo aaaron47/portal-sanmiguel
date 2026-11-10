@@ -108,6 +108,13 @@ export function useUsuarios(onNotify: NotifyFn) {
     onNotify('success', `Se exportaron ${filas.length} registros a CSV`);
   };
 
+  const limpiarFiltros = () => {
+    setSearchQuery('');
+    setFiltroRol('todos');
+    setFiltroArea('todas');
+    setFiltroEstado('todos');
+  };
+
   return {
     filtrados,
     searchQuery,
@@ -118,6 +125,7 @@ export function useUsuarios(onNotify: NotifyFn) {
     setFiltroArea,
     filtroEstado,
     setFiltroEstado,
+    limpiarFiltros,
     selectedIds,
     todosSeleccionados,
     toggleSeleccion,

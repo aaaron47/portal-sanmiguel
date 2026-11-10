@@ -76,7 +76,7 @@ export const ControlAccesoToolbar: React.FC<ControlAccesoToolbarProps> = ({
       style={{ fontSize: '0.825rem' }}
       title="Exportar matriz de permisos en formato CSV"
     >
-      <Download size={15} /> Exportar Matriz CSV
+      <Download size={15} /> Exportar CSV
     </button>
   </div>
 );

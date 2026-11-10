@@ -35,13 +35,21 @@ export const SupervisorView: React.FC<RoleViewProps> = ({
     if (subTab === 'panorama' && !cumpleFiltroEstado(t, s.filtroEstado)) return false;
     if (s.filtroPrioridad !== 'todos' && t.prioridad !== s.filtroPrioridad) return false;
     if (s.filtroArea !== 'todas' && t.areaAsignada !== s.filtroArea) return false;
+    if (s.filtroFuncionario !== 'todos') {
+      if (s.filtroFuncionario === 'sin_asignar') {
+        if (t.funcionarioAsignadoId) return false;
+      } else if (t.funcionarioAsignadoId !== s.filtroFuncionario) {
+        return false;
+      }
+    }
     if (s.searchQuery) {
       const q = s.searchQuery.toLowerCase();
       return (
         t.folio.toLowerCase().includes(q) ||
         t.asunto.toLowerCase().includes(q) ||
         t.ciudadanoNombre.toLowerCase().includes(q) ||
-        t.areaAsignada.toLowerCase().includes(q)
+        t.areaAsignada.toLowerCase().includes(q) ||
+        (t.funcionarioAsignadoNombre || '').toLowerCase().includes(q)
       );
     }
     return true;
@@ -52,7 +60,12 @@ export const SupervisorView: React.FC<RoleViewProps> = ({
       {subTab !== 'reasignaciones' && <SupervisorKpis tickets={s.tickets} />}
 
       {subTab === 'reasignaciones' ? (
-        <ReasignacionPanel tickets={s.tickets} carga={s.carga} onSelectTicket={s.abrirTicket} />
+        <ReasignacionPanel
+          tickets={s.tickets}
+          carga={s.carga}
+          areas={s.areas}
+          onSelectTicket={s.abrirTicket}
+        />
       ) : (
         <div className="card">
           <CardHeader
@@ -73,11 +86,15 @@ export const SupervisorView: React.FC<RoleViewProps> = ({
             areas={s.areas}
             filtroArea={s.filtroArea}
             onAreaChange={s.setFiltroArea}
+            funcionarios={s.funcionarios}
+            filtroFuncionario={s.filtroFuncionario}
+            onFuncionarioChange={s.setFiltroFuncionario}
             mostrarEstado={subTab === 'panorama'}
             filtroEstado={s.filtroEstado}
             onEstadoChange={s.setFiltroEstado}
             filtroPrioridad={s.filtroPrioridad}
             onPrioridadChange={s.setFiltroPrioridad}
+            onLimpiarFiltros={s.limpiarFiltros}
           />
 
           <SupervisorTable

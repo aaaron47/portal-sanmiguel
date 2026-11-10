@@ -6,6 +6,85 @@ export interface ReporteItemInfo {
   cabeceras: string[];
 }
 
+/** Parámetros de consulta para `GET /reportes/tributarios/:codigo` */
+export interface FiltroReporteTributarioParams {
+  codigo: string;
+  tributo?: string;
+  periodo?: string;
+  busqueda?: string;
+  pagina?: number;
+  tamano?: number;
+  enmascararPrivacidad?: boolean;
+}
+
+/** Respuesta del endpoint `GET /reportes/tributarios/:codigo` */
+export interface ReporteTributarioResponse {
+  codigo: string;
+  nombre: string;
+  periodo: string;
+  tributo: string;
+  cabeceras: string[];
+  filas: string[][];
+  totalRegistros: number;
+  paginaActual: number;
+  totalPaginas: number;
+}
+
+/** Expediente de Constancia de No Adeudo Tributario */
+export interface ConstanciaItem {
+  id: string;
+  folio: string;
+  contribuyenteCodigo: string;
+  contribuyenteNombre: string;
+  documentoTipo: 'DNI' | 'RUC';
+  documentoNumero: string;
+  predioCodigo: string;
+  direccionPredio: string;
+  estadoTributario: 'SIN_DEUDA' | 'REGISTRA_DEUDA';
+  deudaMonto: number;
+  firmadoDigitalmente: boolean;
+  firmanteNombre: string;
+  firmanteCargo: string;
+  entidadCertificadora: string;
+  hashCVD: string;
+  fechaEmision: string;
+  fechaVencimiento: string;
+  qrUrl: string;
+}
+
+/** Parámetros de consulta para `GET /reportes/constancias` */
+export interface FiltroConstanciasParams {
+  estado?: string;
+  busqueda?: string;
+  pagina?: number;
+  tamano?: number;
+  enmascararPrivacidad?: boolean;
+}
+
+/** Respuesta del endpoint `GET /reportes/constancias` */
+export interface ListadoConstanciasResponse {
+  items: ConstanciaItem[];
+  totalRegistros: number;
+  paginaActual: number;
+  totalPaginas: number;
+}
+
+/** Respuesta del endpoint `GET /reportes/constancias/:id/pdf` para visualizar/descargar lo que devuelve el PDF */
+export interface ConstanciaPdfResponse {
+  constanciaId: string;
+  folio: string;
+  /** URL firmada o endpoint directo del PDF devuelto por el backend */
+  pdfUrl?: string;
+  /** Contenido del PDF en Base64 (opcional si el backend devuelve bytes codificados en JSON) */
+  pdfBase64?: string;
+  mimeType: 'application/pdf';
+  nombreArchivo: string;
+  firmadoDigitalmente: boolean;
+  hashCVD: string;
+  fechaGeneracion: string;
+  detalle: ConstanciaItem;
+}
+
 export const CATALOGO_REPORTES_OFICIALES: ReporteItemInfo[] = [
   {
     codigo: 'R1',

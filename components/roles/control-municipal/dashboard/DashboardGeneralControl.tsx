@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  Building, 
-  Calendar, 
-  Download, 
-  BarChart3, 
-  Layers
+import {
+  Building,
+  Calendar,
+  Download,
+  BarChart3,
+  Layers,
 } from 'lucide-react';
 import { CardHeader, CardAside } from '@/components/shared/ui/CardHeader';
 import { KpisReporte, ReportePorArea } from '@/controllers/reportes.controller';
@@ -29,7 +29,6 @@ export const DashboardGeneralControl: React.FC<DashboardGeneralControlProps> = (
   onPeriodoChange,
   onDescargarReporte,
 }) => {
-  const [dashboardSupersetId, setDashboardSupersetId] = useState<string>('D1');
   const [mostrarSuperset, setMostrarSuperset] = useState<boolean>(true);
 
   return (
@@ -58,7 +57,7 @@ export const DashboardGeneralControl: React.FC<DashboardGeneralControlProps> = (
             style={{ fontSize: '0.85rem' }}
           >
             <BarChart3 size={15} />
-            {mostrarSuperset ? 'Ocultar Paneles Superset' : 'Mostrar Paneles Superset'}
+            {mostrarSuperset ? 'Ocultar Dashboard Superset' : 'Mostrar Dashboard Superset'}
           </button>
 
           <button onClick={onDescargarReporte} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
@@ -70,31 +69,23 @@ export const DashboardGeneralControl: React.FC<DashboardGeneralControlProps> = (
       {/* 2. KPIs Ejecutivos del Portal y Cumplimiento */}
       {kpis && <ControlMunicipalKpis kpis={kpis} />}
 
-      {/* 3. Sección A: Cumplimiento de Atención por Gerencia Municipal (OCI) */}
+      {/* 3. Cumplimiento de Atención por Gerencia Municipal (OCI) */}
       <div className="card">
         <CardHeader
           icon={<Building size={20} />}
-          title="Sección I: Cumplimiento de Atención por Gerencia Municipal"
+          title="Cumplimiento de Atención por Gerencia Municipal"
           aside={<CardAside>Indicador de efectividad y tiempo de respuesta</CardAside>}
         />
         <CumplimientoAreasTable areas={areas} />
       </div>
 
-      {/* 4. Sección B: Paneles Analíticos Embebidos de Apache Superset */}
+      {/* 4. Sección Embebida: Dashboard de Apache Superset (Un solo cuadro general) */}
       {mostrarSuperset && (
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <CardHeader
-            icon={<Layers size={20} />}
-            title="Sección II: Paneles Analíticos y Gráficos Dinámicos de Apache Superset"
-            aside={<CardAside>Visualizaciones generadas a partir de tablas municipales</CardAside>}
-          />
-          <div style={{ marginTop: '0.75rem' }}>
-            <SupersetEmbedViewer
-              dashboardSeleccionadoId={dashboardSupersetId}
-              onCambiarDashboard={(id) => setDashboardSupersetId(id)}
-            />
-          </div>
-        </div>
+        <SupersetEmbedViewer
+          dashboardSeleccionadoId="reportes-tributarios"
+          modoFijo
+          mostrarCatalogoPlantillas={false}
+        />
       )}
     </div>
   );

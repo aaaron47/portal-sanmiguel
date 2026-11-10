@@ -21,6 +21,7 @@ interface BandejaPanelProps {
   onConstanciaChange: (constancia: FiltroConstancia) => void;
   soloAsignadosAMi: boolean;
   onSoloAsignadosChange: (val: boolean) => void;
+  onLimpiarFiltros?: () => void;
   onSelectTicket: (ticket: Ticket) => void;
   onDescargarCSV: () => void;
 }
@@ -39,6 +40,7 @@ export const BandejaPanel: React.FC<BandejaPanelProps> = ({
   onConstanciaChange,
   soloAsignadosAMi,
   onSoloAsignadosChange,
+  onLimpiarFiltros,
   onSelectTicket,
   onDescargarCSV,
 }) => (
@@ -67,6 +69,7 @@ export const BandejaPanel: React.FC<BandejaPanelProps> = ({
         onConstanciaChange={onConstanciaChange}
         soloAsignadosAMi={soloAsignadosAMi}
         onSoloAsignadosChange={onSoloAsignadosChange}
+        onLimpiarFiltros={onLimpiarFiltros}
         onDescargarCSV={onDescargarCSV}
       />
 

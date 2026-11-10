@@ -103,6 +103,10 @@ export const ConstanciasPanel: React.FC<ConstanciasPanelProps> = ({
           onSearchChange={setSearchQuery}
           filtroDictamen={filtroDictamen}
           onDictamenChange={setFiltroDictamen}
+          onLimpiarFiltros={() => {
+            setSearchQuery('');
+            setFiltroDictamen('todos');
+          }}
           onDescargarCSV={handleDescargarCSV}
         />
 

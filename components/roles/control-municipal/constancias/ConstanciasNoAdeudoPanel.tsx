@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   FileCheck, 
   Search, 
@@ -13,6 +13,7 @@ import {
   Printer, 
   X,
   FileText,
+  ExternalLink,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -20,142 +21,106 @@ import {
 } from 'lucide-react';
 import { CardHeader, CardAside } from '@/components/shared/ui/CardHeader';
 import { exportarCSV } from '@/utils/csv.utils';
+import {
+  ConstanciaItem,
+  ConstanciaPdfResponse,
+} from '@/types/reportes-tributarios.types';
+import { MOCK_CONSTANCIAS, reportesController } from '@/controllers/reportes.controller';
 import Image from 'next/image';
+import {
+  FilterSelectWrapper,
+  FilterResetButton,
+  ESTILO_SELECT_FILTRO,
+  ESTILO_LABEL_FILTRO,
+} from '@/components/shared/ui/FilterControls';
 
-export interface ConstanciaItem {
-  id: string;
-  folio: string;
-  contribuyenteCodigo: string;
-  contribuyenteNombre: string;
-  documentoTipo: 'DNI' | 'RUC';
-  documentoNumero: string;
-  predioCodigo: string;
-  direccionPredio: string;
-  estadoTributario: 'SIN_DEUDA' | 'REGISTRA_DEUDA';
-  deudaMonto: number;
-  firmadoDigitalmente: boolean;
-  firmanteNombre: string;
-  firmanteCargo: string;
-  entidadCertificadora: string;
-  hashCVD: string;
-  fechaEmision: string;
-  fechaVencimiento: string;
-  qrUrl: string;
-}
-
-const MOCK_CONSTANCIAS: ConstanciaItem[] = [
-  {
-    id: 'c1',
-    folio: 'CNA-2026-00382',
-    contribuyenteCodigo: 'C-103112',
-    contribuyenteNombre: 'RAMIREZ TORRES GUILLERMO',
-    documentoTipo: 'DNI',
-    documentoNumero: '07894561',
-    predioCodigo: 'PRE-019482',
-    direccionPredio: 'JR. LIBERTAD 820, DPTO 301, SAN MIGUEL',
-    estadoTributario: 'SIN_DEUDA',
-    deudaMonto: 0,
-    firmadoDigitalmente: true,
-    firmanteNombre: 'Abg. Carlos Mendoza Villavicencio',
-    firmanteCargo: 'Subgerente de Recaudación y Control Tributario',
-    entidadCertificadora: 'RENIEC - Entidad de Certificación del Estado Peruano (EC-EREP)',
-    hashCVD: 'c7a9e102-4b89-4a91-99cd-382901aef114',
-    fechaEmision: '02/11/2026 10:14:22',
-    fechaVencimiento: '02/12/2026',
-    qrUrl: 'https://servicios.munisanmiguel.gob.pe/validador?cvd=c7a9e102-4b89-4a91-99cd-382901aef114',
-  },
-  {
-    id: 'c2',
-    folio: 'CNA-2026-00383',
-    contribuyenteCodigo: 'C-102041',
-    contribuyenteNombre: 'CENTRO COMERCIAL PLAZA SAN MIGUEL S.A.',
-    documentoTipo: 'RUC',
-    documentoNumero: '20109988771',
-    predioCodigo: 'PRE-002100',
-    direccionPredio: 'AV. LA MARINA 2000, LOTE 01, SAN MIGUEL',
-    estadoTributario: 'SIN_DEUDA',
-    deudaMonto: 0,
-    firmadoDigitalmente: true,
-    firmanteNombre: 'Abg. Carlos Mendoza Villavicencio',
-    firmanteCargo: 'Subgerente de Recaudación y Control Tributario',
-    entidadCertificadora: 'RENIEC - Entidad de Certificación del Estado Peruano (EC-EREP)',
-    hashCVD: '8f4b1192-ea31-4101-77cf-554201994b21',
-    fechaEmision: '01/11/2026 16:45:00',
-    fechaVencimiento: '01/12/2026',
-    qrUrl: 'https://servicios.munisanmiguel.gob.pe/validador?cvd=8f4b1192-ea31-4101-77cf-554201994b21',
-  },
-  {
-    id: 'c3',
-    folio: 'CNA-2026-00384',
-    contribuyenteCodigo: 'C-100455',
-    contribuyenteNombre: 'GONZALES PEREZ JUAN CARLOS',
-    documentoTipo: 'DNI',
-    documentoNumero: '09876543',
-    predioCodigo: 'PRE-088192',
-    direccionPredio: 'CALLE LOS PATRIOTAS 340, SAN MIGUEL',
-    estadoTributario: 'REGISTRA_DEUDA',
-    deudaMonto: 7900.00,
-    firmadoDigitalmente: false,
-    firmanteNombre: 'Subgerencia de Recaudación',
-    firmanteCargo: 'Dictamen de Observación Tributaria',
-    entidadCertificadora: 'Pendiente de subsanación de pago',
-    hashCVD: 'DENEGADO-DEUDA-PENDIENTE',
-    fechaEmision: '02/11/2026 11:20:15',
-    fechaVencimiento: 'N/A',
-    qrUrl: '',
-  },
-  {
-    id: 'c4',
-    folio: 'CNA-2026-00385',
-    contribuyenteCodigo: 'C-103450',
-    contribuyenteNombre: 'VEGA SILVA BEATRIZ ELVIRA',
-    documentoTipo: 'DNI',
-    documentoNumero: '09456712',
-    predioCodigo: 'PRE-044211',
-    direccionPredio: 'AV. FEDERICO GALLESE 310, DPTO 402, SAN MIGUEL',
-    estadoTributario: 'SIN_DEUDA',
-    deudaMonto: 0,
-    firmadoDigitalmente: true,
-    firmanteNombre: 'Abg. Carlos Mendoza Villavicencio',
-    firmanteCargo: 'Subgerente de Recaudación y Control Tributario',
-    entidadCertificadora: 'RENIEC - Entidad de Certificación del Estado Peruano (EC-EREP)',
-    hashCVD: '33e14a90-8812-4c22-b519-90214811a432',
-    fechaEmision: '30/10/2026 09:12:30',
-    fechaVencimiento: '30/11/2026',
-    qrUrl: 'https://servicios.munisanmiguel.gob.pe/validador?cvd=33e14a90-8812-4c22-b519-90214811a432',
-  },
-  {
-    id: 'c5',
-    folio: 'CNA-2026-00386',
-    contribuyenteCodigo: 'C-100892',
-    contribuyenteNombre: 'CONSTRUCTORA COSTANERA S.R.L.',
-    documentoTipo: 'RUC',
-    documentoNumero: '20609876541',
-    predioCodigo: 'PRE-099230',
-    direccionPredio: 'AV. COSTANERA 1250, SAN MIGUEL',
-    estadoTributario: 'REGISTRA_DEUDA',
-    deudaMonto: 57170.00,
-    firmadoDigitalmente: false,
-    firmanteNombre: 'Subgerencia de Recaudación',
-    firmanteCargo: 'Dictamen de Observación Tributaria',
-    entidadCertificadora: 'Pendiente de subsanación de pago',
-    hashCVD: 'DENEGADO-DEUDA-PENDIENTE',
-    fechaEmision: '29/10/2026 14:05:00',
-    fechaVencimiento: 'N/A',
-    qrUrl: '',
-  },
-];
+export type { ConstanciaItem };
 
 export const ConstanciasNoAdeudoPanel: React.FC = () => {
-  const [constancias] = useState<ConstanciaItem[]>(MOCK_CONSTANCIAS);
+  const [constancias, setConstancias] = useState<ConstanciaItem[]>(MOCK_CONSTANCIAS);
   const [filtroEstado, setFiltroEstado] = useState<string>('TODOS');
   const [busqueda, setBusqueda] = useState<string>('');
   const [constanciaSeleccionada, setConstanciaSeleccionada] = useState<ConstanciaItem | null>(null);
+  const [pdfData, setPdfData] = useState<ConstanciaPdfResponse | null>(null);
+  const [cargandoPdf, setCargandoPdf] = useState<boolean>(false);
 
   // Paginación y Privacidad LPDP
   const [paginaActual, setPaginaActual] = useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
   const [enmascararPrivacidad, setEnmascararPrivacidad] = useState(false);
+
+  useEffect(() => {
+    let cancelado = false;
+    reportesController
+      .getConstancias({
+        estado: filtroEstado,
+        busqueda,
+        pagina: paginaActual,
+        tamano: registrosPorPagina,
+        enmascararPrivacidad,
+      })
+      .then((res) => {
+        if (!cancelado && res.items) {
+          setConstancias(res.items);
+        }
+      })
+      .catch(() => {
+        // En caso de error de red fuera de demo, mantiene estado actual
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [filtroEstado, busqueda, paginaActual, registrosPorPagina, enmascararPrivacidad]);
+
+  const handleVerConstancia = async (item: ConstanciaItem) => {
+    setConstanciaSeleccionada(item);
+    setPdfData(null);
+    setCargandoPdf(true);
+    try {
+      const respPdf = await reportesController.getConstanciaPdf(item.id);
+      setPdfData(respPdf);
+      if (respPdf.detalle) {
+        setConstanciaSeleccionada(respPdf.detalle);
+      }
+    } catch {
+      setPdfData(null);
+    } finally {
+      setCargandoPdf(false);
+    }
+  };
+
+  const handleCerrarModalPdf = () => {
+    setConstanciaSeleccionada(null);
+    setPdfData(null);
+  };
+
+  const pdfEmbedSrc = useMemo(() => {
+    if (!pdfData) return '';
+    if (pdfData.pdfUrl) return pdfData.pdfUrl;
+    if (pdfData.pdfBase64) {
+      return pdfData.pdfBase64.startsWith('data:')
+        ? pdfData.pdfBase64
+        : `data:application/pdf;base64,${pdfData.pdfBase64}`;
+    }
+    return '';
+  }, [pdfData]);
+
+  const handleDescargarPdfFirmado = () => {
+    if (!constanciaSeleccionada) return;
+    const nombreArchivo = pdfData?.nombreArchivo || `${constanciaSeleccionada.folio}.pdf`;
+    if (pdfEmbedSrc) {
+      const link = document.createElement('a');
+      link.href = pdfEmbedSrc;
+      link.download = nombreArchivo;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+    window.print();
+  };
 
   // Filtrado reactivo
   const constanciasFiltradas = useMemo(() => {
@@ -216,9 +181,11 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
     const filas = constanciasFiltradas.map((c) => [
       c.folio,
       c.contribuyenteCodigo,
-      c.contribuyenteNombre,
+      enmascararPrivacidad ? enmascararTexto(c.contribuyenteNombre) : c.contribuyenteNombre,
       c.documentoTipo,
-      c.documentoNumero,
+      enmascararPrivacidad && c.documentoNumero.length > 4
+        ? `${c.documentoNumero.slice(0, 2)}****${c.documentoNumero.slice(-2)}`
+        : c.documentoNumero,
       c.predioCodigo,
       c.direccionPredio,
       c.estadoTributario === 'SIN_DEUDA' ? 'SIN DEUDA AL DIA' : 'REGISTRA DEUDA',
@@ -237,11 +204,12 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       {/* 1. Filtros, Búsqueda y Modo Privacidad */}
       <div className="card" style={{ padding: '1rem 1.25rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', flex: 1 }}>
-            <div style={{ minWidth: '260px', flex: 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', flex: 1, alignItems: 'flex-end' }}>
+            <div style={{ minWidth: '240px', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label style={ESTILO_LABEL_FILTRO}>Búsqueda</label>
               <div style={{ position: 'relative' }}>
-                <Search size={15} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
+                <Search size={15} style={{ position: 'absolute', left: '10px', top: '12px', color: 'var(--text-muted)' }} />
                 <input
                   type="text"
                   placeholder="Buscar por DNI, RUC, Folio o Nombre..."
@@ -250,28 +218,39 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
                     setBusqueda(e.target.value);
                     setPaginaActual(1);
                   }}
-                  style={{ width: '100%', padding: '0.45rem 0.75rem 0.45rem 2rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem' }}
+                  style={{ width: '100%', height: '38px', padding: '0.45rem 0.75rem 0.45rem 2rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem', boxSizing: 'border-box' }}
                 />
               </div>
             </div>
 
-            <div>
+            <FilterSelectWrapper label="Estado">
               <select
+                aria-label="Filtrar por estado"
                 value={filtroEstado}
                 onChange={(e) => {
                   setFiltroEstado(e.target.value);
                   setPaginaActual(1);
                 }}
-                style={{ padding: '0.45rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem' }}
+                style={ESTILO_SELECT_FILTRO}
               >
-                <option value="TODOS">Todos los Estados</option>
-                <option value="FIRMADO">Firmadas Digitalmente (Aptas)</option>
-                <option value="DEUDA">Observadas con Deuda</option>
+                <option value="TODOS">Todo</option>
+                <option value="FIRMADO">Firmadas</option>
+                <option value="DEUDA">Con Deuda</option>
               </select>
-            </div>
+            </FilterSelectWrapper>
+
+            <FilterResetButton
+              onReset={() => {
+                setBusqueda('');
+                setFiltroEstado('TODOS');
+                setPaginaActual(1);
+              }}
+              activo={Boolean(busqueda.trim() || filtroEstado !== 'TODOS')}
+              title="Eliminar filtros de constancias"
+            />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', paddingBottom: '0.1rem' }}>
             <button
               type="button"
               onClick={() => setEnmascararPrivacidad(!enmascararPrivacidad)}
@@ -285,11 +264,11 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
 
             <button
               onClick={handleExportarRelacion}
-              className="btn btn-secondary"
+              className="btn btn-primary"
               style={{ fontSize: '0.85rem' }}
             >
               <Download size={15} />
-              Exportar Relación (CSV)
+              Exportar CSV
             </button>
           </div>
         </div>
@@ -379,13 +358,12 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <button
-                        onClick={() => setConstanciaSeleccionada(c)}
+                        onClick={() => handleVerConstancia(c)}
                         className="btn btn-secondary"
-                        style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem' }}
-                        title="Ver constancia oficial con membrete y firma digital"
+                        style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
+                        title="Ver constancia oficial (PDF)"
                       >
-                        <Eye size={13} />
-                        Ver Constancia
+                        <ExternalLink size={14} /> Ver
                       </button>
                     </td>
                   </tr>
@@ -520,7 +498,7 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
           }}>
             {/* Botón Cerrar */}
             <button
-              onClick={() => setConstanciaSeleccionada(null)}
+              onClick={handleCerrarModalPdf}
               style={{
                 position: 'absolute',
                 top: '1rem',
@@ -533,6 +511,23 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
             >
               <X size={20} />
             </button>
+
+            {cargandoPdf && (
+              <div style={{ textAlign: 'center', padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                Consultando documento PDF en el servidor...
+              </div>
+            )}
+
+            {/* Si el endpoint GET /reportes/constancias/:id/pdf devuelve pdfUrl o pdfBase64, se incrusta el visor PDF */}
+            {pdfEmbedSrc && (
+              <div style={{ marginBottom: '1.25rem', border: '1px solid var(--border-color)', borderRadius: '10px', overflow: 'hidden' }}>
+                <iframe
+                  src={pdfEmbedSrc}
+                  title={`PDF ${constanciaSeleccionada.folio}`}
+                  style={{ width: '100%', height: '520px', border: 'none', display: 'block' }}
+                />
+              </div>
+            )}
 
             {/* Membrete Oficial Municipal */}
             <div style={{ textAlign: 'center', borderBottom: '2px solid var(--sky-700)', paddingBottom: '1rem', marginBottom: '1.25rem' }}>
@@ -650,7 +645,7 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
             {/* Botones de Acción */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
               <button
-                onClick={() => setConstanciaSeleccionada(null)}
+                onClick={handleCerrarModalPdf}
                 className="btn btn-secondary"
                 style={{ fontSize: '0.85rem' }}
               >
@@ -667,7 +662,7 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
 
               {constanciaSeleccionada.firmadoDigitalmente && (
                 <button
-                  onClick={() => alert(`Descargando ${constanciaSeleccionada.folio}.pdf con firma digital PAdES incrustada...`)}
+                  onClick={handleDescargarPdfFirmado}
                   className="btn btn-primary"
                   style={{ fontSize: '0.85rem' }}
                 >

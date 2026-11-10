@@ -1,12 +1,13 @@
 'use client';
 
 import React from 'react';
-import { SupersetChatAssistant } from '../superset/SupersetChatAssistant';
+import { NotifyFn } from '@/types/ui.types';
+import { IaDashboardsHubView } from '@/components/shared/ia-dashboards/IaDashboardsHubView';
 
-export const AsistenteMcpView: React.FC = () => {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', minHeight: 'calc(100vh - 120px)', justifyContent: 'center' }}>
-      <SupersetChatAssistant />
-    </div>
-  );
+interface AsistenteMcpViewProps {
+  onNotify?: NotifyFn;
+}
+
+export const AsistenteMcpView: React.FC<AsistenteMcpViewProps> = ({ onNotify }) => {
+  return <IaDashboardsHubView modulo="CONTROL_MUNICIPAL" onNotify={onNotify} />;
 };

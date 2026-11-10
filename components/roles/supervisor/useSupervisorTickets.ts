@@ -20,6 +20,7 @@ export function useSupervisorTickets(onNotify: NotifyFn) {
   const [modalAction, setModalAction] = useState<AccionTicket>('ninguna');
   const [searchQuery, setSearchQuery] = useState('');
   const [filtroArea, setFiltroArea] = useState<string>('todas');
+  const [filtroFuncionario, setFiltroFuncionario] = useState<string>('todos');
   const [filtroEstado, setFiltroEstado] = useState<TicketFiltroEstado | 'todos'>('todos');
   const [filtroPrioridad, setFiltroPrioridad] = useState<TicketPrioridad | 'todos'>('todos');
 
@@ -87,6 +88,14 @@ export function useSupervisorTickets(onNotify: NotifyFn) {
     }
   };
 
+  const limpiarFiltros = () => {
+    setSearchQuery('');
+    setFiltroArea('todas');
+    setFiltroFuncionario('todos');
+    setFiltroEstado('todos');
+    setFiltroPrioridad('todos');
+  };
+
   return {
     tickets,
     funcionarios,
@@ -100,10 +109,13 @@ export function useSupervisorTickets(onNotify: NotifyFn) {
     setSearchQuery,
     filtroArea,
     setFiltroArea,
+    filtroFuncionario,
+    setFiltroFuncionario,
     filtroEstado,
     setFiltroEstado,
     filtroPrioridad,
     setFiltroPrioridad,
+    limpiarFiltros,
     handleAccion,
   };
 }

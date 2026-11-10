@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Table,
   Download,
   Search,
   Filter,
+  FilterX,
   Eye,
   EyeOff,
   Calendar,
@@ -18,76 +19,8 @@ import {
   ChevronsRight
 } from 'lucide-react';
 import { CATALOGO_REPORTES_OFICIALES, ReporteItemInfo } from '@/types/reportes-tributarios.types';
+import { reportesController } from '@/controllers/reportes.controller';
 import { exportarCSV } from '@/utils/csv.utils';
-
-// Datos de prueba representativos para cada reporte oficial R1 a R11
-const MOCK_ROWS_BY_REPORT: Record<string, string[][]> = {
-  R1: [
-    ['C-100234', 'INVERSIONES SAN MIGUEL S.A.C.', 'GENERAL', 'RUC', '20512345678', 'AV. LA MARINA 2100', 'AV. LA MARINA', '2100', '401', '-', 'A', '12', 'SAN MIGUEL', '14500.00', '8200.00', '11600.00', '6560.00', '3200.00', '1800.00', '2880.00', '1620.00', '22660.00', '27700.00', 'HABIDO', 'JURIDICA', 'tributos@sanmiguelsac.pe', '998123456', 'SI'],
-    ['C-100455', 'GONZALES PEREZ JUAN CARLOS', 'ORDINARIO', 'DNI', '09876543', 'CALLE LOS PATRIOTAS 340', 'LOS PATRIOTAS', '340', '-', '-', 'B', '04', 'SAN MIGUEL', '4800.00', '3100.00', '3840.00', '2480.00', '1100.00', '850.00', '990.00', '765.00', '8075.00', '9850.00', 'HABIDO', 'NATURAL', 'jgonzales@gmail.com', '987654321', 'NO'],
-    ['C-100892', 'CONSTRUCTORA COSTANERA S.R.L.', 'PRICO', 'RUC', '20609876541', 'AV. COSTANERA 1250', 'AV. COSTANERA', '1250', 'OF 12', '-', 'C', '01', 'SAN MIGUEL', '38900.00', '19400.00', '31120.00', '15520.00', '7500.00', '4200.00', '6750.00', '3780.00', '57170.00', '70000.00', 'HABIDO', 'JURIDICA', 'admin@costanerasrl.pe', '945112233', 'SI'],
-    ['C-101103', 'MENDOZA RUIZ MARIA ELENA', 'ORDINARIO', 'DNI', '41239876', 'JR. LIBERTAD 512', 'JR. LIBERTAD', '512', '201', '-', 'E', '18', 'SAN MIGUEL', '2100.00', '1400.00', '1680.00', '1120.00', '580.00', '420.00', '522.00', '378.00', '3700.00', '4500.00', 'HABIDO', 'NATURAL', 'maria.mendoza@outlook.com', '971345678', 'SI'],
-    ['C-101419', 'CORPORACION GASTRONOMICA DEL PACIFICO', 'PRICO', 'RUC', '20456789123', 'AV. UNIVERSITARIA 1890', 'AV. UNIVERSITARIA', '1890', '-', '-', 'F', '09', 'SAN MIGUEL', '24000.00', '13200.00', '19200.00', '10560.00', '5100.00', '2900.00', '4590.00', '2610.00', '36960.00', '45200.00', 'HABIDO', 'JURIDICA', 'contabilidad@pacificorest.pe', '981223344', 'SI'],
-  ],
-  R2: [
-    ['C-100455', 'GONZALES PEREZ JUAN CARLOS', 'ORDINARIO', 'DNI', '09876543', 'CALLE LOS PATRIOTAS 340', '7900.00'],
-    ['C-101902', 'ALVAREZ QUISPE CARMEN ROSA', 'ORDINARIO', 'DNI', '10293847', 'AV. BRIGIDA SILVA 450', '5650.00'],
-    ['C-102311', 'DISTRIBUIDORA SAN MIGUEL S.A.C.', 'GENERAL', 'RUC', '20491827364', 'CALLE MANTARO 125', '18400.00'],
-    ['C-102874', 'PAREDES SALAZAR ROBERTO', 'ORDINARIO', 'DNI', '08765412', 'PASAJE SAN MARTIN 118', '4120.00'],
-  ],
-  R3: [
-    ['C-100001', 'CONSOLIDADO ANUAL IMPUESTO PREDIAL', 'GENERAL', 'RESUMEN', 'PREDIAL-2026', 'SAN MIGUEL', '18500000.00', '2026', 'IMPUESTO PREDIAL', '78.5%', '82.1%', '21.5%'],
-    ['C-100002', 'CONSOLIDADO ANUAL ARBITRIOS LIMPIEZA', 'GENERAL', 'RESUMEN', 'ARB-LIMPIEZA', 'SAN MIGUEL', '12400000.00', '2026', 'LIMPIEZA PUBLICA', '68.2%', '72.4%', '31.8%'],
-    ['C-100003', 'CONSOLIDADO ANUAL ARBITRIOS SERENAZGO', 'GENERAL', 'RESUMEN', 'ARB-SERENAZGO', 'SAN MIGUEL', '9800000.00', '2026', 'SEGURIDAD CIUDADANA', '71.0%', '75.2%', '29.0%'],
-    ['C-100004', 'CONSOLIDADO ANUAL PARQUES Y JARDINES', 'GENERAL', 'RESUMEN', 'ARB-PARQUES', 'SAN MIGUEL', '6200000.00', '2026', 'PARQUES Y JARDINES', '69.4%', '73.1%', '30.6%'],
-  ],
-  R4: [
-    ['2026', 'OP-2026-00412', 'ORDEN DE PAGO', 'C-100234', '2025', '001', 'LOTE 01', 'INVERSIONES SAN MIGUEL S.A.C.', 'AV. LA MARINA 2100', '20512345678', 'JURIDICA', '22700.00', '5000.00', '17700.00'],
-    ['2026', 'RD-2026-00108', 'RESOLUCION DE DETERMINACION', 'C-100892', '2024', '002', 'LOTE 03', 'CONSTRUCTORA COSTANERA S.R.L.', 'AV. COSTANERA 1250', '20609876541', 'JURIDICA', '58300.00', '12000.00', '46300.00'],
-    ['2026', 'OP-2026-00891', 'ORDEN DE PAGO', 'C-101419', '2025', '001', 'LOTE 09', 'CORPORACION GASTRONOMICA DEL PACIFICO', 'AV. UNIVERSITARIA 1890', '20456789123', 'JURIDICA', '37200.00', '8000.00', '29200.00'],
-  ],
-  R5: [
-    ['C-100892', 'CONSTRUCTORA COSTANERA S.R.L.', 'PRICO', 'RUC', '20609876541', 'AV. COSTANERA 1250', 'AV. COSTANERA', '1250', 'OF 12', '-', 'C', '01', 'SAN MIGUEL', '142.50', '45000.00', '22000.00', '38900.00', '19400.00', '31120.00', '15520.00', 'HABIDO', 'JURIDICA', 'admin@costanerasrl.pe', '945112233'],
-    ['C-101419', 'CORPORACION GASTRONOMICA DEL PACIFICO', 'PRICO', 'RUC', '20456789123', 'AV. UNIVERSITARIA 1890', 'AV. UNIVERSITARIA', '1890', '-', '-', 'F', '09', 'SAN MIGUEL', '88.20', '32000.00', '16500.00', '24000.00', '13200.00', '19200.00', '10560.00', 'HABIDO', 'JURIDICA', 'contabilidad@pacificorest.pe', '981223344'],
-    ['C-102041', 'CENTRO COMERCIAL PLAZA SAN MIGUEL S.A.', 'PRICO', 'RUC', '20109988771', 'AV. LA MARINA 2000', 'AV. LA MARINA', '2000', '-', '-', 'M', '01', 'SAN MIGUEL', '410.00', '180000.00', '95000.00', '0.00', '0.00', '0.00', '0.00', 'HABIDO', 'JURIDICA', 'tributario@plazasanmiguel.pe', '999887766'],
-  ],
-  R6: [
-    ['C-102041', 'CENTRO COMERCIAL PLAZA SAN MIGUEL S.A.', 'PRICO', 'RUC', '20109988771', 'AV. LA MARINA 2000', '180000.00', '95000.00', '180000.00', '95000.00'],
-    ['C-103112', 'RAMIREZ TORRES GUILLERMO', 'ORDINARIO', 'DNI', '07894561', 'JR. LIBERTAD 820', '3200.00', '2100.00', '3200.00', '2100.00'],
-    ['C-103450', 'VEGA SILVA BEATRIZ ELVIRA', 'ORDINARIO', 'DNI', '09456712', 'AV. FEDERICO GALLESE 310', '2800.00', '1950.00', '2800.00', '1950.00'],
-    ['C-103890', 'CLINICA SAN MIGUEL S.A.C.', 'PRICO', 'RUC', '20498761234', 'AV. Elmer Faucett 450', '42000.00', '24000.00', '42000.00', '24000.00'],
-  ],
-  R7: [
-    ['IMPUESTO PREDIAL', '2026', 'ANEXO-01', '14200000.00', '11147000.00', '3053000.00', '78.5%'],
-    ['IMPUESTO PREDIAL', '2025', 'ANEXO-01', '13800000.00', '12420000.00', '1380000.00', '90.0%'],
-    ['ARBITRIOS MUNICIPALES', '2026', 'ANEXO-02', '18900000.00', '13135500.00', '5764500.00', '69.5%'],
-    ['ARBITRIOS MUNICIPALES', '2025', 'ANEXO-02', '17500000.00', '14875000.00', '2625000.00', '85.0%'],
-  ],
-  R8: [
-    ['IMPUESTO PREDIAL', '2021', 'ANEXO-01', '840000.00', '5 AÑOS'],
-    ['IMPUESTO PREDIAL', '2022', 'ANEXO-01', '980000.00', '4 AÑOS'],
-    ['IMPUESTO PREDIAL', '2023', 'ANEXO-01', '1250000.00', '3 AÑOS'],
-    ['IMPUESTO PREDIAL', '2024', 'ANEXO-01', '1680000.00', '2 AÑOS'],
-    ['IMPUESTO PREDIAL', '2025', 'ANEXO-01', '2100000.00', '1 AÑO'],
-  ],
-  R9: [
-    ['2026-T1', 'IMPUESTO PREDIAL', '28/02/2026', '26/02/2026', '4500000.00', 'OPORTUNO', '8450', '1200', '87.5%'],
-    ['2026-T2', 'IMPUESTO PREDIAL', '31/05/2026', '29/05/2026', '4200000.00', 'OPORTUNO', '8100', '1550', '83.9%'],
-    ['2026-T3', 'IMPUESTO PREDIAL', '31/08/2026', '30/08/2026', '3950000.00', 'OPORTUNO', '7800', '1850', '80.8%'],
-    ['2026-T1', 'ARBITRIOS', '28/02/2026', '15/03/2026', '2800000.00', 'CON ATRASO', '5600', '2900', '65.8%'],
-  ],
-  R10: [
-    ['IMPUESTO PREDIAL', '2026', 'CUOTA 1 (FEBRERO)', '28/02/2026', '4500000.00', '465.00'],
-    ['IMPUESTO PREDIAL', '2026', 'CUOTA 2 (MAYO)', '31/05/2026', '4200000.00', '435.00'],
-    ['IMPUESTO PREDIAL', '2026', 'CUOTA 3 (AGOSTO)', '31/08/2026', '3950000.00', '410.00'],
-    ['ARBITRIOS MUNICIPALES', '2026', 'CUOTAS 1-9 CONSOLIDADAS', '30/09/2026', '14200000.00', '185.00'],
-  ],
-  R11: [
-    ['2026', 'ARBITRIOS', '28/02/2026', '20/04/2026', '51 DIAS', 'INCUMPLIDO REINCIDENTE', '62.0%', '4 CUOTAS', '3 AÑOS CONSECUTIVOS'],
-    ['2026', 'IMPUESTO PREDIAL', '31/05/2026', '15/08/2026', '76 DIAS', 'INCUMPLIDO OBSERVADO', '58.5%', '2 CUOTAS', '2 AÑOS CONSECUTIVOS'],
-    ['2025', 'ARBITRIOS', '31/08/2025', '30/11/2025', '91 DIAS', 'INCUMPLIDO COACTIVO', '44.0%', '6 CUOTAS', '4 AÑOS CONSECUTIVOS'],
-  ],
-};
 
 export const ReportesTributariosView: React.FC = () => {
   const [reporteSeleccionadoCodigo, setReporteSeleccionadoCodigo] = useState<string>('R1');
@@ -96,9 +29,13 @@ export const ReportesTributariosView: React.FC = () => {
   const [busquedaTexto, setBusquedaTexto] = useState<string>('');
   const [enmascararPrivacidad, setEnmascararPrivacidad] = useState<boolean>(false);
 
-  // Paginación
+  // Paginación y datos traídos desde el endpoint GET /reportes/tributarios/:codigo
   const [paginaActual, setPaginaActual] = useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
+  const [filasPaginadas, setFilasPaginadas] = useState<string[][]>([]);
+  const [totalRegistros, setTotalRegistros] = useState<number>(0);
+  const [totalPaginasServidor, setTotalPaginasServidor] = useState<number>(1);
+  const [cargando, setCargando] = useState<boolean>(true);
 
   // Reporte activo del catálogo oficial R1 a R11
   const reporteActual: ReporteItemInfo = useMemo(() => {
@@ -106,24 +43,54 @@ export const ReportesTributariosView: React.FC = () => {
       || CATALOGO_REPORTES_OFICIALES[0];
   }, [reporteSeleccionadoCodigo]);
 
-  // Filas del reporte filtradas por texto de búsqueda
-  const filasFiltradas = useMemo(() => {
-    const rawRows = MOCK_ROWS_BY_REPORT[reporteActual.codigo] || [];
-    if (!busquedaTexto.trim()) return rawRows;
+  useEffect(() => {
+    let cancelado = false;
+    setCargando(true);
 
-    const query = busquedaTexto.toLowerCase();
-    return rawRows.filter((fila) => fila.some((celda) => celda.toLowerCase().includes(query)));
-  }, [reporteActual.codigo, busquedaTexto]);
+    reportesController
+      .getReporteTributario({
+        codigo: reporteActual.codigo,
+        tributo: tributoFiltro,
+        periodo: periodoFiltro,
+        busqueda: busquedaTexto,
+        pagina: paginaActual,
+        tamano: registrosPorPagina,
+        enmascararPrivacidad,
+      })
+      .then((res) => {
+        if (cancelado) return;
+        setFilasPaginadas(res.filas);
+        setTotalRegistros(res.totalRegistros);
+        setTotalPaginasServidor(Math.max(1, res.totalPaginas));
+      })
+      .catch(() => {
+        if (cancelado) return;
+        setFilasPaginadas([]);
+        setTotalRegistros(0);
+        setTotalPaginasServidor(1);
+      })
+      .finally(() => {
+        if (!cancelado) setCargando(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [
+    reporteActual.codigo,
+    tributoFiltro,
+    periodoFiltro,
+    busquedaTexto,
+    paginaActual,
+    registrosPorPagina,
+    enmascararPrivacidad,
+  ]);
 
   // Cálculo de Paginación
-  const totalPaginas = Math.max(1, Math.ceil(filasFiltradas.length / registrosPorPagina));
+  const totalPaginas = Math.max(1, totalPaginasServidor);
   const paginaAjustada = Math.min(paginaActual, totalPaginas);
-  const indiceInicio = filasFiltradas.length === 0 ? 0 : (paginaAjustada - 1) * registrosPorPagina + 1;
-  const indiceFin = Math.min(paginaAjustada * registrosPorPagina, filasFiltradas.length);
-  const filasPaginadas = filasFiltradas.slice(
-    (paginaAjustada - 1) * registrosPorPagina,
-    paginaAjustada * registrosPorPagina
-  );
+  const indiceInicio = totalRegistros === 0 ? 0 : (paginaAjustada - 1) * registrosPorPagina + 1;
+  const indiceFin = Math.min(paginaAjustada * registrosPorPagina, totalRegistros);
 
   const enmascararValor = (valor: string, colIdx: number) => {
     if (!enmascararPrivacidad) return valor;
@@ -149,13 +116,44 @@ export const ReportesTributariosView: React.FC = () => {
     return valor;
   };
 
-  // Exportación a Excel / CSV formal
-  const handleExportar = () => {
-    exportarCSV(
-      `Reporte_${reporteActual.codigo}_${reporteActual.nombre.replace(/\s+/g, '_')}_${periodoFiltro}`,
-      reporteActual.cabeceras,
-      filasFiltradas
-    );
+  // Exportación a CSV con respeto al Modo Privacidad LPDP
+  const handleExportar = async () => {
+    try {
+      const resCompleta = await reportesController.getReporteTributario({
+        codigo: reporteActual.codigo,
+        tributo: tributoFiltro,
+        periodo: periodoFiltro,
+        busqueda: busquedaTexto,
+        pagina: 1,
+        tamano: 10000,
+        enmascararPrivacidad,
+      });
+
+      const filasBase = resCompleta.filas.length > 0 ? resCompleta.filas : filasPaginadas;
+      const filasAExportar = enmascararPrivacidad
+        ? filasBase.map((fila) =>
+            fila.map((celda, colIdx) => enmascararValor(celda, colIdx))
+          )
+        : filasBase;
+
+      exportarCSV(
+        `Reporte_${reporteActual.codigo}_${reporteActual.nombre.replace(/\s+/g, '_')}_${periodoFiltro}`,
+        reporteActual.cabeceras,
+        filasAExportar
+      );
+    } catch {
+      const filasAExportar = enmascararPrivacidad
+        ? filasPaginadas.map((fila) =>
+            fila.map((celda, colIdx) => enmascararValor(celda, colIdx))
+          )
+        : filasPaginadas;
+
+      exportarCSV(
+        `Reporte_${reporteActual.codigo}_${reporteActual.nombre.replace(/\s+/g, '_')}_${periodoFiltro}`,
+        reporteActual.cabeceras,
+        filasAExportar
+      );
+    }
   };
 
   return (
@@ -191,7 +189,7 @@ export const ReportesTributariosView: React.FC = () => {
               style={{ fontSize: '0.85rem' }}
             >
               <Download size={16} />
-              Exportar Tabla Oficial (CSV/Excel)
+              Exportar CSV
             </button>
           </div>
         </div>
@@ -201,9 +199,6 @@ export const ReportesTributariosView: React.FC = () => {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
           gap: '1rem',
-          background: 'var(--bg-card-subtle)',
-          padding: '1rem',
-          borderRadius: '10px',
         }}>
           {/* Selector de Reporte R1 - R11 */}
           <div>
@@ -259,36 +254,60 @@ export const ReportesTributariosView: React.FC = () => {
             </select>
           </div>
 
-          {/* Búsqueda rápida por texto */}
+          {/* Búsqueda rápida por texto y Limpiar Filtros */}
           <div>
             <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
               <Search size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
               Buscar en la Tabla:
             </label>
-            <input
-              type="text"
-              placeholder="DNI, RUC, Razón Social..."
-              value={busquedaTexto}
-              onChange={(e) => setBusquedaTexto(e.target.value)}
-              style={{ width: '100%', padding: '0.45rem 0.65rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem' }}
-            />
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input
+                type="text"
+                placeholder="DNI, RUC, Razón Social..."
+                value={busquedaTexto}
+                onChange={(e) => setBusquedaTexto(e.target.value)}
+                style={{ width: '100%', height: '38px', padding: '0.45rem 0.65rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem', boxSizing: 'border-box' }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setBusquedaTexto('');
+                  setTributoFiltro('TODOS');
+                  setPeriodoFiltro('2026');
+                }}
+                disabled={!busquedaTexto.trim() && tributoFiltro === 'TODOS' && periodoFiltro === '2026'}
+                className="btn btn-secondary"
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  minWidth: '38px',
+                  padding: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '8px',
+                  opacity: (busquedaTexto.trim() || tributoFiltro !== 'TODOS' || periodoFiltro !== '2026') ? 1 : 0.45,
+                  cursor: (busquedaTexto.trim() || tributoFiltro !== 'TODOS' || periodoFiltro !== '2026') ? 'pointer' : 'default',
+                  boxSizing: 'border-box',
+                }}
+                title="Eliminar filtros del reporte"
+                aria-label="Eliminar filtros del reporte"
+              >
+                <FilterX size={16} />
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Ficha descriptiva del reporte seleccionado */}
-        <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
-          <div>
-            <span className="badge badge-primary" style={{ marginRight: '0.5rem', fontWeight: 700 }}>
-              {reporteActual.codigo}
-            </span>
-            <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>{reporteActual.nombre}</strong>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
-              — {reporteActual.descripcion}
-            </span>
-          </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            Registros encontrados: <strong>{filasFiltradas.length}</strong> | Columnas normativas: <strong>{reporteActual.cabeceras.length}</strong>
-          </div>
+        <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <span className="badge badge-primary" style={{ marginRight: '0.5rem', fontWeight: 700 }}>
+            {reporteActual.codigo}
+          </span>
+          <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>{reporteActual.nombre}</strong>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
+            — {reporteActual.descripcion}
+          </span>
         </div>
       </div>
 
@@ -317,7 +336,13 @@ export const ReportesTributariosView: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {filasFiltradas.length === 0 ? (
+              {cargando ? (
+                <tr>
+                  <td colSpan={reporteActual.cabeceras.length + 1} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                    Cargando registros del reporte {reporteActual.codigo}...
+                  </td>
+                </tr>
+              ) : filasPaginadas.length === 0 ? (
                 <tr>
                   <td colSpan={reporteActual.cabeceras.length + 1} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                     No se encontraron registros con los filtros seleccionados.
@@ -369,7 +394,7 @@ export const ReportesTributariosView: React.FC = () => {
         </div>
 
         {/* Barra de Paginación */}
-        {filasFiltradas.length > 0 && (
+        {totalRegistros > 0 && (
           <div
             style={{
               display: 'flex',
@@ -386,7 +411,7 @@ export const ReportesTributariosView: React.FC = () => {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
               <span>
-                Mostrando <strong>{indiceInicio}</strong> – <strong>{indiceFin}</strong> de <strong>{filasFiltradas.length}</strong> registros
+                Mostrando <strong>{indiceInicio}</strong> – <strong>{indiceFin}</strong> de <strong>{totalRegistros}</strong> registros
               </span>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>

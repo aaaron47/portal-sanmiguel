@@ -17,7 +17,7 @@ export const ControlMunicipalView: React.FC<RoleViewProps> = ({
   // La navegación se realiza exclusivamente desde el Sidebar Lateral (sin TabsBar internas)
   return (
     <div>
-      {/* 1. Dashboard General de Control (Indicadores Ejecutivos + OCI + Gráficos Superset) */}
+      {/* 1. Dashboard General de Control (Indicadores Ejecutivos + OCI + Dashboard Superset Reportes Tributarios) */}
       {(initialTab === 'control-dashboard' || initialTab === 'control-reportes') && (
         <DashboardGeneralControl
           kpis={c.kpis}
@@ -33,9 +33,9 @@ export const ControlMunicipalView: React.FC<RoleViewProps> = ({
         <ReportesTributariosView />
       )}
 
-      {/* 3. Asistente MCP (Consultas IA en Lenguaje Natural con Modelo Local) */}
+      {/* 3. Centro de Dashboards (Superset + IA) y Asistente IA (Modelo Local / API) */}
       {(initialTab === 'control-ia' || initialTab === 'control-superset') && (
-        <AsistenteMcpView />
+        <AsistenteMcpView onNotify={onNotify} />
       )}
 
       {/* 4. Constancias de No Adeudo Tributario y Firma Digital PAdES / RENIEC */}

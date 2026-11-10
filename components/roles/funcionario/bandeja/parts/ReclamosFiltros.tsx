@@ -1,8 +1,14 @@
 import React from 'react';
-import { Filter, Download } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { TicketFiltroEstado, TicketPrioridad } from '@/types/ticket.types';
 import { FiltroConstancia } from '../../useFuncionarioTickets';
 import { SearchInput } from '@/components/shared/ui/SearchInput';
+import {
+  FilterSelectWrapper,
+  FilterResetButton,
+  ESTILO_SELECT_FILTRO,
+  ESTILO_LABEL_FILTRO,
+} from '@/components/shared/ui/FilterControls';
 import { ESTADOS } from '@/utils/ticket.utils';
 
 interface ReclamosFiltrosProps {
@@ -16,6 +22,7 @@ interface ReclamosFiltrosProps {
   onConstanciaChange: (constancia: FiltroConstancia) => void;
   soloAsignadosAMi: boolean;
   onSoloAsignadosChange: (val: boolean) => void;
+  onLimpiarFiltros?: () => void;
   onDescargarCSV?: () => void;
 }
 
@@ -30,119 +37,145 @@ export const ReclamosFiltros: React.FC<ReclamosFiltrosProps> = ({
   onConstanciaChange,
   soloAsignadosAMi,
   onSoloAsignadosChange,
+  onLimpiarFiltros,
   onDescargarCSV,
-}) => (
-  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center', marginBottom: '1.25rem' }}>
-    <SearchInput
-      value={searchQuery}
-      onChange={onSearchChange}
-      placeholder="Buscar por folio, vecino, DNI o asunto..."
-    />
+}) => {
+  const hayFiltrosActivos = Boolean(
+    searchQuery.trim() ||
+      filtroEstado !== 'todos' ||
+      filtroPrioridad !== 'todos' ||
+      filtroConstancia !== 'todos' ||
+      soloAsignadosAMi
+  );
 
-    {/* Filtro Estado */}
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-      <Filter size={15} color="var(--text-muted)" />
-      <select
-        value={filtroEstado}
-        onChange={(e) => onEstadoChange(e.target.value as TicketFiltroEstado | 'todos')}
-        style={{
-          padding: '0.45rem 0.6rem',
-          borderRadius: '8px',
-          border: '1px solid var(--border-color)',
-          background: 'var(--bg-card)',
-          color: 'var(--text-main)',
-          fontSize: '0.825rem',
-        }}
-      >
-        <option value="todos">Todos los Estados</option>
-        {ESTADOS.map((e) => (
-          <option key={e} value={e}>{e[0].toUpperCase() + e.slice(1)}</option>
-        ))}
-        <option value="por aprobar">Por aprobar (respuesta en revisión)</option>
-      </select>
-    </div>
+  const handleLimpiar = () => {
+    if (onLimpiarFiltros) {
+      onLimpiarFiltros();
+    } else {
+      onSearchChange('');
+      onEstadoChange('todos');
+      onPrioridadChange('todos');
+      onConstanciaChange('todos');
+      onSoloAsignadosChange(false);
+    }
+  };
 
-    {/* Filtro Prioridad */}
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-      <select
-        value={filtroPrioridad}
-        onChange={(e) => onPrioridadChange(e.target.value as TicketPrioridad | 'todos')}
-        style={{
-          padding: '0.45rem 0.6rem',
-          borderRadius: '8px',
-          border: '1px solid var(--border-color)',
-          background: 'var(--bg-card)',
-          color: 'var(--text-main)',
-          fontSize: '0.825rem',
-        }}
-      >
-        <option value="todos">Todas las Prioridades</option>
-        <option value="BAJA">Prioridad Baja</option>
-        <option value="MEDIA">Prioridad Media</option>
-        <option value="ALTA">Prioridad Alta</option>
-      </select>
-    </div>
-
-    {/* Filtro Constancia */}
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-      <select
-        value={filtroConstancia}
-        onChange={(e) => onConstanciaChange(e.target.value as FiltroConstancia)}
-        style={{
-          padding: '0.45rem 0.6rem',
-          borderRadius: '8px',
-          border: '1px solid var(--border-color)',
-          background: 'var(--bg-card)',
-          color: 'var(--text-main)',
-          fontSize: '0.825rem',
-        }}
-      >
-        <option value="todos">Todas las Constancias</option>
-        <option value="con_constancia">Con Constancia Requerida</option>
-        <option value="sin_constancia">Sin Constancia</option>
-        <option value="por_evaluar">Por Evaluar</option>
-        <option value="aprobada">Constancia Aprobada</option>
-        <option value="observada">Constancia Observada</option>
-      </select>
-    </div>
-
-    {/* Asignados a mí */}
-    <label
+  return (
+    <div
       style={{
         display: 'flex',
-        alignItems: 'center',
-        gap: '0.35rem',
-        fontSize: '0.825rem',
-        cursor: 'pointer',
-        color: 'var(--text-main)',
+        flexWrap: 'wrap',
+        gap: '0.75rem',
+        alignItems: 'flex-end',
+        marginBottom: '1.25rem',
       }}
     >
-      <input
-        type="checkbox"
-        checked={soloAsignadosAMi}
-        onChange={(e) => onSoloAsignadosChange(e.target.checked)}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1, minWidth: '240px' }}>
+        <label style={ESTILO_LABEL_FILTRO}>Búsqueda</label>
+        <SearchInput
+          value={searchQuery}
+          onChange={onSearchChange}
+          placeholder="Buscar por folio, vecino, DNI o asunto..."
+        />
+      </div>
+
+      <FilterSelectWrapper label="Estado">
+        <select
+          aria-label="Filtrar por estado"
+          value={filtroEstado}
+          onChange={(e) => onEstadoChange(e.target.value as TicketFiltroEstado | 'todos')}
+          style={ESTILO_SELECT_FILTRO}
+        >
+          <option value="todos">Todo</option>
+          {ESTADOS.map((e) => (
+            <option key={e} value={e}>
+              {e[0].toUpperCase() + e.slice(1)}
+            </option>
+          ))}
+          <option value="por aprobar">Por aprobar</option>
+        </select>
+      </FilterSelectWrapper>
+
+      <FilterSelectWrapper label="Prioridad">
+        <select
+          aria-label="Filtrar por prioridad"
+          value={filtroPrioridad}
+          onChange={(e) => onPrioridadChange(e.target.value as TicketPrioridad | 'todos')}
+          style={ESTILO_SELECT_FILTRO}
+        >
+          <option value="todos">Todo</option>
+          <option value="BAJA">Baja</option>
+          <option value="MEDIA">Media</option>
+          <option value="ALTA">Alta</option>
+        </select>
+      </FilterSelectWrapper>
+
+      <FilterSelectWrapper label="Constancia">
+        <select
+          aria-label="Filtrar por constancia"
+          value={filtroConstancia}
+          onChange={(e) => onConstanciaChange(e.target.value as FiltroConstancia)}
+          style={ESTILO_SELECT_FILTRO}
+        >
+          <option value="todos">Todo</option>
+          <option value="con_constancia">Requerida</option>
+          <option value="sin_constancia">Sin requerir</option>
+          <option value="por_evaluar">Por evaluar</option>
+          <option value="aprobada">Aprobada</option>
+          <option value="observada">Observada</option>
+        </select>
+      </FilterSelectWrapper>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', justifyContent: 'flex-end', height: '38px', paddingBottom: '0.45rem', boxSizing: 'border-box' }}>
+        <label
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            fontSize: '0.825rem',
+            cursor: 'pointer',
+            color: 'var(--text-main)',
+            userSelect: 'none',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={soloAsignadosAMi}
+            onChange={(e) => onSoloAsignadosChange(e.target.checked)}
+          />
+          Solo asignados a mí
+        </label>
+      </div>
+
+      <FilterResetButton
+        onReset={handleLimpiar}
+        activo={hayFiltrosActivos}
+        title="Eliminar filtros de la bandeja"
       />
-      Solo asignados a mi nombre
-    </label>
 
-    {/* Exportar CSV */}
-    {onDescargarCSV && (
-      <button
-        onClick={onDescargarCSV}
-        className="btn btn-secondary"
-        style={{
-          padding: '0.45rem 0.75rem',
-          fontSize: '0.8rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.4rem',
-          marginLeft: 'auto',
-        }}
-        title="Descargar datos en formato CSV"
-      >
-        <Download size={14} /> Exportar CSV
-      </button>
-    )}
-  </div>
-);
-
+      {onDescargarCSV && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', justifyContent: 'flex-end', marginLeft: 'auto' }}>
+          <span style={{ ...ESTILO_LABEL_FILTRO, visibility: 'hidden' }}>&nbsp;</span>
+          <button
+            type="button"
+            onClick={onDescargarCSV}
+            className="btn btn-secondary"
+            style={{
+              height: '38px',
+              padding: '0 0.85rem',
+              fontSize: '0.8rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              boxSizing: 'border-box',
+            }}
+            title="Descargar datos en formato CSV"
+          >
+            <Download size={14} /> Exportar CSV
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
