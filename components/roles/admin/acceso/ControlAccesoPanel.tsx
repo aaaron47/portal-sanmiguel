@@ -6,7 +6,8 @@ import {
   ShieldCheck,
   Lock,
   X,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { NotifyFn } from '@/types/ui.types';
 import { CardHeader, CardAside } from '@/components/shared/ui/CardHeader';
@@ -34,11 +35,20 @@ export const ControlAccesoPanel: React.FC<{ onNotify: NotifyFn }> = ({ onNotify 
       <ControlAccesoToolbar
         isSaving={c.isSaving}
         hayCambios={c.hayCambios}
+        puedeGuardar={c.puedeGuardar}
         onGuardar={c.solicitarGuardar}
         onDescartar={c.descartarCambios}
         onRestablecer={c.restablecerValores}
         onDescargarCSV={c.descargarCSV}
       />
+
+      {/* Si no se pudo leer la configuración del servidor, se dice antes de mostrar los valores */}
+      {c.errorCarga && (
+        <div role="alert" className="alert-warning-box">
+          <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '1px' }} />
+          <span>{c.errorCarga}</span>
+        </div>
+      )}
 
       {/* Sección 1: Variables de configuración de acceso */}
       <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.75rem' }}>

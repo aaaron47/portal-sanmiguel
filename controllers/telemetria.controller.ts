@@ -1,5 +1,12 @@
 import { apiClient, usarDatosDemo } from '@/services/api-client.service';
-import { TelemetriaResumen, TelemetriaEvento, ConsentimientoAuditoriaLog, OnboardingStats } from '@/types/telemetria.types';
+import {
+  TelemetriaResumen,
+  TelemetriaEvento,
+  ConsentimientoAuditoriaLog,
+  OnboardingStats,
+  FiltrosUso,
+  UsoSistema,
+} from '@/types/telemetria.types';
 
 const MOCK_RESUMEN_TELEMETRIA: TelemetriaResumen = {
   onboarding: {
@@ -144,14 +151,98 @@ const MOCK_CONSENTIMIENTOS_AUDITORIA: ConsentimientoAuditoriaLog[] = [
   },
 ];
 
+// ---------- Uso del sistema (Req 4), solo para el modo demo ----------
+const FUNCIONALIDADES_DEMO: Array<{ nombre: string; iniciadasDia: number; tasaExito: number }> = [
+  { nombre: 'Consulta de deuda', iniciadasDia: 420, tasaExito: 0.96 },
+  { nombre: 'Nuevo reclamo', iniciadasDia: 150, tasaExito: 0.88 },
+  { nombre: 'Seguimiento de reclamo', iniciadasDia: 210, tasaExito: 0.97 },
+  { nombre: 'Constancia de no adeudo', iniciadasDia: 95, tasaExito: 0.81 },
+  { nombre: 'Pago simulado', iniciadasDia: 60, tasaExito: 0.9 },
+];
+const PARTICIPACION_SO: Record<'Android' | 'iOS', number> = { Android: 0.76, iOS: 0.24 };
+const PARTICIPACION_VERSION: Record<string, number> = { 'v2.4.1': 0.68, 'v2.3.0': 0.21, 'v2.1.8': 0.11 };
+// Reparto del día en hora de Perú: poco de madrugada, picos a media mañana y en la noche.
+const PERFIL_HORA = [1, 0.6, 0.4, 0.3, 0.3, 0.6, 1.5, 3, 4.5, 6, 6.5, 6.2, 5, 4.6, 4.8, 5, 5.2, 5.6, 6.4, 7, 6.6, 5, 3.4, 2];
+
+function fechasEntre(desde: string, hasta: string): string[] {
+  const dias: string[] = [];
+  const d = new Date(`${desde}T12:00:00Z`);
+  const fin = new Date(`${hasta}T12:00:00Z`);
+  while (d <= fin && dias.length < 92) {
+    dias.push(d.toISOString().slice(0, 10));
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return dias;
+}
+
+/** Variación estable por fecha (siempre la misma para el mismo día), para que el demo no cambie al recargar. */
+function variacion(fecha: string): number {
+  let h = 0;
+  for (const c of fecha) h = (h * 31 + c.charCodeAt(0)) % 9973;
+  const diaSemana = new Date(`${fecha}T12:00:00Z`).getUTCDay();
+  const finDeSemana = diaSemana === 0 || diaSemana === 6 ? 0.7 : 1;
+  return finDeSemana * (0.85 + (h % 30) / 100);
+}
+
+function generarUsoDemo(f: FiltrosUso): UsoSistema {
+  const factor =
+    (f.sistemaOperativo ? PARTICIPACION_SO[f.sistemaOperativo] : 1) *
+    (f.appVersion ? PARTICIPACION_VERSION[f.appVersion] ?? 0 : 1);
+  const funcs = FUNCIONALIDADES_DEMO.filter((x) => !f.funcionalidad || x.nombre === f.funcionalidad);
+  const dias = fechasEntre(f.desde, f.hasta);
+
+  const funcionalidades = funcs.map((x) => {
+    const iniciadas = Math.round(dias.reduce((t, d) => t + x.iniciadasDia * variacion(d), 0) * factor);
+    const completadas = Math.round(iniciadas * x.tasaExito);
+    return { funcionalidad: x.nombre, iniciadas, completadas, fallidas: iniciadas - completadas };
+  });
+  const iniciadasDia = funcs.reduce((t, x) => t + x.iniciadasDia, 0);
+  const actividadPorDia = dias.map((fecha) => {
+    const eventos = Math.round(iniciadasDia * 3.2 * variacion(fecha) * factor);
+    return { fecha, eventos, sesiones: Math.round(eventos / 4.1) };
+  });
+  const totalEventos = actividadPorDia.reduce((t, d) => t + d.eventos, 0);
+  const sesiones = actividadPorDia.reduce((t, d) => t + d.sesiones, 0);
+  const sumaPerfil = PERFIL_HORA.reduce((a, b) => a + b, 0);
+  const actividadPorHora = PERFIL_HORA.map((peso, hora) => {
+    const eventos = Math.round((totalEventos * peso) / sumaPerfil);
+    return { hora, eventos, sesiones: Math.round(eventos / 4.1) };
+  });
+  const consultasIniciadas = funcionalidades.reduce((t, x) => t + x.iniciadas, 0);
+  const consultasCompletadas = funcionalidades.reduce((t, x) => t + x.completadas, 0);
+  return {
+    usuariosUnicos: Math.round(sesiones * (dias.length > 1 ? 0.38 : 0.8)),
+    sesiones,
+    consultasIniciadas,
+    consultasCompletadas,
+    consultasFallidas: consultasIniciadas - consultasCompletadas,
+    porcentajeCompletadas: consultasIniciadas ? Math.round((consultasCompletadas / consultasIniciadas) * 1000) / 10 : 0,
+    actividadPorDia,
+    actividadPorHora,
+    funcionalidades,
+    filtrosDisponibles: {
+      funcionalidades: FUNCIONALIDADES_DEMO.map((x) => x.nombre),
+      sistemasOperativos: ['Android', 'iOS'],
+      versiones: Object.keys(PARTICIPACION_VERSION),
+    },
+    actualizadoEn: new Date().toISOString(),
+  };
+}
+
 export class TelemetriaController {
-  async getResumen(): Promise<TelemetriaResumen> {
+  /**
+   * Endpoint backend: `GET /telemetria/resumen`. Con `filtros` (dashboard de uso, Req 4) se envían
+   * `desde`, `hasta`, `funcionalidad`, `sistemaOperativo` y `appVersion`, y la respuesta trae `uso`.
+   */
+  async getResumen(filtros?: FiltrosUso): Promise<TelemetriaResumen> {
     try {
-      return await apiClient<TelemetriaResumen>('/telemetria/resumen');
+      return await apiClient<TelemetriaResumen>('/telemetria/resumen', {
+        params: filtros ? { ...filtros } : undefined,
+      });
     } catch (err) {
       // Datos simulados solo sin conexión y en modo demo; si no, el error llega a la vista.
       if (!usarDatosDemo(err)) throw err;
-      return MOCK_RESUMEN_TELEMETRIA;
+      return filtros ? { ...MOCK_RESUMEN_TELEMETRIA, uso: generarUsoDemo(filtros) } : MOCK_RESUMEN_TELEMETRIA;
     }
   }
 

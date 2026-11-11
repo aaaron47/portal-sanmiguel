@@ -17,6 +17,7 @@ const MOCK_TICKETS: Ticket[] = [
     funcionarioAsignadoNombre: 'Lic. Mariana Rios',
     estado: 'en evaluación',
     prioridad: 'ALTA',
+    canalIncidente: 'App móvil',
     tieneConstancia: true,
     estadoConstancia: 'sin_evaluar',
     fechaCreacion: '2026-10-28 09:15',

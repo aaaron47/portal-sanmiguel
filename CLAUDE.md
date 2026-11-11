@@ -33,6 +33,9 @@ Notas para las pruebas en el navegador:
   Playwright; en el script se oculta `nextjs-portal`.
 - En Windows, al detener una tarea en segundo plano, `next dev` y `next start` pueden seguir ocupando el puerto
   y hay que cerrarlos a mano.
+- Para probar en local contra el backend real: `BACKEND_URL=http://32.200.209.224 NEXT_PUBLIC_API_URL=/api/v1/portal`.
+  En Git Bash, anteponer `MSYS_NO_PATHCONV=1`: si no, convierte `/api/v1/portal` en una ruta de Windows y el login
+  dice "No se pudo conectar con el servidor".
 
 ## 1. Contexto del negocio
 
@@ -81,8 +84,8 @@ npm run build        # compilación de producción
   `NEXT_PUBLIC_API_URL=/api/v1/portal`; `next.config.ts` reenvía `/api/*` al backend y así el navegador no bloquea
   las llamadas ("mixed content"). Sin `BACKEND_URL` no se reenvía nada.
 - **Despliegue temporal (05/11/2026):** https://portalsanmiguel.vercel.app, proyecto `portalsanmiguel` en la cuenta
-  Vercel `aaronarana29-9818`, conectado a la copia `aaaron47/portal-sanmiguel` (remoto `copia`). Cada push a `main`
-  de la copia se despliega solo. Variables: `NEXT_PUBLIC_API_URL=/api/v1/portal`, `BACKEND_URL=http://32.200.209.224`
+  Vercel `aaronarana29-9818`, conectado a `aaaron47/portal-sanmiguel` (remoto `origin`; el repo original de WEduardoRAyra ya no existe).
+  Cada push a `main` se despliega solo. Variables: `NEXT_PUBLIC_API_URL=/api/v1/portal`, `BACKEND_URL=http://32.200.209.224`
   (backend de Willy en EC2), `NEXT_PUBLIC_MODO_DEMO=false`. `vercel.json` fija el preset de Next.js.
 - No hay pruebas automáticas en el repositorio. Las comprobaciones en navegador se hicieron con
   Playwright + Microsoft Edge desde una carpeta temporal fuera del repo.
@@ -108,10 +111,10 @@ components/
 │   └── supervisor/    supervision (panorama y por aprobar), reasignacion (carga por funcionario)
 └── shared/ui/  TabsBar, CardHeader, KpiCard, SearchInput, FormField, TicketLabels
 context/        AuthContext (sesión), ThemeContext (claro/oscuro)
-controllers/    auth, tickets, usuarios, auditoria, reportes, telemetria (API + datos simulados)
+controllers/    auth, tickets, usuarios, auditoria, reportes, telemetria, seguridad, areas, ia-dashboards (API + datos simulados)
 services/       api-client.service (fetch + JWT + ApiError), storage.service (sesión en localStorage)
 types/          auth, ticket, ui, auditoria, telemetria
-utils/          ticket.utils (reglas por estado, carga, áreas), csv.utils
+utils/          ticket.utils (reglas por estado, carga, áreas), csv.utils, fecha-peru.utils (fechas en hora de Perú)
 docs/           Cambios_rama_supervisor_funcionario.md (todo lo de la rama), Plan_Supervisor_Funcionario.md y documentos de la etapa Oracle
 ```
 
@@ -175,6 +178,8 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
 | 02/11/2026 | PR #4 unido a `main`. Ulises sube `4cbbef9` (paginación, Modo Privacidad, pantallas nuevas de Control Municipal y Control TI). |
 | 05/11/2026 | Rama `feature/flujo-reclamos`: los 7 estados de la BD y el flujo completo del personal (recibir, validar, pedir información, asignar, evaluar, responder, aprobar u observar, cerrar, improcedente, nota) según `accionesPermitidas`, con `version`. Probado en el navegador contra el backend en H2 de punta a punta. |
 | 05/11/2026 | Revisión de `main` tras `4cbbef9`: `tsc`, `lint` y `build` OK; flujos de Supervisor y Funcionario OK en el navegador. Se agrega `--green-500` en `globals.css` (rama `fix/barra-carga-funcionarios`); comprobado en el navegador. |
+| 11/11/2026 | Pedido de Ulises. Pruebas de telemetría (`docs/Pruebas_telemetria.md`): el backend real responde 404 en `/telemetria/*`; 81 comprobaciones en el navegador (demo, backend simulado y backend real) OK. Documentos: `docs/Cumplimiento_requisitos.md` (los 5 requisitos de los JP, del Drive del grupo) y `docs/Solicitud_backend_control_acceso.md`. `main` en `f8543a7`: `tsc` y `build` OK, `lint` con 2 errores. |
+| 11/11/2026 | Rama `fix/telemetria-y-lint` (sin subir): lint en 0 (errores de `f8543a7`); dashboard de uso del Req 4 en Control TI (filtros, usuarios únicos, sesiones, actividad por día y hora de Perú, % completadas, última actualización; formato propuesto en `docs/Solicitud_backend_telemetria.md`); tabla de eventos; mensajes claros sin backend; Control de Acceso lee las políticas (`seguridad.controller`), avisa si no puede leer y envía `version`; canal del reclamo en el expediente. Navegador: demo 34/34, simulado 31/31, real 13/13. |
 
 ## 9. Pendientes
 
@@ -189,7 +194,8 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
 - [x] Respaldo simulado de `tickets.controller` solo sin conexión; el formulario queda abierto si la acción falla.
 - [x] `esSinConexion` en todos los controladores.
 - [x] Selector de período de Control Municipal: ahora se envía al backend (los datos simulados no cambian por período).
-- [ ] Control TI: "Dashboard Telemetría App" y "Privacidad y Onboarding" muestran lo mismo, y "Flujo de Eventos Anónimos" no está en el menú; definir qué va en cada una con Braulio.
+- [ ] Control TI: los endpoints `/telemetria/*` responden 404 en el backend real; pedido en `docs/Solicitud_backend_telemetria.md`. Los eventos anónimos ya se ven en el dashboard (rama `fix/telemetria-y-lint`).
+- [ ] Constancias (Req 2): el funcionario no puede aprobar ni desaprobar una solicitud; falta endpoint (ver `docs/Cumplimiento_requisitos.md`).
 - [ ] Integrar con el backend cuando esté listo y quitar los datos simulados.
 - [ ] Pruebas automáticas en el repositorio (hoy solo hay scripts de Playwright fuera del repo).
 - [x] `README.md` actualizado (estructura `components/roles/`, Next.js 16, datos que no coincidían con el código).

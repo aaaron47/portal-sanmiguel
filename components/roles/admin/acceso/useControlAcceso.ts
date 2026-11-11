@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { NotifyFn } from '@/types/ui.types';
 import { exportarCSV } from '@/utils/csv.utils';
-import { apiClient, usarDatosDemo } from '@/services/api-client.service';
+import { mensajeErrorApi } from '@/services/api-client.service';
 import { telemetriaController } from '@/controllers/telemetria.controller';
 import { auditoriaController } from '@/controllers/auditoria.controller';
+import { seguridadController } from '@/controllers/seguridad.controller';
 
 export interface VariablesAcceso {
   // 1. Políticas de Sesión y Autenticación
@@ -86,26 +87,55 @@ export function useControlAcceso(onNotify: NotifyFn) {
   const [isSaving, setIsSaving] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [textoConfirmacion, setTextoConfirmacion] = useState('');
+  // Mientras se lee la configuración del servidor no se puede guardar.
+  const [cargandoConfig, setCargandoConfig] = useState(true);
+  // Si no se pudo leer algo del servidor, se explica aquí y no se permite guardar:
+  // los valores en pantalla serían los predeterminados, no los guardados.
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+  const [versionPoliticas, setVersionPoliticas] = useState<number | undefined>(undefined);
 
-  // Sincronizar con el backend al montar el componente
+  // Leer la configuración guardada al abrir la pestaña
   useEffect(() => {
     let montado = true;
-    telemetriaController
-      .getResumen()
-      .then((resumen) => {
+    Promise.allSettled([telemetriaController.getResumen(), seguridadController.getPoliticas()]).then(
+      ([resTelemetria, resPoliticas]) => {
         if (!montado) return;
-        const configInicial: VariablesAcceso = {
-          ...DEFAULT_VARIABLES,
-          telemetriaActiva: resumen.onboarding.telemetriaActiva,
-          mesesRetencionUso: resumen.onboarding.mesesRetencionUso,
-          versionTerminosVigente: resumen.onboarding.versionTerminosVigente,
-        };
-        setVariablesGuardadas(configInicial);
-        setVariables(configInicial);
-      })
-      .catch(() => {
-        // En caso de fallo de red, se mantienen los valores por defecto seguros
-      });
+        const config: VariablesAcceso = { ...DEFAULT_VARIABLES };
+        const faltan: string[] = [];
+        let primerError: unknown;
+        if (resTelemetria.status === 'fulfilled') {
+          config.telemetriaActiva = resTelemetria.value.onboarding.telemetriaActiva;
+          config.mesesRetencionUso = resTelemetria.value.onboarding.mesesRetencionUso;
+          config.versionTerminosVigente = resTelemetria.value.onboarding.versionTerminosVigente;
+        } else {
+          faltan.push('la configuración de telemetría');
+          primerError = resTelemetria.reason;
+        }
+        if (resPoliticas.status === 'fulfilled') {
+          const p = resPoliticas.value;
+          config.sessionTimeoutMinutes = p.sessionTimeoutMinutes;
+          config.passwordExpirationDays = p.passwordExpirationDays;
+          config.maxFailedLogins = p.maxFailedLogins;
+          config.minPasswordLength = p.minPasswordLength;
+          setVersionPoliticas(p.version);
+        } else {
+          faltan.push('las políticas de sesión y contraseña');
+          primerError ??= resPoliticas.reason;
+        }
+        setVariablesGuardadas(config);
+        setVariables(config);
+        if (faltan.length > 0) {
+          const detalle = mensajeErrorApi(primerError, 'Inténtalo de nuevo más tarde.', {
+            404: 'El servidor todavía no ofrece esta configuración.',
+          });
+          setErrorCarga(
+            `No se pudo leer del servidor ${faltan.join(' ni ')}. ${detalle} Los valores que ves son los predeterminados, ` +
+              'no los guardados, y no se pueden guardar cambios hasta que el servidor responda.'
+          );
+        }
+        setCargandoConfig(false);
+      }
+    );
 
     return () => {
       montado = false;
@@ -147,8 +177,10 @@ export function useControlAcceso(onNotify: NotifyFn) {
     return lista;
   }, [variables, variablesGuardadas]);
 
+  const puedeGuardar = !cargandoConfig && !errorCarga;
+
   const solicitarGuardar = () => {
-    if (!hayCambios) return;
+    if (!hayCambios || !puedeGuardar) return;
     setTextoConfirmacion('');
     setIsModalOpen(true);
   };
@@ -162,36 +194,51 @@ export function useControlAcceso(onNotify: NotifyFn) {
     if (textoConfirmacion.trim().toLowerCase() !== 'realizar cambios' || isSaving) return;
 
     setIsSaving(true);
+    let telemetriaGuardada = false;
     try {
-      // 1. Guardar cambios de telemetría/gobernanza en Spring Boot
+      // 1. Telemetría y versión de términos
       await telemetriaController.actualizarConfiguracionPrivacidad({
         telemetriaActiva: variables.telemetriaActiva,
         versionTerminosVigente: variables.versionTerminosVigente,
       });
+      telemetriaGuardada = true;
 
-      // 2. Guardar políticas de acceso en Spring Boot
-      try {
-        await apiClient('/seguridad/politicas-acceso', {
-          method: 'PUT',
-          body: JSON.stringify(variables),
-        });
-      } catch (err) {
-        if (!usarDatosDemo(err)) throw err;
+      // 2. Políticas de sesión y contraseña, con la versión leída (409 si otro admin guardó antes)
+      const guardadas = await seguridadController.guardarPoliticas({ ...variables, version: versionPoliticas });
+      setVersionPoliticas(guardadas.version);
+    } catch (err) {
+      const detalle = mensajeErrorApi(err, 'Inténtalo de nuevo.', {
+        409: 'Otro administrador cambió esta configuración mientras la editabas. Recarga la página para ver los valores actuales.',
+      });
+      if (telemetriaGuardada) {
+        // La telemetría ya quedó guardada: el modal sigue abierto solo con lo que falta.
+        setVariablesGuardadas((prev) => ({
+          ...prev,
+          telemetriaActiva: variables.telemetriaActiva,
+          versionTerminosVigente: variables.versionTerminosVigente,
+        }));
+        onNotify('error', `Se guardó la telemetría, pero no las políticas de sesión y contraseña. ${detalle}`);
+      } else {
+        onNotify('error', `No se pudieron guardar los cambios. ${detalle}`);
       }
+      setIsSaving(false);
+      return;
+    }
 
-      // 3. Registrar formalmente en auditoría
+    setVariablesGuardadas({ ...variables });
+    setIsModalOpen(false);
+    setTextoConfirmacion('');
+
+    // 3. Auditoría (mientras el backend no la registre por su cuenta; ver docs/Solicitud_backend_control_acceso.md)
+    try {
       await auditoriaController.registrarLog({
         accion: 'ACTUALIZACION_POLITICA',
         entidadAfectada: 'Políticas de Seguridad y Acceso',
         detalles: `Configuración actualizada por Administrador. Modificaciones aplicadas: ${resumenCambios.join(' | ')}.`,
       });
-
-      setVariablesGuardadas({ ...variables });
-      setIsModalOpen(false);
-      setTextoConfirmacion('');
-      onNotify('success', 'Todas las políticas de acceso y gobernanza fueron actualizadas con éxito y registradas en auditoría.');
+      onNotify('success', 'Las políticas de acceso y la telemetría se guardaron y quedaron registradas en auditoría.');
     } catch {
-      onNotify('error', 'Error al guardar las políticas en el servidor. Intente nuevamente.');
+      onNotify('info', 'Los cambios se guardaron, pero no se pudo registrar la auditoría. Avisa al equipo de TI.');
     } finally {
       setIsSaving(false);
     }
@@ -225,6 +272,9 @@ export function useControlAcceso(onNotify: NotifyFn) {
     variablesGuardadas,
     updateVariable,
     hayCambios,
+    puedeGuardar,
+    cargandoConfig,
+    errorCarga,
     resumenCambios,
     isModalOpen,
     textoConfirmacion,

@@ -18,6 +18,8 @@ import { OnboardingStats, ConsentimientoAuditoriaLog } from '@/types/telemetria.
 import { CardHeader, CardAside } from '@/components/shared/ui/CardHeader';
 import { exportarCSV } from '@/utils/csv.utils';
 import { telemetriaController } from '@/controllers/telemetria.controller';
+import { mensajeErrorApi } from '@/services/api-client.service';
+import { MENSAJES_TELEMETRIA } from '../useControlTi';
 
 interface PrivacidadOnboardingPanelProps {
   stats: OnboardingStats;
@@ -39,8 +41,13 @@ export const PrivacidadOnboardingPanel: React.FC<PrivacidadOnboardingPanelProps>
       .then((logs) => {
         if (montado) setAuditLogs(logs);
       })
-      .catch(() => {
-        if (montado) onNotify('error', 'No se pudieron cargar los registros de auditoría');
+      .catch((err) => {
+        if (montado) {
+          onNotify(
+            'error',
+            mensajeErrorApi(err, 'No se pudieron cargar los registros de consentimiento. Inténtalo de nuevo.', MENSAJES_TELEMETRIA)
+          );
+        }
       })
       .finally(() => {
         if (montado) setCargandoLogs(false);

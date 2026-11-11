@@ -7,6 +7,64 @@ export interface TelemetriaEvento {
   sistemaOperativo: 'Android' | 'iOS';
   appVersion: string;
   fechaRegistro: string;
+  /** Propuesto al backend (Req 3): resultado de la acción. */
+  resultado?: 'COMPLETADA' | 'FALLIDA';
+  /** Propuesto al backend (Req 3): sesión seudónima a la que pertenece el evento. */
+  sesionId?: string;
+}
+
+/** Filtros del dashboard de uso (Req 4). Se envían como query de `GET /telemetria/resumen`. */
+export interface FiltrosUso {
+  /** Fechas en hora de Perú, `YYYY-MM-DD`, ambas incluidas. */
+  desde: string;
+  hasta: string;
+  funcionalidad?: string;
+  sistemaOperativo?: 'Android' | 'iOS';
+  appVersion?: string;
+}
+
+export interface ActividadDia {
+  /** `YYYY-MM-DD` en hora de Perú. */
+  fecha: string;
+  eventos: number;
+  sesiones: number;
+}
+
+export interface ActividadHora {
+  /** 0–23, hora de Perú. */
+  hora: number;
+  eventos: number;
+  sesiones: number;
+}
+
+export interface UsoFuncionalidad {
+  funcionalidad: string;
+  iniciadas: number;
+  completadas: number;
+  fallidas: number;
+}
+
+/**
+ * Uso del sistema en el período y filtros pedidos (Req 4). Propuesto al backend: llega en
+ * `GET /telemetria/resumen` como `uso`; si no llega, el dashboard avisa que aún no está disponible.
+ */
+export interface UsoSistema {
+  usuariosUnicos: number;
+  sesiones: number;
+  consultasIniciadas: number;
+  consultasCompletadas: number;
+  consultasFallidas: number;
+  porcentajeCompletadas: number;
+  actividadPorDia: ActividadDia[];
+  actividadPorHora: ActividadHora[];
+  funcionalidades: UsoFuncionalidad[];
+  filtrosDisponibles: {
+    funcionalidades: string[];
+    sistemasOperativos: Array<'Android' | 'iOS'>;
+    versiones: string[];
+  };
+  /** Instante de la última actualización de los datos (ISO 8601, UTC). */
+  actualizadoEn: string;
 }
 
 export interface OnboardingFunnelStep {
@@ -69,4 +127,6 @@ export interface TelemetriaResumen {
   topPantallas: PantallaTrafico[];
   totalEventosUltimas24h: number;
   tasaErroresAppPorcentaje: number;
+  /** Uso del sistema con los filtros pedidos (Req 4). Opcional mientras el backend no lo entregue. */
+  uso?: UsoSistema;
 }

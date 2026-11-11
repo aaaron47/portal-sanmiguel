@@ -77,6 +77,9 @@
   --primary-700: var(--sky-700);
   --primary-900: var(--sky-900);
 
+  /* Gráficos de una sola serie (dashboard de uso). Validado en claro (#ffffff) y oscuro (#131d31). */
+  --chart-uso: var(--sky-600);
+
   /* Tonalidades de Fondo y Superficie */
   --bg-app: var(--slate-50);
   --bg-card: var(--white);
