@@ -6,7 +6,6 @@ import {
   Calendar,
   Download,
   BarChart3,
-  Layers,
 } from 'lucide-react';
 import { CardHeader, CardAside } from '@/components/shared/ui/CardHeader';
 import { KpisReporte, ReportePorArea } from '@/controllers/reportes.controller';

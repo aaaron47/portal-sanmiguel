@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Sparkles } from 'lucide-react';
 import { SupersetEmbedViewer } from './SupersetEmbedViewer';
 import { SupersetChatAssistant } from './SupersetChatAssistant';
 

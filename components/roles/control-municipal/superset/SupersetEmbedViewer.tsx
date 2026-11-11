@@ -108,9 +108,21 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
     [dashboardActual.modulo, modulo]
   );
 
+  // Carga inicial del token al cambiar de tablero (sin spinner). "Recargar" usa cargarEmbedToken.
   useEffect(() => {
-    cargarEmbedToken(dashboardActual.id, false);
-  }, [dashboardActual.id, cargarEmbedToken]);
+    let cancelado = false;
+    iaDashboardsController
+      .getSupersetEmbedToken(dashboardActual.id, dashboardActual.modulo || modulo)
+      .then((cfg) => {
+        if (!cancelado) setEmbedConfig(cfg);
+      })
+      .catch(() => {
+        if (!cancelado) setEmbedConfig(null);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [dashboardActual.id, dashboardActual.modulo, modulo]);
 
   const handleSelect = (id: string) => {
     setInternalId(id);

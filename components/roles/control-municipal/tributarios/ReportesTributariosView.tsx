@@ -35,7 +35,8 @@ export const ReportesTributariosView: React.FC = () => {
   const [filasPaginadas, setFilasPaginadas] = useState<string[][]>([]);
   const [totalRegistros, setTotalRegistros] = useState<number>(0);
   const [totalPaginasServidor, setTotalPaginasServidor] = useState<number>(1);
-  const [cargando, setCargando] = useState<boolean>(true);
+  // Consulta que respondió por última vez; mientras no coincida con la actual, la tabla está cargando.
+  const [consultaCargada, setConsultaCargada] = useState<string | null>(null);
 
   // Reporte activo del catálogo oficial R1 a R11
   const reporteActual: ReporteItemInfo = useMemo(() => {
@@ -43,9 +44,19 @@ export const ReportesTributariosView: React.FC = () => {
       || CATALOGO_REPORTES_OFICIALES[0];
   }, [reporteSeleccionadoCodigo]);
 
+  const consultaActual = JSON.stringify([
+    reporteActual.codigo,
+    tributoFiltro,
+    periodoFiltro,
+    busquedaTexto,
+    paginaActual,
+    registrosPorPagina,
+    enmascararPrivacidad,
+  ]);
+  const cargando = consultaCargada !== consultaActual;
+
   useEffect(() => {
     let cancelado = false;
-    setCargando(true);
 
     reportesController
       .getReporteTributario({
@@ -59,24 +70,24 @@ export const ReportesTributariosView: React.FC = () => {
       })
       .then((res) => {
         if (cancelado) return;
+        setConsultaCargada(consultaActual);
         setFilasPaginadas(res.filas);
         setTotalRegistros(res.totalRegistros);
         setTotalPaginasServidor(Math.max(1, res.totalPaginas));
       })
       .catch(() => {
         if (cancelado) return;
+        setConsultaCargada(consultaActual);
         setFilasPaginadas([]);
         setTotalRegistros(0);
         setTotalPaginasServidor(1);
-      })
-      .finally(() => {
-        if (!cancelado) setCargando(false);
       });
 
     return () => {
       cancelado = true;
     };
   }, [
+    consultaActual,
     reporteActual.codigo,
     tributoFiltro,
     periodoFiltro,
