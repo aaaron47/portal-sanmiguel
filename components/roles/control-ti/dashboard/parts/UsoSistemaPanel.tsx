@@ -4,10 +4,16 @@ import { UsoSistema } from '@/types/telemetria.types';
 import { KpiCard } from '@/components/shared/ui/KpiCard';
 import { CardHeader, CardAside } from '@/components/shared/ui/CardHeader';
 import { diaCorto } from '@/utils/fecha-peru.utils';
+import { etiquetaFuncionalidad } from '@/utils/telemetria.utils';
 import { GraficoColumnas, DatoColumna } from './GraficoColumnas';
 
 const formato = (n: number) => n.toLocaleString('es-PE');
-const porcentaje = (parte: number, total: number) => (total ? `${(Math.round((parte / total) * 1000) / 10).toFixed(1)}%` : '—');
+/** % de completadas de una funcionalidad: el del backend si lo envía; "—" si no hubo operaciones. */
+function porcentajeCompletadas(f: UsoSistema['funcionalidades'][number]): string {
+  if (f.iniciadas + f.completadas + f.fallidas === 0) return '—';
+  if (f.porcentajeCompletadas !== undefined) return `${f.porcentajeCompletadas.toFixed(1)}%`;
+  return f.iniciadas ? `${(Math.round((f.completadas / f.iniciadas) * 1000) / 10).toFixed(1)}%` : '—';
+}
 
 /** Uso del sistema en el período y filtros elegidos (Req 4). */
 export const UsoSistemaPanel: React.FC<{ uso: UsoSistema }> = ({ uso }) => {
@@ -28,7 +34,10 @@ export const UsoSistemaPanel: React.FC<{ uso: UsoSistema }> = ({ uso }) => {
     valor: h.eventos,
     detalle: `${formato(h.sesiones)} sesiones`,
   }));
-  const funcionalidades = [...uso.funcionalidades].sort((a, b) => b.iniciadas - a.iniciadas);
+  // Las más usadas primero: por eventos si el backend los envía; si no, por consultas iniciadas.
+  const usoDe = (f: UsoSistema['funcionalidades'][number]) => f.eventos ?? f.iniciadas;
+  const funcionalidades = [...uso.funcionalidades].sort((a, b) => usoDe(b) - usoDe(a) || b.iniciadas - a.iniciadas);
+  const conEventos = funcionalidades.some((f) => f.eventos !== undefined);
 
   return (
     <div>
@@ -65,7 +74,7 @@ export const UsoSistemaPanel: React.FC<{ uso: UsoSistema }> = ({ uso }) => {
         <Info size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
         <span>
           <strong>Cómo se cuenta:</strong> usuario único = identificador seudónimo distinto en el período (sin nombre,
-          correo ni DNI). Sesión = uso continuo de un dispositivo; termina tras 30 minutos sin actividad. Consulta
+          correo ni DNI). Sesión = uso continuo de un dispositivo; termina al cerrar sesión o tras 30 minutos sin actividad, y se cuenta en el período en que tuvo eventos. Consulta
           completada = la acción terminó bien; fallida = terminó con error. El porcentaje compara las completadas con
           las iniciadas ({formato(uso.consultasCompletadas)} de {formato(uso.consultasIniciadas)}).
         </span>
@@ -94,13 +103,14 @@ export const UsoSistemaPanel: React.FC<{ uso: UsoSistema }> = ({ uso }) => {
         <CardHeader
           icon={<ListChecks size={18} />}
           title="Funcionalidades más usadas"
-          aside={<CardAside>Consultas iniciadas, completadas y fallidas</CardAside>}
+          aside={<CardAside>Operaciones iniciadas, completadas y fallidas</CardAside>}
         />
         <div className="table-container">
           <table className="data-table">
             <thead>
               <tr>
                 <th>Funcionalidad</th>
+                {conEventos && <th style={{ textAlign: 'right' }}>Eventos</th>}
                 <th style={{ textAlign: 'right' }}>Iniciadas</th>
                 <th style={{ textAlign: 'right' }}>Completadas</th>
                 <th style={{ textAlign: 'right' }}>Fallidas</th>
@@ -110,19 +120,22 @@ export const UsoSistemaPanel: React.FC<{ uso: UsoSistema }> = ({ uso }) => {
             <tbody>
               {funcionalidades.length === 0 && (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1.25rem' }}>
-                    No hay consultas en este período.
+                  <td colSpan={conEventos ? 6 : 5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1.25rem' }}>
+                    No hay actividad con estos filtros.
                   </td>
                 </tr>
               )}
               {funcionalidades.map((f) => (
                 <tr key={f.funcionalidad}>
-                  <td style={{ fontWeight: 600 }}>{f.funcionalidad}</td>
+                  <td style={{ fontWeight: 600 }}>{etiquetaFuncionalidad(f.funcionalidad)}</td>
+                  {conEventos && (
+                    <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formato(f.eventos ?? 0)}</td>
+                  )}
                   <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formato(f.iniciadas)}</td>
                   <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formato(f.completadas)}</td>
                   <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formato(f.fallidas)}</td>
                   <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
-                    {porcentaje(f.completadas, f.iniciadas)}
+                    {porcentajeCompletadas(f)}
                   </td>
                 </tr>
               ))}

@@ -18,7 +18,8 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiClient<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+/** Hace la llamada con el token y lanza `ApiError` si no hay conexión o si el backend responde con error. */
+async function pedir(endpoint: string, options: RequestOptions = {}): Promise<Response> {
   const { params, headers, ...restOptions } = options;
   
   let url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
@@ -38,8 +39,10 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
 
   const token = storageService.getToken();
 
+  // Con un archivo (FormData) el navegador pone el Content-Type con su separador: no se fija a mano.
+  const esFormulario = typeof FormData !== 'undefined' && restOptions.body instanceof FormData;
   const defaultHeaders: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(esFormulario ? {} : { 'Content-Type': 'application/json' }),
     'Accept': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
@@ -59,10 +62,9 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
     throw new ApiError(message, 0, null);
   }
 
-  // El cuerpo se lee como texto: leerlo como JSON y, si falla, como texto, fallaba porque ya estaba leído.
-  const texto = await response.text();
-
   if (!response.ok) {
+    // El cuerpo se lee como texto: leerlo como JSON y, si falla, como texto, fallaba porque ya estaba leído.
+    const texto = await response.text();
     let errorBody: unknown = texto;
     try {
       errorBody = texto ? JSON.parse(texto) : null;
@@ -71,10 +73,16 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
     }
     throw new ApiError(`Error HTTP ${response.status}: ${response.statusText}`, response.status, errorBody);
   }
+  return response;
+}
+
+export async function apiClient<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+  const response = await pedir(endpoint, options);
 
   if (response.status === 204) {
     return {} as T;
   }
+  const texto = await response.text();
 
   // El backend respondió bien pero sin un JSON válido: es un error del backend, no "sin conexión"
   // (si no, se aplicaría la acción también en los datos simulados).
@@ -83,6 +91,12 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
   } catch {
     throw new ApiError('La respuesta del servidor no es válida', response.status, texto);
   }
+}
+
+/** Descarga un archivo con la sesión del portal (p. ej. un adjunto): no sirve un enlace sin token. */
+export async function apiClientArchivo(endpoint: string, options: RequestOptions = {}): Promise<Blob> {
+  const response = await pedir(endpoint, { ...options, headers: { Accept: '*/*', ...options.headers } });
+  return response.blob();
 }
 
 /**
@@ -116,9 +130,15 @@ const MENSAJES_POR_ESTADO: Record<number, string> = {
 /** Mensajes según el código que manda el backend (`error.code`), más precisos que el estado HTTP. */
 const MENSAJES_POR_CODIGO: Record<string, string> = {
   account_locked:
-    'Tu cuenta está bloqueada por varios intentos fallidos. Vuelve a intentarlo en 15 minutos o pide ayuda al supervisor.',
+    'Tu cuenta está bloqueada por varios intentos fallidos. Vuelve a intentarlo más tarde o pide ayuda al administrador.',
+  invalid_session: 'Tu sesión se cerró por inactividad o venció. Cierra sesión y vuelve a entrar.',
   not_implemented: 'Esta acción todavía no está disponible.',
+  attachment_unavailable:
+    'Este archivo se subió desde la app y todavía no está disponible en el portal.',
 };
+
+/** Códigos en los que el backend manda un mensaje más preciso que el del front (p. ej. los minutos del bloqueo). */
+const CODIGOS_CON_MENSAJE_DEL_BACKEND = new Set(['account_locked']);
 
 /** Cuerpo de error del backend: `{"error": {"code", "message", "details"?}}`. */
 function cuerpoError(err: unknown): { code?: string; message?: string } | undefined {
@@ -147,6 +167,8 @@ export function mensajeErrorApi(
   const cuerpo = cuerpoError(err);
   const codigo = cuerpo?.code;
   if (codigo && propios[codigo]) return propios[codigo] as string;
+  // El tiempo de bloqueo lo configura el administrador: el backend lo dice en su mensaje.
+  if (codigo && CODIGOS_CON_MENSAJE_DEL_BACKEND.has(codigo) && cuerpo?.message) return cuerpo.message;
   // Un código conocido gana sobre el texto por estado: p. ej. account_locked también llega como 401.
   if (codigo && MENSAJES_POR_CODIGO[codigo]) return MENSAJES_POR_CODIGO[codigo];
   // En validaciones (422) y en reglas de negocio (409, p. ej. invalid_state) el backend explica qué pasó

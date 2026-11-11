@@ -28,18 +28,23 @@ import {
   Table
 } from 'lucide-react';
 import { FaqModal } from '@/components/modals/FaqModal';
+import { CambiarContrasenaModal } from './CambiarContrasenaModal';
+import { NotifyFn } from '@/types/ui.types';
 
 interface SidebarProps {
   currentTab: string;
   onTabChange: (tab: string) => void;
+  /** Avisos del portal (p. ej. tras cambiar la contraseña). */
+  onNotify?: NotifyFn;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNotify }) => {
   const { usuario, rol, logout, switchRoleDemo } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isFaqOpen, setIsFaqOpen] = useState(false);
+  const [isCambioContrasenaOpen, setIsCambioContrasenaOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
   // Cerrar popover de cuenta si se hace clic afuera
@@ -262,6 +267,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange }) => 
               <button
                 onClick={() => {
                   setIsProfileOpen(false);
+                  setIsCambioContrasenaOpen(true);
+                }}
+                className="popover-logout-btn popover-action-btn"
+              >
+                <KeyRound size={15} />
+                Cambiar contraseña
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsProfileOpen(false);
                   logout();
                 }}
                 className="popover-logout-btn"
@@ -325,6 +341,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange }) => 
 
       {/* Modal de Preguntas Frecuentes */}
       <FaqModal isOpen={isFaqOpen} onClose={() => setIsFaqOpen(false)} />
+      {isCambioContrasenaOpen && (
+        <CambiarContrasenaModal
+          onClose={() => setIsCambioContrasenaOpen(false)}
+          onExito={(mensaje) => onNotify?.('success', mensaje)}
+        />
+      )}
     </>
   );
 };

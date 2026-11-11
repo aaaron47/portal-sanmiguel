@@ -72,6 +72,27 @@ export interface Ticket {
   respuestas?: TicketRespuestaVersion[];
 }
 
+/**
+ * Archivo de un reclamo (`GET /tickets/{id}/adjuntos`): los que subió el ciudadano en la app y las evidencias
+ * que sube el personal al evaluar. El archivo se pide aparte, con la sesión (`GET /tickets/{id}/adjuntos/{adjuntoId}`).
+ */
+export interface TicketAdjunto {
+  id: string;
+  nombreArchivo: string;
+  /** application/pdf, image/jpeg o image/png. */
+  tipoMime: string;
+  tamanoBytes: number;
+  /** CIUDADANO, EVALUACION (evidencia del personal) o RESPUESTA. */
+  origen: string;
+  /** El de la BD: SUSTENTO, SUBSANACION, EVIDENCIA o RESPUESTA. */
+  tipoAdjunto?: string;
+  subidoPor?: string;
+  /** Hora de Perú, `AAAA-MM-DD HH:mm:ss`. */
+  subidoEn: string;
+  /** false: el archivo lo guardó el backend de la app y este servidor todavía no puede entregarlo. */
+  disponible?: boolean;
+}
+
 export type ResultadoReclamo = 'FUNDADO' | 'FUNDADO_EN_PARTE' | 'INFUNDADO';
 export type CategoriaReclamo = 'INFORMACION_TRIBUTARIA' | 'TRAMITES' | 'ATENCION_CIUDADANO';
 
@@ -122,7 +143,8 @@ export type AccionCodigo =
   | 'OBSERVAR_RESPUESTA'
   | 'CERRAR'
   | 'DECLARAR_IMPROCEDENTE'
-  | 'NOTA';
+  | 'NOTA'
+  | 'ADJUNTAR_EVIDENCIA';
 
 /** Acción abierta en el detalle de un reclamo. */
 export type AccionTicket = 'ninguna' | AccionCodigo;
@@ -146,6 +168,8 @@ export interface DatosAccion {
   resultado?: ResultadoReclamo;
   /** Solo para el aviso al supervisor tras reasignar. */
   funcionarioNombre?: string;
+  /** Evidencia de la evaluación (PDF, JPG o PNG de hasta 10 MB). Se envía como archivo, no en el JSON. */
+  archivo?: File;
 }
 
 export type OnAccionTicket = (ticket: Ticket, accion: AccionCodigo, datos: DatosAccion) => Promise<void>;

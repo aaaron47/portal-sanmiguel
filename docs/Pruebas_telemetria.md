@@ -7,6 +7,10 @@ Versión probada: `main` en `f8543a7`.
 
 ## Resultado en una línea
 
+> **Actualización del 11/11 por la tarde:** el backend publicó los endpoints de telemetría y se repitieron
+> las pruebas con el portal adaptado a su formato: **demo 48/48, backend simulado 108/108 y backend real
+> 92/92**. Ver la **sección 7**. Lo que sigue (secciones 1 a 6) es el estado de la mañana, cuando respondían 404.
+
 El front funciona bien con los datos demo y con un backend que respete el contrato
 (`types/telemetria.types.ts`), pero **el backend real todavía no tiene ningún endpoint de telemetría**:
 los cuatro responden 404. Es el bloqueador "Registro y dashboard de uso (Req 3 y 4) sin backend" de la
@@ -134,3 +138,75 @@ advertencias) y `build` OK. El color de las columnas pasa el validador de contra
 2. Navegador: entrar como `analitica.demo` y revisar las dos pestañas de Control TI; entrar como
    `admin.demo`, cambiar el *kill switch*, guardar y volver a Control TI para ver el cambio. **Volver a
    dejar la telemetría ACTIVA**: es el interruptor real de la app.
+
+## 7. Repetición con los endpoints publicados (11/11/2026, tarde)
+
+El backend publicó `GET /telemetria/resumen`, `/eventos`, `/consentimientos` y `PUT /telemetria/configuracion`.
+Su formato difiere del que propusimos (filtros `fechaDesde`/`fechaHasta`/`canal`, códigos como `DEUDAS` o
+`ANDROID`, y `sesiones`, `consultas`, `funcionalidades`… en la raíz en lugar de un objeto `uso`), así que se
+adaptó el portal; el formato quedó escrito en `docs/Solicitud_backend_telemetria.md`.
+
+### 7.1 API del backend real
+
+| Comprobación | Resultado |
+|---|---|
+| Sin sesión | 401 en los cuatro endpoints |
+| Lectura con CONTROL_TI (`analitica.demo`) y ADMIN | 200 |
+| Lectura con SUPERVISOR, FUNCIONARIO y CONTROL_MUNICIPAL (`reportes.demo`) | 403 `forbidden` |
+| `PUT /telemetria/configuracion` con FUNCIONARIO, SUPERVISOR o CONTROL_TI | 403 |
+| `PUT` con ADMIN | 200, devuelve `onboarding`; al cambiar el valor registra `CONFIGURACION_TELEMETRIA` en auditoría |
+| Filtros `canal`, `funcionalidad`, `sistemaOperativo`, `appVersion`, `fechaDesde`, `fechaHasta` | Cambian sesiones, consultas, funcionalidades, dispositivos, pantallas y tasa de errores |
+| Validación | 422 con mensaje: funcionalidad inexistente, fecha mal escrita, `fechaDesde` posterior a `fechaHasta`, más de 366 días, `limite` 0 o 1000 |
+| Datos | 10 eventos de prueba (`PRUEBA_BACKEND`), 1 consentimiento, 6 usuarios registrados |
+
+Siguen en 404: `GET /seguridad/politicas-acceso`, `GET /documentos-versiones`, `GET /reportes/constancias` y
+`GET /tickets/{id}/adjuntos`.
+
+### 7.2 Navegador
+
+Playwright con Microsoft Edge. En cada escenario se revisa el dashboard (filtros, indicadores, gráficos,
+tabla de funcionalidades, eventos y dispositivos), Privacidad y Onboarding, y Control de Acceso.
+
+| Escenario | Resultado | Lo más importante |
+|---|---|---|
+| Modo demo | 48/48 | Los datos demo usan los mismos códigos y el mismo formato que el backend. |
+| Backend simulado con el formato real | 108/108 | Indicadores iguales a la respuesta con cada filtro; códigos sin nombre se muestran legibles; un error 500 al recargar mantiene los datos anteriores; guardado por secciones en Control de Acceso (solo telemetría, solo políticas y conflicto 409). |
+| Backend real | 92/92 | Cada indicador coincide con la respuesta del servidor con 7 días, canal móvil, canal web, funcionalidad, Android y 30 días. |
+
+En el backend real, además:
+
+- **Control de Acceso** avisa que no pudo leer las políticas de sesión y contraseña (404), deja esa sección
+  deshabilitada y **sí deja guardar la telemetría**.
+- **Kill switch de punta a punta:** `admin.demo` pausa la telemetría (`PUT` con `{"telemetriaActiva": false}`),
+  `analitica.demo` la ve EN PAUSA en Privacidad y Onboarding, y luego se reanuda y se ve ACTIVA.
+  **Quedó ACTIVA** (comprobado por API al terminar) y la versión de términos no se tocó (`1.0`).
+- El portal ya no duplica la auditoría: la fila `CONFIGURACION_TELEMETRIA` la escribe el backend.
+
+Las pruebas dejaron en la auditoría del backend filas `LOGIN` de las cuentas demo, 4 `CONFIGURACION_TELEMETRIA`
+(dos pausas y dos reanudaciones) y 2 `ACTUALIZACION_POLITICA` de la primera ronda, antes de quitar el
+registro duplicado. También hubo un intento de ingreso fallido con un usuario de prueba que no existe
+(`ti.mock`), por lanzar una ronda del backend simulado con el servidor local todavía apuntando al real.
+
+`npx tsc --noEmit`, `npm run lint` (0 errores y 0 advertencias) y `npm run build`: OK.
+
+### 7.3 Cambios en el portal
+
+| Cambio | Archivos |
+|---|---|
+| Tipos y controlador con el formato del backend; datos demo con el mismo formato | `types/telemetria.types.ts`, `controllers/telemetria.controller.ts` |
+| Nombres legibles para los códigos y armado del uso a partir del resumen | `utils/telemetria.utils.ts` (nuevo) |
+| Filtro de canal; filtros con `fechaDesde`/`fechaHasta` y códigos del backend | `useControlTi.ts`, `UsoFiltros.tsx` |
+| Tabla de funcionalidades con eventos, ordenada por uso | `UsoSistemaPanel.tsx` |
+| Tabla de eventos con funcionalidad, resultado, código de error y canal | `EventosAnonimosTable.tsx` |
+| Dispositivos con "Otros" (portal web); dispositivos y pantallas junto a lo que sigue los filtros | `DispositivosCard.tsx`, `ControlTiView.tsx` |
+| Notificaciones "—" cuando el backend no tiene el dato | `PrivacidadOnboardingPanel.tsx` |
+| "Último dato registrado" sin convertir la hora (el backend ya la envía en hora de Perú) | `utils/fecha-peru.utils.ts` |
+| Control de Acceso por secciones: se guarda lo que se pudo leer, se envía solo lo que cambió y no se duplica la auditoría | `useControlAcceso.ts`, `ControlAccesoPanel.tsx`, `types/auditoria.types.ts` |
+
+### 7.4 Lo que queda
+
+- Dudas para el backend sobre la telemetría: `docs/Solicitud_backend_telemetria.md`, sección 5 (reglas de
+  conteo, valores de `tipoEvento`, `versionTerminosVigente`, notificaciones, datos reales de la app).
+- Repetir la prueba cuando la app móvil envíe eventos reales.
+- Control de Acceso (políticas y versiones del aviso), constancias y adjuntos siguen sin endpoint:
+  `docs/Solicitud_backend_control_acceso.md` y `docs/Solicitud_backend_adjuntos.md`.

@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AccionTicket, OnAccionTicket, Ticket } from '@/types/ticket.types';
 import { UserRole } from '@/types/auth.types';
 import { FuncionarioOpcion } from '@/utils/ticket.utils';
 import { ExpedienteHeader } from './ticket-detail/parts/ExpedienteHeader';
 import { ExpedienteMetadatos } from './ticket-detail/parts/ExpedienteMetadatos';
 import { ExpedienteDescripcion } from './ticket-detail/parts/ExpedienteDescripcion';
+import { ExpedienteAdjuntos } from './ticket-detail/parts/ExpedienteAdjuntos';
 import { ExpedienteFlujo } from './ticket-detail/parts/ExpedienteFlujo';
 import { SeguimientoTimeline } from './ticket-detail/parts/SeguimientoTimeline';
 import { AccionesForm } from './ticket-detail/parts/AccionesForm';
@@ -27,6 +28,13 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   onClose,
   onAccion,
 }) => {
+  // Cada evidencia nueva vuelve a montar la lista de adjuntos para que lea la del servidor.
+  const [evidenciasSubidas, setEvidenciasSubidas] = useState(0);
+  const ejecutar: OnAccionTicket = async (t, accion, datos) => {
+    await onAccion(t, accion, datos);
+    if (accion === 'ADJUNTAR_EVIDENCIA') setEvidenciasSubidas((n) => n + 1);
+  };
+
   return (
     <div className="modal-overlay">
       <div className="modal-content" style={{ maxWidth: '800px' }}>
@@ -35,6 +43,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         <div className="modal-body">
           <ExpedienteMetadatos ticket={ticket} />
           <ExpedienteDescripcion descripcion={ticket.descripcion} />
+          <ExpedienteAdjuntos key={`${ticket.id}-${evidenciasSubidas}`} ticketId={ticket.id} />
           <ExpedienteFlujo ticket={ticket} />
           <SeguimientoTimeline seguimientos={ticket.seguimientos} />
           <AccionesForm
@@ -44,7 +53,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
             rolUsuario={rolUsuario}
             initialAction={initialAction}
             funcionarios={funcionarios}
-            onAccion={onAccion}
+            onAccion={ejecutar}
           />
         </div>
 

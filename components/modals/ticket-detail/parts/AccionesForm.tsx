@@ -13,6 +13,7 @@ import {
   Lock,
   Ban,
   StickyNote,
+  Paperclip,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth.types';
 import { useAreas } from '@/components/shared/hooks/useAreas';
@@ -26,7 +27,15 @@ import {
   Ticket,
   TicketPrioridad,
 } from '@/types/ticket.types';
-import { ETIQUETAS_CATEGORIA, ETIQUETAS_RESULTADO, FuncionarioOpcion, esActivo, puede } from '@/utils/ticket.utils';
+import {
+  ETIQUETAS_CATEGORIA,
+  ETIQUETAS_RESULTADO,
+  FuncionarioOpcion,
+  MAXIMO_EVIDENCIAS,
+  errorArchivoEvidencia,
+  esActivo,
+  puede,
+} from '@/utils/ticket.utils';
 
 interface AccionesFormProps {
   ticket: Ticket;
@@ -52,6 +61,7 @@ const ACCIONES: Record<AccionCodigo, DefAccion> = {
   OBSERVAR: { label: 'Pedir información', titulo: 'Pedir información al ciudadano', confirmar: 'Enviar al ciudadano', icon: <MessageSquareWarning size={15} />, className: 'btn btn-secondary' },
   ASIGNAR: { label: 'Asignar', titulo: 'Asignar área y funcionario', confirmar: 'Asignar', icon: <UserPlus size={15} />, className: 'btn btn-primary' },
   EVALUAR: { label: 'Registrar evaluación', titulo: 'Registrar la evaluación del área', confirmar: 'Guardar evaluación', icon: <ClipboardList size={15} />, className: 'btn btn-secondary' },
+  ADJUNTAR_EVIDENCIA: { label: 'Adjuntar evidencia', titulo: 'Adjuntar una evidencia de la evaluación', confirmar: 'Adjuntar evidencia', icon: <Paperclip size={15} />, className: 'btn btn-secondary' },
   ELABORAR_RESPUESTA: { label: 'Elaborar respuesta', titulo: 'Elaborar la respuesta al ciudadano', confirmar: 'Guardar respuesta', icon: <Send size={15} />, className: 'btn btn-primary' },
   APROBAR_RESPUESTA: { label: 'Aprobar respuesta', titulo: 'Aprobar y enviar la respuesta', confirmar: 'Aprobar y enviar', icon: <ThumbsUp size={15} />, className: 'btn btn-success' },
   OBSERVAR_RESPUESTA: { label: 'Observar respuesta', titulo: 'Devolver la respuesta al funcionario', confirmar: 'Devolver con observaciones', icon: <PenLine size={15} />, className: 'btn btn-secondary' },
@@ -154,12 +164,14 @@ export const AccionesForm: React.FC<AccionesFormProps> = ({
   const funcionariosReasignables = funcionarios.filter(
     (f) => f.activo && f.area === ticket.areaAsignada && f.id !== ticket.funcionarioAsignadoId
   );
+  // El archivo elegido se revisa antes de enviarlo (tipo y tamaño); el backend lo vuelve a comprobar.
+  const errorArchivo = accion === 'ADJUNTAR_EVIDENCIA' && datos.archivo ? errorArchivoEvidencia(datos.archivo) : null;
   const respuestaEnRevision = ticket.respuestas?.find((r) => r.estado === 'EN_REVISION');
   const ultimaObservada = ticket.respuestas?.[0]?.estado === 'OBSERVADA' ? ticket.respuestas[0] : undefined;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (accion === 'ninguna') return;
+    if (accion === 'ninguna' || errorArchivo) return;
     const enviar =
       accion === 'REASIGNAR'
         ? { ...datos, funcionarioNombre: funcionarios.find((f) => f.id === datos.funcionarioId)?.nombre }
@@ -271,6 +283,30 @@ export const AccionesForm: React.FC<AccionesFormProps> = ({
           </>
         )}
 
+        {accion === 'ADJUNTAR_EVIDENCIA' && (
+          <Campo
+            id="archivoEvidencia"
+            etiqueta="Archivo"
+            ayuda={`PDF, JPG o PNG de hasta 10 MB. Un archivo por vez y hasta ${MAXIMO_EVIDENCIAS} evidencias por reclamo. Queda unida a la última evaluación registrada, así que conviene registrar primero la evaluación. El ciudadano no la ve.`}
+          >
+            <input
+              id="archivoEvidencia"
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+              onChange={(e) => cambiar('archivo', e.target.files?.[0])}
+              required
+              aria-invalid={Boolean(errorArchivo)}
+              aria-describedby={errorArchivo ? 'archivoEvidenciaError' : undefined}
+              style={estiloCampo}
+            />
+            {errorArchivo && (
+              <p id="archivoEvidenciaError" role="alert" style={{ ...estiloAyuda, color: 'var(--red-600)' }}>
+                {errorArchivo}
+              </p>
+            )}
+          </Campo>
+        )}
+
         {accion === 'ELABORAR_RESPUESTA' && (
           <>
             {ultimaObservada?.comentarioRevision && (
@@ -343,11 +379,11 @@ export const AccionesForm: React.FC<AccionesFormProps> = ({
           </button>
           <button
             type="submit"
-            disabled={enviando || sinFuncionarios}
+            disabled={enviando || sinFuncionarios || Boolean(errorArchivo)}
             className={def.className === 'btn btn-secondary' ? 'btn btn-primary' : def.className}
             style={{ fontSize: '0.8rem' }}
           >
-            {enviando ? 'Guardando...' : def.confirmar}
+            {enviando ? (accion === 'ADJUNTAR_EVIDENCIA' ? 'Subiendo...' : 'Guardando...') : def.confirmar}
           </button>
         </div>
       </form>

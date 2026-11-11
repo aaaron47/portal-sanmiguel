@@ -4,9 +4,12 @@ import { DispositivoStats } from '@/types/telemetria.types';
 import { CardHeader } from '@/components/shared/ui/CardHeader';
 
 export const DispositivosCard: React.FC<{ stats: DispositivoStats }> = ({ stats }) => {
-  const total = stats.androidCount + stats.iosCount;
+  // "Otros" son Windows, macOS y Linux: uso desde el portal web.
+  const otros = stats.otrosCount ?? 0;
+  const total = stats.androidCount + stats.iosCount + otros;
   const androidPct = total > 0 ? Math.round((stats.androidCount / total) * 100) : 0;
   const iosPct = total > 0 ? Math.round((stats.iosCount / total) * 100) : 0;
+  const otrosPct = total > 0 ? Math.round((otros / total) * 100) : 0;
 
   return (
     <div className="card">
@@ -34,6 +37,17 @@ export const DispositivosCard: React.FC<{ stats: DispositivoStats }> = ({ stats 
               iOS ({stats.iosCount.toLocaleString()})
             </div>
           </div>
+          {otros > 0 && (
+            <>
+              <div style={{ width: '1px', height: '35px', background: 'var(--border-color)' }} />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)' }}>{otrosPct}%</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Otros ({otros.toLocaleString()})
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         <div>
@@ -41,6 +55,9 @@ export const DispositivosCard: React.FC<{ stats: DispositivoStats }> = ({ stats 
             Versiones Instaladas:
           </span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.35rem' }}>
+            {stats.versionesMasUsadas.length === 0 && (
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Sin datos con estos filtros.</span>
+            )}
             {stats.versionesMasUsadas.map((ver, idx) => (
               <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
                 <span>{ver.version}</span>

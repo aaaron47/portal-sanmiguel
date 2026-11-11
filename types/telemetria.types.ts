@@ -1,33 +1,53 @@
+/** Canal desde el que se registró el uso: la app móvil del ciudadano o este portal web. */
+export type CanalUso = 'MOVIL' | 'WEB';
+
+/**
+ * Evento de uso (Req 3). El backend guarda identificadores seudónimos: nunca nombre, correo ni DNI.
+ * Los códigos (`tipoEvento`, `funcionalidad`...) se muestran con las etiquetas de `utils/telemetria.utils.ts`.
+ */
 export interface TelemetriaEvento {
   id: string;
-  dispositivoAnonimoId: string; // Hash anónimo sin DNI ni nombres por privacidad
-  tipoEvento: 'PANTALLA_VISTA' | 'CLICK_BOTON' | 'ERROR_APP' | 'ENVIO_FORMULARIO';
-  pantalla: string; // ej. "HomeCiudadano", "NuevoReclamo", "MisReclamos", "AvisoPrivacidad"
-  componenteId?: string;
-  sistemaOperativo: 'Android' | 'iOS';
+  dispositivoAnonimoId: string;
+  /** Vistos en el backend: `PANTALLA`, `CONSULTA`, `INICIO_SESION`, `CIERRE_SESION`. */
+  tipoEvento: string;
+  pantalla?: string | null;
+  componenteId?: string | null;
+  /** "Android", "iOS", "Windows", "Linux"... */
+  sistemaOperativo: string;
   appVersion: string;
+  /** `AAAA-MM-DD HH:mm:ss`, hora de Perú. */
   fechaRegistro: string;
-  /** Propuesto al backend (Req 3): resultado de la acción. */
-  resultado?: 'COMPLETADA' | 'FALLIDA';
-  /** Propuesto al backend (Req 3): sesión seudónima a la que pertenece el evento. */
-  sesionId?: string;
+  /** Resultado de la acción; `NO_APLICA` en eventos que no son una operación (ver una pantalla). */
+  resultado?: 'INICIADA' | 'COMPLETADA' | 'FALLIDA' | 'NO_APLICA' | null;
+  /** Sesión seudónima a la que pertenece el evento. */
+  sesionId?: string | null;
+  /** Código de funcionalidad (`DEUDAS`, `RECLAMOS`...). */
+  funcionalidad?: string | null;
+  codigoError?: string | null;
+  duracionMs?: number | null;
+  canal?: CanalUso | null;
+  tipoActor?: 'CIUDADANO' | 'PERSONAL' | null;
 }
 
 /** Filtros del dashboard de uso (Req 4). Se envían como query de `GET /telemetria/resumen`. */
 export interface FiltrosUso {
-  /** Fechas en hora de Perú, `YYYY-MM-DD`, ambas incluidas. */
-  desde: string;
-  hasta: string;
+  /** Fechas en hora de Perú, `AAAA-MM-DD`, ambas incluidas. El backend acepta hasta 366 días. */
+  fechaDesde: string;
+  fechaHasta: string;
+  /** Código de `opcionesFiltro.funcionalidades`. */
   funcionalidad?: string;
-  sistemaOperativo?: 'Android' | 'iOS';
+  /** Código de `opcionesFiltro.sistemasOperativos` (`ANDROID`, `IOS`...). */
+  sistemaOperativo?: string;
   appVersion?: string;
+  canal?: CanalUso;
 }
 
 export interface ActividadDia {
-  /** `YYYY-MM-DD` en hora de Perú. */
+  /** `AAAA-MM-DD` en hora de Perú. */
   fecha: string;
   eventos: number;
   sesiones: number;
+  usuariosUnicos?: number;
 }
 
 export interface ActividadHora {
@@ -38,15 +58,28 @@ export interface ActividadHora {
 }
 
 export interface UsoFuncionalidad {
+  /** Código de funcionalidad. */
   funcionalidad: string;
+  eventos?: number;
+  sesiones?: number;
+  usuariosUnicos?: number;
   iniciadas: number;
   completadas: number;
   fallidas: number;
+  porcentajeCompletadas?: number;
+}
+
+/** Valores que el backend ofrece para cada filtro. */
+export interface OpcionesFiltroUso {
+  funcionalidades: string[];
+  sistemasOperativos: string[];
+  versiones: string[];
+  canales?: CanalUso[];
 }
 
 /**
- * Uso del sistema en el período y filtros pedidos (Req 4). Propuesto al backend: llega en
- * `GET /telemetria/resumen` como `uso`; si no llega, el dashboard avisa que aún no está disponible.
+ * Uso del sistema en el período y filtros pedidos (Req 4), tal como lo usa el dashboard.
+ * Se arma con `usoDelResumen` a partir de la respuesta de `GET /telemetria/resumen`.
  */
 export interface UsoSistema {
   usuariosUnicos: number;
@@ -58,13 +91,9 @@ export interface UsoSistema {
   actividadPorDia: ActividadDia[];
   actividadPorHora: ActividadHora[];
   funcionalidades: UsoFuncionalidad[];
-  filtrosDisponibles: {
-    funcionalidades: string[];
-    sistemasOperativos: Array<'Android' | 'iOS'>;
-    versiones: string[];
-  };
-  /** Instante de la última actualización de los datos (ISO 8601, UTC). */
-  actualizadoEn: string;
+  filtrosDisponibles: OpcionesFiltroUso;
+  /** Último dato registrado (`AAAA-MM-DD HH:mm:ss`, hora de Perú). */
+  actualizadoEn?: string;
 }
 
 export interface OnboardingFunnelStep {
@@ -83,22 +112,32 @@ export interface ConsentimientoAuditoriaLog {
   permiteNotificaciones: boolean;
   versionTerminos: string;
   fechaDecision: string;
-  ipAnonimizada: string;
+  /** El backend puede no guardarla (llega `null`). */
+  ipAnonimizada?: string | null;
+  /** Dónde se tomó la decisión (`ONBOARDING`, configuración de privacidad...). */
+  origen?: string | null;
+  canal?: CanalUso | null;
 }
 
 export interface OnboardingStats {
   totalUsuariosRegistrados: number;
   onboardingCompletadoCount: number;
   onboardingTasaPorcentaje: number;
+  /** Usuarios que omitieron la introducción (Req 5). */
+  onboardingOmitidoCount?: number;
   aceptaAnaliticaCount: number;
   aceptaAnaliticaPorcentaje: number;
   rechazaAnaliticaCount: number;
   rechazaAnaliticaPorcentaje: number;
+  /** Usuarios que todavía no aceptaron ni rechazaron la analítica opcional. */
+  sinDecisionAnaliticaCount?: number;
   // Permiso de Notificaciones Push
   notificacionesPermitidasCount: number;
   notificacionesPermitidasPorcentaje: number;
   notificacionesBloqueadasCount: number;
   notificacionesBloqueadasPorcentaje: number;
+  /** `false` cuando el backend no tiene el dato de notificaciones: los cuatro campos de arriba llegan en 0. */
+  notificacionesDisponibles?: boolean;
   // Gobernanza y Controles de Privacidad
   versionTerminosVigente: string;
   fechaRevisionTerminos: string;
@@ -111,6 +150,8 @@ export interface OnboardingStats {
 export interface DispositivoStats {
   androidCount: number;
   iosCount: number;
+  /** Otros sistemas (Windows, macOS, Linux): uso desde el portal web. */
+  otrosCount?: number;
   versionesMasUsadas: Array<{ version: string; porcentaje: number }>;
 }
 
@@ -121,12 +162,24 @@ export interface PantallaTrafico {
   tiempoPromedioSegundos: number;
 }
 
+/**
+ * Respuesta de `GET /telemetria/resumen`. `onboarding` y los totales de 24 h son el estado general;
+ * lo demás (desde `filtros`) es el uso del sistema con los filtros de la query (Req 4).
+ */
 export interface TelemetriaResumen {
   onboarding: OnboardingStats;
   dispositivos: DispositivoStats;
   topPantallas: PantallaTrafico[];
   totalEventosUltimas24h: number;
   tasaErroresAppPorcentaje: number;
-  /** Uso del sistema con los filtros pedidos (Req 4). Opcional mientras el backend no lo entregue. */
-  uso?: UsoSistema;
+  /** Filtros que aplicó el backend (sin fechas en la query usa los últimos 30 días). */
+  filtros?: { [K in keyof FiltrosUso]?: FiltrosUso[K] | null };
+  opcionesFiltro?: OpcionesFiltroUso;
+  sesiones?: { total: number; usuariosUnicos: number; instalacionesUnicas?: number; duracionPromedioSegundos?: number };
+  consultas?: { iniciadas: number; completadas: number; fallidas: number; porcentajeCompletadas: number };
+  funcionalidades?: UsoFuncionalidad[];
+  actividadPorDia?: ActividadDia[];
+  actividadPorHora?: ActividadHora[];
+  /** Último evento registrado (`AAAA-MM-DD HH:mm:ss`, hora de Perú). */
+  ultimaActualizacion?: string | null;
 }

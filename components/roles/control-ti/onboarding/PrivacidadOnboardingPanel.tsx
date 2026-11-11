@@ -33,6 +33,8 @@ export const PrivacidadOnboardingPanel: React.FC<PrivacidadOnboardingPanelProps>
 }) => {
   const [auditLogs, setAuditLogs] = useState<ConsentimientoAuditoriaLog[]>([]);
   const [cargandoLogs, setCargandoLogs] = useState(true);
+  // El backend avisa con `notificacionesDisponibles: false` cuando no tiene ese dato (llega todo en 0).
+  const sinNotificaciones = stats.notificacionesDisponibles === false;
 
   // Cargar logs para la tabla y exportación
   React.useEffect(() => {
@@ -74,10 +76,10 @@ export const PrivacidadOnboardingPanel: React.FC<PrivacidadOnboardingPanelProps>
       log.id,
       log.dispositivoHash,
       log.aceptaAnalitica ? 'SÍ' : 'NO',
-      log.permiteNotificaciones ? 'AUTORIZADO' : 'DENEGADO',
+      sinNotificaciones ? 'SIN DATO' : log.permiteNotificaciones ? 'AUTORIZADO' : 'DENEGADO',
       log.versionTerminos,
       log.fechaDecision,
-      log.ipAnonimizada,
+      log.ipAnonimizada ?? '',
     ]);
 
     exportarCSV('Auditoria_Privacidad_Ley29733', cabeceras, filas);
@@ -130,12 +132,19 @@ export const PrivacidadOnboardingPanel: React.FC<PrivacidadOnboardingPanelProps>
             <div>
               <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Notificaciones Push</span>
               <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--violet-700)' }}>
-                {stats.notificacionesPermitidasPorcentaje}%
+                {sinNotificaciones ? '—' : `${stats.notificacionesPermitidasPorcentaje}%`}
               </div>
             </div>
           </div>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            <strong>{stats.notificacionesPermitidasCount.toLocaleString()}</strong> autorizadas para seguimiento de reclamos
+            {sinNotificaciones ? (
+              'El servidor todavía no registra el permiso de notificaciones.'
+            ) : (
+              <>
+                <strong>{stats.notificacionesPermitidasCount.toLocaleString()}</strong> autorizadas para seguimiento de
+                reclamos
+              </>
+            )}
           </span>
         </div>
 
@@ -356,7 +365,9 @@ export const PrivacidadOnboardingPanel: React.FC<PrivacidadOnboardingPanelProps>
                       )}
                     </td>
                     <td>
-                      {log.permiteNotificaciones ? (
+                      {sinNotificaciones ? (
+                        <span style={{ color: 'var(--text-muted)' }}>—</span>
+                      ) : log.permiteNotificaciones ? (
                         <span className="badge badge-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
                           <CheckCircle2 size={12} /> Autorizado
                         </span>

@@ -8,7 +8,37 @@ versión de los términos. Hoy **casi nada de eso llega al backend**: la pantall
 fijos del front y, al guardar, llama a endpoints que no sabemos si existen. Este documento lista lo
 que falta para que la pantalla diga la verdad.
 
-Comprobado el 11/11 en el backend real (`/api/v1/portal`, con `admin.demo`):
+> **Respondido y desplegado (11/11, noche).** El backend respondió con
+> `Control de Acceso y adjuntos del reclamo: contrato y respuestas al portal` (rama `feature/adjuntos-control-acceso`)
+> y ya está desplegado. Resumen de lo que usa el portal *(rama `fix/telemetria-y-lint`)*:
+>
+> - `GET`/`PUT /seguridad/politicas-acceso`: `sessionTimeoutMinutes` (15, 30, 45, 60, 120), `maxFailedLogins` (3, 5, 10),
+>   `lockoutMinutes` (5, 15, 30, 60, **nuevo**) y `minPasswordLength` (8, 10, 12), con `version`. El portal envía
+>   **solo los campos que cambiaron** y la `version`; el backend audita (`ACTUALIZACION_POLITICA`), así que el portal
+>   **ya no llama a `POST /auditoria`**. Se aplican: bloqueo del personal, cierre por inactividad (`401 invalid_session`)
+>   y longitud mínima al cambiar la contraseña.
+> - **Quitados de la pantalla y del envío:** `passwordExpirationDays`, `require2FAForPrivileged`,
+>   `restrictToMunicipalNetwork` y `allowSimultaneousSessions` (el backend no los implementa).
+> - `POST /auth/cambiar-contrasena`: menú de la cuenta → **Cambiar contraseña** (todo el personal). Muestra el
+>   mensaje del backend (`password_too_short` trae el mínimo).
+> - `GET /documentos-versiones?tipo=AVISO_ANALITICA`: el ciudadano acepta el **aviso de analítica** en el onboarding.
+>   La pantalla lista sus versiones y permite elegir la activa; `PUT /documentos-versiones/{id}/activar` responde
+>   **501** hasta que el responsable de la BD dé `UPDATE (activo)`, y el portal lo explica. El botón de textos fijos
+>   ("v1.4") se quitó, y `versionTerminosVigente` ya no va en `PUT /telemetria/configuracion`.
+> - `account_locked`: el portal muestra el mensaje del backend (trae los minutos configurados).
+>
+> Probado: backend simulado con este contrato, 56/56 (incluye 409, 501, 422 y fallas de lectura por sección);
+> backend real **solo lecturas**, 9/9 (políticas 30/5/15/8, aviso 1.0 activo). No se guardó nada en el backend real.
+>
+> **Dudas que quedan:** ¿`PUT …/activar` registrará auditoría cuando funcione? ¿`GET /documentos-versiones` puede
+> devolver también el título o un enlace al texto, para mostrarlo en la pantalla?
+
+> **Actualización del 11/11 por la tarde:** el backend ya publicó `GET /telemetria/resumen` y
+> `PUT /telemetria/configuracion`. El *kill switch* funciona de punta a punta y el backend registra su
+> auditoría (`CONFIGURACION_TELEMETRIA`). La tabla de la sección 7 tiene el estado nuevo. Siguen pendientes
+> las políticas de sesión y contraseña (sección 2) y las versiones del aviso (sección 4).
+
+Comprobado el 11/11 por la mañana en el backend real (`/api/v1/portal`, con `admin.demo`):
 `GET /seguridad/politicas-acceso`, `GET /telemetria/resumen`, `PUT /telemetria/configuracion` y
 `GET /documentos-versiones` responden **404**. Lo que sí existe y usa esta pantalla es `POST /auditoria`
 (el `GET` responde). Les pedimos que completen la última columna de la tabla de la sección 7 si algo ya
@@ -20,9 +50,11 @@ está en otra ruta, o si no lo harán.
 |---|---|---|
 | Al abrir | `GET /telemetria/resumen` | Solo toma `telemetriaActiva`, `mesesRetencionUso` y `versionTerminosVigente`. |
 | Al abrir | `GET /seguridad/politicas-acceso` | *(Desde la rama `fix/telemetria-y-lint`.)* Si alguna de las dos lecturas falla, la pantalla lo avisa y no deja guardar. Antes se mostraban valores fijos del front (45 min, 90 días, 5 intentos, 8 caracteres). |
-| Al guardar (1/3) | `PUT /telemetria/configuracion` | `{ telemetriaActiva, versionTerminosVigente }` |
-| Al guardar (2/3) | `PUT /seguridad/politicas-acceso` | Todo el formulario (ver sección 2.2). |
-| Al guardar (3/3) | `POST /auditoria` | El front escribe la línea de auditoría con el resumen de cambios. |
+| Al guardar (1/3) | `PUT /telemetria/configuracion` | Solo si cambió la telemetría o la versión, y solo con el campo que cambió: `{ telemetriaActiva }` o `{ versionTerminosVigente }`. |
+| Al guardar (2/3) | `PUT /seguridad/politicas-acceso` | Solo si cambió alguna política. Todo el formulario (ver sección 2.2). |
+| Al guardar (3/3) | `POST /auditoria` | Solo si cambiaron las políticas: el front escribe la línea de auditoría. El cambio de telemetría ya lo registra el backend. |
+
+Si una de las dos lecturas falla, la pantalla lo avisa, deshabilita esa sección y deja guardar la otra.
 
 Son tres llamadas separadas: si falla la segunda, la primera ya quedó aplicada, y la auditoría
 depende de que el navegador llegue al tercer paso. Por eso pedimos que **cada endpoint de escritura
@@ -143,8 +175,8 @@ Cuando esté listo, el front deja de llamar a `POST /auditoria` desde esta panta
 | 1 | `GET /seguridad/politicas-acceso` | Mostrar las políticas guardadas | Alta | 404 | |
 | 2 | `PUT /seguridad/politicas-acceso` | Guardarlas, con validación, `version` y auditoría | Alta | No probado (sin el GET) | |
 | 3 | Aplicar las políticas en el login y al crear o cambiar contraseñas | Que la configuración tenga efecto | Alta | El bloqueo por intentos ya existe (`account_locked`, `CUENTA_BLOQUEADA` en auditoría), con valor fijo | |
-| 4 | `PUT /telemetria/configuracion` (solo `telemetriaActiva`) + efecto en el backend móvil | Kill switch | Alta | 404 | |
-| 5 | `RETENCION_USO_MESES` en `GET /telemetria/resumen` | Retención real | Media | 404 | |
+| 4 | `PUT /telemetria/configuracion` (solo `telemetriaActiva`) + efecto en el backend móvil | Kill switch | Alta | ✅ Publicado (tarde del 11/11): 200 con ADMIN, 403 con otros roles, con auditoría propia. Falta confirmar que el backend deja de guardar eventos con la telemetría en pausa. | |
+| 5 | `RETENCION_USO_MESES` en `GET /telemetria/resumen` | Retención real | Media | ✅ Llega `mesesRetencionUso: 12`. Confirmar que sale de `configuracion_sistema`. | |
 | 6 | `GET /documentos-versiones` y `PUT /documentos-versiones/{id}/activar` | Versión de los términos | Media | 404 | |
 | 7 | Endpoint para cambiar la contraseña + `password_expired` | Renovación periódica | Baja (o se quita) | — | |
 | 8 | Respuesta sobre `require2FAForPrivileged`, `restrictToMunicipalNetwork`, `allowSimultaneousSessions` | Saber si se quitan | Baja | — | |
@@ -162,7 +194,10 @@ Ya hechos (rama `fix/telemetria-y-lint`):
 - Muestra el error del backend con `mensajeErrorApi` (403, 409…) y avisa si la telemetría se guardó pero
   las políticas no.
 
+- *(11/11, tarde)* Guarda por secciones: si no puede leer las políticas, igual deja pausar o reanudar la
+  telemetría. Envía solo lo que cambió y ya no llama a `POST /auditoria` por el cambio de telemetría.
+
 Cuando el backend esté listo:
 
-- Quitar `POST /auditoria` de esta pantalla (sección 5) y los campos que no se implementen (sección 2.2).
+- Quitar `POST /auditoria` también para las políticas (sección 5) y los campos que no se implementen (sección 2.2).
 - Lista de versiones de términos desde el backend, en lugar de los dos textos fijos (sección 4).

@@ -9,6 +9,7 @@ import { DispositivosCard } from './dashboard/parts/DispositivosCard';
 import { TopPantallasTable } from './dashboard/parts/TopPantallasTable';
 import { EventosAnonimosTable } from './eventos/parts/EventosAnonimosTable';
 import { UsoFiltros } from './dashboard/parts/UsoFiltros';
+import { usoDelResumen } from '@/utils/telemetria.utils';
 import { UsoSistemaPanel } from './dashboard/parts/UsoSistemaPanel';
 import { PrivacidadOnboardingPanel } from './onboarding/PrivacidadOnboardingPanel';
 
@@ -19,6 +20,8 @@ export const ControlTiView: React.FC<RoleViewProps> = ({
   const t = useControlTi(onNotify);
 
   const esOnboarding = initialTab === 'ti-onboarding';
+  // Uso del sistema (Req 4) con los filtros elegidos; undefined si el servidor no lo envía.
+  const uso = t.resumen ? usoDelResumen(t.resumen) : undefined;
 
   return (
     <div>
@@ -60,8 +63,8 @@ export const ControlTiView: React.FC<RoleViewProps> = ({
       {!esOnboarding && (
         <UsoFiltros
           seleccion={t.seleccion}
-          disponibles={t.resumen?.uso?.filtrosDisponibles}
-          actualizadoEn={t.resumen?.uso?.actualizadoEn}
+          disponibles={uso?.filtrosDisponibles}
+          actualizadoEn={uso?.actualizadoEn}
           onCambiar={t.cambiarFiltro}
           onLimpiar={t.limpiarFiltros}
         />
@@ -84,8 +87,8 @@ export const ControlTiView: React.FC<RoleViewProps> = ({
       {!esOnboarding && t.resumen && (
         // Mientras se vuelve a pedir, se mantiene lo anterior atenuado (sin saltos de diseño).
         <div style={{ opacity: t.isLoading ? 0.55 : 1, transition: 'opacity 150ms' }} aria-busy={t.isLoading}>
-          {t.resumen.uso ? (
-            <UsoSistemaPanel uso={t.resumen.uso} />
+          {uso ? (
+            <UsoSistemaPanel uso={uso} />
           ) : (
             <div className="card" style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
               <AlertCircle size={20} color="var(--amber-600)" style={{ flexShrink: 0 }} />
@@ -97,22 +100,27 @@ export const ControlTiView: React.FC<RoleViewProps> = ({
             </div>
           )}
 
-          <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', margin: '1.75rem 0 0.25rem' }}>
-            Estado general de la app
-          </h3>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 1rem' }}>
-            No depende de los filtros: datos acumulados y de las últimas 24 horas.
-          </p>
-          <TelemetriaKpis resumen={t.resumen} />
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              gap: '1.25rem',
+              marginTop: '1.25rem',
+            }}
+          >
             <DispositivosCard stats={t.resumen.dispositivos} />
             <TopPantallasTable pantallas={t.resumen.topPantallas} />
           </div>
 
-          <div style={{ marginTop: '1.25rem' }}>
-            <EventosAnonimosTable eventos={t.eventos} />
-          </div>
+          <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', margin: '1.75rem 0 0.25rem' }}>
+            Estado general de la app
+          </h3>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 1rem' }}>
+            El onboarding, la analítica y los eventos de 24 horas no dependen de los filtros; la tasa de errores sí.
+          </p>
+          <TelemetriaKpis resumen={t.resumen} />
+
+          <EventosAnonimosTable eventos={t.eventos} />
         </div>
       )}
 

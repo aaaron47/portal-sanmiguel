@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { telemetriaController } from '@/controllers/telemetria.controller';
 import { mensajeErrorApi } from '@/services/api-client.service';
-import { TelemetriaResumen, TelemetriaEvento, FiltrosUso } from '@/types/telemetria.types';
+import { TelemetriaResumen, TelemetriaEvento, FiltrosUso, CanalUso } from '@/types/telemetria.types';
 import { NotifyFn } from '@/types/ui.types';
 import { hoyEnPeru, sumarDias } from '@/utils/fecha-peru.utils';
 
@@ -23,21 +23,23 @@ export const PERIODOS_USO: Array<{ valor: PeriodoUso; etiqueta: string }> = [
 ];
 
 /** Rango de fechas (hora de Perú, ambas incluidas) de cada período. */
-function rangoPeriodo(periodo: PeriodoUso, hoy: string): { desde: string; hasta: string } {
-  if (periodo === 'hoy') return { desde: hoy, hasta: hoy };
-  if (periodo === '7d') return { desde: sumarDias(hoy, -6), hasta: hoy };
-  if (periodo === '30d') return { desde: sumarDias(hoy, -29), hasta: hoy };
-  return { desde: `${hoy.slice(0, 8)}01`, hasta: hoy };
+function rangoPeriodo(periodo: PeriodoUso, hoy: string): Pick<FiltrosUso, 'fechaDesde' | 'fechaHasta'> {
+  if (periodo === 'hoy') return { fechaDesde: hoy, fechaHasta: hoy };
+  if (periodo === '7d') return { fechaDesde: sumarDias(hoy, -6), fechaHasta: hoy };
+  if (periodo === '30d') return { fechaDesde: sumarDias(hoy, -29), fechaHasta: hoy };
+  return { fechaDesde: `${hoy.slice(0, 8)}01`, fechaHasta: hoy };
 }
 
+/** Lo elegido en los filtros; cadena vacía = sin filtrar. Los valores son los códigos del backend. */
 export interface SeleccionUso {
   periodo: PeriodoUso;
+  canal: '' | CanalUso;
   funcionalidad: string;
-  sistemaOperativo: '' | 'Android' | 'iOS';
+  sistemaOperativo: string;
   appVersion: string;
 }
 
-const SELECCION_INICIAL: SeleccionUso = { periodo: '7d', funcionalidad: '', sistemaOperativo: '', appVersion: '' };
+const SELECCION_INICIAL: SeleccionUso = { periodo: '7d', canal: '', funcionalidad: '', sistemaOperativo: '', appVersion: '' };
 
 export function useControlTi(onNotify: NotifyFn) {
   const [resumen, setResumen] = useState<TelemetriaResumen | null>(null);
@@ -54,6 +56,7 @@ export function useControlTi(onNotify: NotifyFn) {
   const filtros: FiltrosUso = useMemo(
     () => ({
       ...rangoPeriodo(seleccion.periodo, hoy),
+      canal: seleccion.canal || undefined,
       funcionalidad: seleccion.funcionalidad || undefined,
       sistemaOperativo: seleccion.sistemaOperativo || undefined,
       appVersion: seleccion.appVersion || undefined,

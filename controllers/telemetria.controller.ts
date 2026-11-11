@@ -5,8 +5,8 @@ import {
   ConsentimientoAuditoriaLog,
   OnboardingStats,
   FiltrosUso,
-  UsoSistema,
 } from '@/types/telemetria.types';
+import { fechaHoraPeruIso } from '@/utils/fecha-peru.utils';
 
 const MOCK_RESUMEN_TELEMETRIA: TelemetriaResumen = {
   onboarding: {
@@ -21,8 +21,8 @@ const MOCK_RESUMEN_TELEMETRIA: TelemetriaResumen = {
     notificacionesPermitidasPorcentaje: 77.8,
     notificacionesBloqueadasCount: 2770,
     notificacionesBloqueadasPorcentaje: 22.2,
-    versionTerminosVigente: 'v1.3 (2026-10)',
-    fechaRevisionTerminos: '2026-10-15',
+    versionTerminosVigente: '1.0',
+    fechaRevisionTerminos: '2026-10-30',
     mesesRetencionUso: 12,
     telemetriaActiva: true,
     embudoPasos: [
@@ -56,50 +56,75 @@ const MOCK_EVENTOS_RECIENTES: TelemetriaEvento[] = [
   {
     id: 'EVT-9001',
     dispositivoAnonimoId: 'anon-usr-7f8e1a',
-    tipoEvento: 'PANTALLA_VISTA',
+    tipoEvento: 'PANTALLA',
     pantalla: 'HomeCiudadano',
     sistemaOperativo: 'Android',
     appVersion: 'v2.4.1',
     fechaRegistro: '2026-10-30 20:14:02',
+    resultado: 'NO_APLICA',
+    sesionId: 'ses-41c0',
+    funcionalidad: 'INICIO',
+    canal: 'MOVIL',
+    tipoActor: 'CIUDADANO',
   },
   {
     id: 'EVT-9002',
     dispositivoAnonimoId: 'anon-usr-4b2c9d',
-    tipoEvento: 'CLICK_BOTON',
+    tipoEvento: 'CONSULTA',
     pantalla: 'NuevoReclamo',
     componenteId: 'btn_adjuntar_foto',
     sistemaOperativo: 'iOS',
     appVersion: 'v2.4.1',
     fechaRegistro: '2026-10-30 20:13:45',
+    resultado: 'FALLIDA',
+    sesionId: 'ses-77aa',
+    funcionalidad: 'RECLAMOS',
+    codigoError: 'ARCHIVO_MUY_GRANDE',
+    canal: 'MOVIL',
+    tipoActor: 'CIUDADANO',
   },
   {
     id: 'EVT-9003',
     dispositivoAnonimoId: 'anon-usr-1100aa',
-    tipoEvento: 'ENVIO_FORMULARIO',
+    tipoEvento: 'CONSULTA',
     pantalla: 'AvisoPrivacidadOnboarding',
     componenteId: 'btn_acepta_analitica_true',
     sistemaOperativo: 'Android',
     appVersion: 'v2.4.1',
     fechaRegistro: '2026-10-30 20:12:11',
+    resultado: 'COMPLETADA',
+    sesionId: 'ses-09be',
+    funcionalidad: 'PRIVACIDAD',
+    canal: 'MOVIL',
+    tipoActor: 'CIUDADANO',
   },
   {
     id: 'EVT-9004',
     dispositivoAnonimoId: 'anon-usr-33ee7b',
-    tipoEvento: 'PANTALLA_VISTA',
-    pantalla: 'MisReclamosSeguimiento',
+    tipoEvento: 'INICIO_SESION',
     sistemaOperativo: 'Android',
     appVersion: 'v2.3.0',
     fechaRegistro: '2026-10-30 20:10:50',
+    resultado: 'COMPLETADA',
+    sesionId: 'ses-5d21',
+    funcionalidad: 'AUTENTICACION',
+    canal: 'MOVIL',
+    tipoActor: 'CIUDADANO',
   },
   {
     id: 'EVT-9005',
     dispositivoAnonimoId: 'anon-usr-9912fc',
-    tipoEvento: 'CLICK_BOTON',
+    tipoEvento: 'CONSULTA',
     pantalla: 'DetalleConstancia',
     componenteId: 'btn_descargar_constancia_pdf',
     sistemaOperativo: 'iOS',
     appVersion: 'v2.4.1',
     fechaRegistro: '2026-10-30 20:09:18',
+    resultado: 'COMPLETADA',
+    sesionId: 'ses-c3f8',
+    funcionalidad: 'CONSTANCIAS',
+    canal: 'MOVIL',
+    tipoActor: 'CIUDADANO',
   },
 ];
 
@@ -152,14 +177,14 @@ const MOCK_CONSENTIMIENTOS_AUDITORIA: ConsentimientoAuditoriaLog[] = [
 ];
 
 // ---------- Uso del sistema (Req 4), solo para el modo demo ----------
-const FUNCIONALIDADES_DEMO: Array<{ nombre: string; iniciadasDia: number; tasaExito: number }> = [
-  { nombre: 'Consulta de deuda', iniciadasDia: 420, tasaExito: 0.96 },
-  { nombre: 'Nuevo reclamo', iniciadasDia: 150, tasaExito: 0.88 },
-  { nombre: 'Seguimiento de reclamo', iniciadasDia: 210, tasaExito: 0.97 },
-  { nombre: 'Constancia de no adeudo', iniciadasDia: 95, tasaExito: 0.81 },
-  { nombre: 'Pago simulado', iniciadasDia: 60, tasaExito: 0.9 },
+// Mismos códigos que envía el backend en `opcionesFiltro`.
+const FUNCIONALIDADES_DEMO: Array<{ codigo: string; iniciadasDia: number; tasaExito: number }> = [
+  { codigo: 'DEUDAS', iniciadasDia: 420, tasaExito: 0.96 },
+  { codigo: 'RECLAMOS', iniciadasDia: 360, tasaExito: 0.93 },
+  { codigo: 'CONSTANCIAS', iniciadasDia: 95, tasaExito: 0.81 },
+  { codigo: 'PAGOS', iniciadasDia: 60, tasaExito: 0.9 },
 ];
-const PARTICIPACION_SO: Record<'Android' | 'iOS', number> = { Android: 0.76, iOS: 0.24 };
+const PARTICIPACION_SO: Record<string, number> = { ANDROID: 0.76, IOS: 0.24 };
 const PARTICIPACION_VERSION: Record<string, number> = { 'v2.4.1': 0.68, 'v2.3.0': 0.21, 'v2.1.8': 0.11 };
 // Reparto del día en hora de Perú: poco de madrugada, picos a media mañana y en la noche.
 const PERFIL_HORA = [1, 0.6, 0.4, 0.3, 0.3, 0.6, 1.5, 3, 4.5, 6, 6.5, 6.2, 5, 4.6, 4.8, 5, 5.2, 5.6, 6.4, 7, 6.6, 5, 3.4, 2];
@@ -184,18 +209,23 @@ function variacion(fecha: string): number {
   return finDeSemana * (0.85 + (h % 30) / 100);
 }
 
-function generarUsoDemo(f: FiltrosUso): UsoSistema {
+/** Uso de demostración con el mismo formato que `GET /telemetria/resumen` (solo app móvil). */
+function generarUsoDemo(f: FiltrosUso): Partial<TelemetriaResumen> {
   const factor =
-    (f.sistemaOperativo ? PARTICIPACION_SO[f.sistemaOperativo] : 1) *
+    (f.canal === 'WEB' ? 0 : 1) *
+    (f.sistemaOperativo ? PARTICIPACION_SO[f.sistemaOperativo] ?? 0 : 1) *
     (f.appVersion ? PARTICIPACION_VERSION[f.appVersion] ?? 0 : 1);
-  const funcs = FUNCIONALIDADES_DEMO.filter((x) => !f.funcionalidad || x.nombre === f.funcionalidad);
-  const dias = fechasEntre(f.desde, f.hasta);
+  const funcs = FUNCIONALIDADES_DEMO.filter((x) => !f.funcionalidad || x.codigo === f.funcionalidad);
+  const dias = fechasEntre(f.fechaDesde, f.fechaHasta);
 
-  const funcionalidades = funcs.map((x) => {
-    const iniciadas = Math.round(dias.reduce((t, d) => t + x.iniciadasDia * variacion(d), 0) * factor);
-    const completadas = Math.round(iniciadas * x.tasaExito);
-    return { funcionalidad: x.nombre, iniciadas, completadas, fallidas: iniciadas - completadas };
-  });
+  // Como el backend: solo las funcionalidades con actividad.
+  const funcionalidades = funcs
+    .map((x) => {
+      const iniciadas = Math.round(dias.reduce((t, d) => t + x.iniciadasDia * variacion(d), 0) * factor);
+      const completadas = Math.round(iniciadas * x.tasaExito);
+      return { funcionalidad: x.codigo, iniciadas, completadas, fallidas: iniciadas - completadas };
+    })
+    .filter((x) => x.iniciadas > 0);
   const iniciadasDia = funcs.reduce((t, x) => t + x.iniciadasDia, 0);
   const actividadPorDia = dias.map((fecha) => {
     const eventos = Math.round(iniciadasDia * 3.2 * variacion(fecha) * factor);
@@ -208,31 +238,35 @@ function generarUsoDemo(f: FiltrosUso): UsoSistema {
     const eventos = Math.round((totalEventos * peso) / sumaPerfil);
     return { hora, eventos, sesiones: Math.round(eventos / 4.1) };
   });
-  const consultasIniciadas = funcionalidades.reduce((t, x) => t + x.iniciadas, 0);
-  const consultasCompletadas = funcionalidades.reduce((t, x) => t + x.completadas, 0);
+  const iniciadas = funcionalidades.reduce((t, x) => t + x.iniciadas, 0);
+  const completadas = funcionalidades.reduce((t, x) => t + x.completadas, 0);
   return {
-    usuariosUnicos: Math.round(sesiones * (dias.length > 1 ? 0.38 : 0.8)),
-    sesiones,
-    consultasIniciadas,
-    consultasCompletadas,
-    consultasFallidas: consultasIniciadas - consultasCompletadas,
-    porcentajeCompletadas: consultasIniciadas ? Math.round((consultasCompletadas / consultasIniciadas) * 1000) / 10 : 0,
+    filtros: f,
+    opcionesFiltro: {
+      funcionalidades: FUNCIONALIDADES_DEMO.map((x) => x.codigo),
+      sistemasOperativos: Object.keys(PARTICIPACION_SO),
+      versiones: Object.keys(PARTICIPACION_VERSION),
+      canales: ['MOVIL', 'WEB'],
+    },
+    sesiones: { total: sesiones, usuariosUnicos: Math.round(sesiones * (dias.length > 1 ? 0.38 : 0.8)) },
+    consultas: {
+      iniciadas,
+      completadas,
+      fallidas: iniciadas - completadas,
+      porcentajeCompletadas: iniciadas ? Math.round((completadas / iniciadas) * 1000) / 10 : 0,
+    },
+    funcionalidades,
     actividadPorDia,
     actividadPorHora,
-    funcionalidades,
-    filtrosDisponibles: {
-      funcionalidades: FUNCIONALIDADES_DEMO.map((x) => x.nombre),
-      sistemasOperativos: ['Android', 'iOS'],
-      versiones: Object.keys(PARTICIPACION_VERSION),
-    },
-    actualizadoEn: new Date().toISOString(),
+    ultimaActualizacion: fechaHoraPeruIso(),
   };
 }
 
 export class TelemetriaController {
   /**
    * Endpoint backend: `GET /telemetria/resumen`. Con `filtros` (dashboard de uso, Req 4) se envían
-   * `desde`, `hasta`, `funcionalidad`, `sistemaOperativo` y `appVersion`, y la respuesta trae `uso`.
+   * `fechaDesde`, `fechaHasta`, `funcionalidad`, `sistemaOperativo`, `appVersion` y `canal`; sin ellos
+   * el backend usa los últimos 30 días.
    */
   async getResumen(filtros?: FiltrosUso): Promise<TelemetriaResumen> {
     try {
@@ -242,7 +276,7 @@ export class TelemetriaController {
     } catch (err) {
       // Datos simulados solo sin conexión y en modo demo; si no, el error llega a la vista.
       if (!usarDatosDemo(err)) throw err;
-      return filtros ? { ...MOCK_RESUMEN_TELEMETRIA, uso: generarUsoDemo(filtros) } : MOCK_RESUMEN_TELEMETRIA;
+      return filtros ? { ...MOCK_RESUMEN_TELEMETRIA, ...generarUsoDemo(filtros) } : MOCK_RESUMEN_TELEMETRIA;
     }
   }
 
@@ -267,10 +301,11 @@ export class TelemetriaController {
     }
   }
 
-  async actualizarConfiguracionPrivacidad(config: {
-    versionTerminosVigente?: string;
-    telemetriaActiva?: boolean;
-  }): Promise<OnboardingStats> {
+  /**
+   * Endpoint backend: `PUT /telemetria/configuracion` (solo ADMIN). Solo `telemetriaActiva`: la versión del aviso se
+   * cambia con `PUT /documentos-versiones/{id}/activar`. El backend registra la auditoría.
+   */
+  async actualizarConfiguracionPrivacidad(config: { telemetriaActiva: boolean }): Promise<OnboardingStats> {
     try {
       return await apiClient<OnboardingStats>('/telemetria/configuracion', {
         method: 'PUT',
@@ -278,13 +313,7 @@ export class TelemetriaController {
       });
     } catch (err) {
       if (!usarDatosDemo(err)) throw err;
-      if (config.versionTerminosVigente !== undefined) {
-        MOCK_RESUMEN_TELEMETRIA.onboarding.versionTerminosVigente = config.versionTerminosVigente;
-        MOCK_RESUMEN_TELEMETRIA.onboarding.fechaRevisionTerminos = new Date().toISOString().split('T')[0];
-      }
-      if (config.telemetriaActiva !== undefined) {
-        MOCK_RESUMEN_TELEMETRIA.onboarding.telemetriaActiva = config.telemetriaActiva;
-      }
+      MOCK_RESUMEN_TELEMETRIA.onboarding.telemetriaActiva = config.telemetriaActiva;
       return MOCK_RESUMEN_TELEMETRIA.onboarding;
     }
   }

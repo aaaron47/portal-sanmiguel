@@ -73,9 +73,9 @@ export const ControlAccesoToolbar: React.FC<ControlAccesoToolbarProps> = ({
         disabled={isSaving}
         className="btn btn-secondary"
         style={{ fontSize: '0.825rem' }}
-        title="Restablecer variables de acceso a valores por defecto"
+        title="Cargar en borrador los valores recomendados de las políticas y activar la telemetría"
       >
-        <RotateCcw size={14} /> Valores por Defecto
+        <RotateCcw size={14} /> Valores recomendados
       </button>
     </div>
 

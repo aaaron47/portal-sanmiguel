@@ -6,6 +6,8 @@ export type AccionAuditoria =
   | 'CONSULTA_AUDITORIA'
   | 'REINICIO_PASSWORD'
   | 'ACTUALIZACION_GOBERNANZA_TELEMETRIA'
+  /** La registra el backend al pausar o reanudar la telemetría (`PUT /telemetria/configuracion`). */
+  | 'CONFIGURACION_TELEMETRIA'
   | 'CONSULTA_GOBERNANZA'
   | 'ASIGNACION_ROL'
   | 'EXPORTACION_REPORTE'

@@ -7,6 +7,7 @@ import {
 } from '@/components/shared/ui/FilterControls';
 import { UsoSistema } from '@/types/telemetria.types';
 import { fechaHoraPeru } from '@/utils/fecha-peru.utils';
+import { etiquetaCanal, etiquetaFuncionalidad, etiquetaSistema } from '@/utils/telemetria.utils';
 import { PERIODOS_USO, SeleccionUso } from '../../useControlTi';
 
 interface UsoFiltrosProps {
@@ -20,7 +21,11 @@ interface UsoFiltrosProps {
 /** Filtros del dashboard de uso (Req 4): una sola fila sobre todo lo que filtran. */
 export const UsoFiltros: React.FC<UsoFiltrosProps> = ({ seleccion, disponibles, actualizadoEn, onCambiar, onLimpiar }) => {
   const hayFiltros =
-    seleccion.periodo !== '7d' || !!seleccion.funcionalidad || !!seleccion.sistemaOperativo || !!seleccion.appVersion;
+    seleccion.periodo !== '7d' ||
+    !!seleccion.canal ||
+    !!seleccion.funcionalidad ||
+    !!seleccion.sistemaOperativo ||
+    !!seleccion.appVersion;
 
   return (
     <div
@@ -49,6 +54,22 @@ export const UsoFiltros: React.FC<UsoFiltrosProps> = ({ seleccion, disponibles, 
           </select>
         </FilterSelectWrapper>
 
+        <FilterSelectWrapper label="Canal">
+          <select
+            aria-label="Canal"
+            value={seleccion.canal}
+            onChange={(e) => onCambiar('canal', e.target.value as SeleccionUso['canal'])}
+            style={ESTILO_SELECT_FILTRO}
+          >
+            <option value="">Todos</option>
+            {(disponibles?.canales ?? ['MOVIL', 'WEB']).map((c) => (
+              <option key={c} value={c}>
+                {etiquetaCanal(c)}
+              </option>
+            ))}
+          </select>
+        </FilterSelectWrapper>
+
         <FilterSelectWrapper label="Funcionalidad">
           <select
             aria-label="Funcionalidad"
@@ -59,7 +80,7 @@ export const UsoFiltros: React.FC<UsoFiltrosProps> = ({ seleccion, disponibles, 
             <option value="">Todas</option>
             {(disponibles?.funcionalidades ?? []).map((f) => (
               <option key={f} value={f}>
-                {f}
+                {etiquetaFuncionalidad(f)}
               </option>
             ))}
           </select>
@@ -69,13 +90,13 @@ export const UsoFiltros: React.FC<UsoFiltrosProps> = ({ seleccion, disponibles, 
           <select
             aria-label="Sistema operativo"
             value={seleccion.sistemaOperativo}
-            onChange={(e) => onCambiar('sistemaOperativo', e.target.value as SeleccionUso['sistemaOperativo'])}
+            onChange={(e) => onCambiar('sistemaOperativo', e.target.value)}
             style={ESTILO_SELECT_FILTRO}
           >
             <option value="">Todos</option>
-            {(disponibles?.sistemasOperativos ?? ['Android', 'iOS']).map((so) => (
+            {(disponibles?.sistemasOperativos ?? ['ANDROID', 'IOS']).map((so) => (
               <option key={so} value={so}>
-                {so}
+                {etiquetaSistema(so)}
               </option>
             ))}
           </select>
@@ -104,11 +125,11 @@ export const UsoFiltros: React.FC<UsoFiltrosProps> = ({ seleccion, disponibles, 
         <Clock size={14} />
         {actualizadoEn ? (
           <span>
-            Última actualización: <strong style={{ color: 'var(--text-main)' }}>{fechaHoraPeru(actualizadoEn)}</strong> (hora
-            de Perú)
+            Último dato registrado: <strong style={{ color: 'var(--text-main)' }}>{fechaHoraPeru(actualizadoEn)}</strong>{' '}
+            (hora de Perú)
           </span>
         ) : (
-          <span>Última actualización: —</span>
+          <span>Último dato registrado: —</span>
         )}
       </div>
     </div>
