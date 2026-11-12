@@ -28,7 +28,7 @@ de punta a punta el 05/11 (rama `feature/flujo-reclamos`; 57 pruebas según la r
 | Req | Funcionalidad | Portal | Bloqueo principal |
 |---|---|---|---|
 | 1 | Gestión y seguimiento de reclamos | ✅ *(rama)* | Los adjuntos que el ciudadano subió desde la app todavía no se pueden descargar (están en el almacenamiento del backend anterior) |
-| 2 | Constancias de no adeudo | ✅ *(rama)* | Aprobar y desaprobar probados en el simulado; en el real falta una solicitud en verificación |
+| 2 | Constancias de no adeudo | ✅ | Aprobar y desaprobar probados contra el backend real (`SOL-2026-001044` y `SOL-2026-001045`) |
 | 3 | Registro de uso del sistema | ✅ *(rama)* | Ninguno en el portal. Hoy el backend solo tiene eventos de prueba |
 | 4 | Dashboard de uso del sistema | ✅ *(rama)* | Ninguno. Falta confirmar con el backend las reglas de conteo |
 | 5 | Onboarding y preferencias de privacidad | ✅ *(rama)* (el onboarding está en la app) | Activar otra versión del aviso espera un permiso en la BD (501) |
@@ -73,8 +73,11 @@ descargar desde el portal (hoy son 6 archivos en 5 reclamos). Probado contra el 
 
 **Probado:** backend simulado 40/40 (aprobar, desaprobar, errores `invalid_state`, `fee_required` y
 `outstanding_debts`, 404, paginación, búsqueda, CSV, supervisor), backend real 9/9 (solo lectura: hoy hay 9 solicitudes
-y ninguna en verificación) y modo demo 3/3. **Falta:** probar aprobar y desaprobar en el backend real con una solicitud
-en verificación. Antes, el portal trataba la constancia como una marca del reclamo (`tieneConstancia`); en el backend es
+y ninguna en verificación) y modo demo 3/3. **Backend real, con escritura (11/11, solicitudes de prueba del backend):
+21/21.** `funcionario.demo` aprobó `SOL-2026-001044` (sin deuda): quedó emitida con su código de verificación y vigencia.
+`supervisor.demo` desaprobó `SOL-2026-001045` (S/ 5,065.80 en 15 cuotas, 13 vencidas): la pantalla mostró las 15 cuotas
+del detalle y explicó por qué no se podía aprobar; aprobar a la fuerza dio 409 `outstanding_debts`, repetir dio 409
+`invalid_state` y Control Municipal recibe 403. Antes, el portal trataba la constancia como una marca del reclamo (`tieneConstancia`); en el backend es
 una solicitud aparte (`SOL-…`), así que se quitaron esa columna, ese filtro y esa tarjeta de la bandeja de reclamos.
 
 ## Req 3. Registro de uso del sistema
@@ -149,7 +152,7 @@ lo muestra.
 | 1 | ~~Endpoints `/telemetria/*`~~ Publicados el 11/11; el portal ya los usa *(rama)* | — | 3, 4, 5 |
 | 2 | ~~Agregar "resultado" y sesión a los eventos de uso~~ Hecho en el backend. Falta que la app móvil envíe eventos reales y confirmar las reglas de conteo (`docs/Solicitud_backend_telemetria.md`) | Backend + app | 3, 4 |
 | 3 | ~~Dashboard: sesiones, usuarios únicos, actividad por día y hora, % completadas, filtros y última actualización~~ Hecho en la rama y probado con el backend real | — | 4 |
-| 4 | ~~Endpoint para aprobar o desaprobar constancias y conectarlo~~ Hecho en la rama. Falta probarlo en el backend real con una solicitud en verificación | Backend (dato de prueba) | 2 |
+| 4 | ~~Endpoint para aprobar o desaprobar constancias y conectarlo~~ Hecho y probado contra el backend real | — | 2 |
 | 5 | ~~`GET /reportes/constancias`~~ Publicado; Control Municipal ya lo muestra | — | 2 |
 | 6 | ~~Mostrar adjuntos y adjuntar evidencias~~ Hecho en la rama. Falta que la app suba sus adjuntos al backend único | App | 1 |
 | 7 | ~~Endpoints de Control de Acceso~~ Hechos y usados en la rama. Falta el permiso `UPDATE (activo)` en `documentos_versiones` | Responsable de la BD | 5 |

@@ -9,8 +9,15 @@ export type EstadoSolicitudConstancia = 'EN_VERIFICACION' | 'PENDIENTE_PAGO' | '
 
 export type AccionConstancia = 'APROBAR' | 'DESAPROBAR';
 
+/** Una cuota que el contribuyente debe. Solo llega en `GET /constancias/{id}`; en la lista `detalle` viene vacío. */
 export interface CuotaPendiente {
-  [campo: string]: string | number | null | undefined;
+  id: string;
+  concepto: string;
+  periodo: string;
+  /** Día de vencimiento (`AAAA-MM-DD`). */
+  venceEl: string;
+  total: string;
+  vencida: boolean;
 }
 
 export interface SolicitudConstancia {

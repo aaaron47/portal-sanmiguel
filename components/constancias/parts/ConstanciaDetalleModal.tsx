@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, FileCheck, FileText, ShieldCheck, Eye, X, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, FileCheck, FileText, Info, ShieldCheck, Eye, X, XCircle } from 'lucide-react';
 import { constanciasController } from '@/controllers/constancias.controller';
 import { reportesController } from '@/controllers/reportes.controller';
 import { MODO_DEMO, codigoErrorApi, mensajeErrorApi } from '@/services/api-client.service';
 import { SolicitudConstancia } from '@/types/constancia.types';
 import { ConstanciaItem, ConstanciaPdfResponse } from '@/types/reportes-tributarios.types';
 import { fechaHoraPeru, fechaPeru } from '@/utils/fecha-peru.utils';
-import { importe, puedeConstancia, tieneDeuda } from '../constancia.utils';
+import { importe, motivoNoAprobable, puedeConstancia, tieneDeuda } from '../constancia.utils';
 import { MENSAJES_CONSTANCIAS } from '../useConstancias';
 import { ConstanciaPdfModal } from '@/components/roles/control-municipal/constancias/parts/ConstanciaPdfModal';
 
@@ -90,6 +90,9 @@ export const ConstanciaDetalleModal: React.FC<ConstanciaDetalleModalProps> = ({ 
   const s = detalle ?? solicitud;
   const puedeAprobar = puedeConstancia(s, 'APROBAR');
   const puedeDesaprobar = puedeConstancia(s, 'DESAPROBAR');
+  const noAprobable = motivoNoAprobable(s);
+  // El servidor no las ordena: primero la que vence antes.
+  const cuotas = [...(s.deuda?.detalle ?? [])].sort((x, y) => (x.venceEl ?? '').localeCompare(y.venceEl ?? ''));
   const motivoFalta = modo === 'DESAPROBAR' && texto.trim().length === 0;
 
   const constanciaItemModal: ConstanciaItem = useMemo(() => ({
@@ -320,6 +323,44 @@ export const ConstanciaDetalleModal: React.FC<ConstanciaDetalleModalProps> = ({ 
               </div>
             )}
           </div>
+
+          {/* Detalle de Cuotas Pendientes cuando registra deuda */}
+          {tieneDeuda(s) && cuotas.length > 0 && (
+            <div style={{ background: 'var(--bg-card-subtle)', borderRadius: '10px', padding: '0.85rem 1rem', border: '1px solid var(--border-color)' }}>
+              <p style={tituloSeccion}>Cuotas pendientes ({cuotas.length})</p>
+              <div className="table-container" style={{ overflowX: 'auto' }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Concepto</th>
+                      <th>Periodo</th>
+                      <th>Vence el</th>
+                      <th style={{ textAlign: 'right' }}>Total</th>
+                      <th>Situación</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cuotas.map((c, i) => (
+                      <tr key={c.id ?? i} style={{ fontSize: '0.8rem' }}>
+                        <td>{c.concepto}</td>
+                        <td>{c.periodo}</td>
+                        <td>{c.venceEl ? fechaPeru(c.venceEl) : '—'}</td>
+                        <td style={{ textAlign: 'right' }}>{importe(c.total, s.moneda)}</td>
+                        <td style={{ fontWeight: c.vencida ? 700 : 400 }}>{c.vencida ? 'Vencida' : 'Por vencer'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {noAprobable && (
+            <p style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', fontSize: '0.775rem', color: 'var(--text-main)', background: 'var(--bg-card-subtle)', border: '1px solid var(--amber-500)', borderRadius: '8px', padding: '0.6rem 0.75rem', margin: 0 }}>
+              <Info size={16} style={{ flexShrink: 0, marginTop: '1px', color: 'var(--amber-700)' }} />
+              {noAprobable}
+            </p>
+          )}
 
           {/* Bloque 3: Estado de Resolución / Constancia Emitida (si aplica) */}
           {s.constancia && (
