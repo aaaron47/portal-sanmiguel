@@ -6,6 +6,8 @@ import { Download, Save, RotateCcw, Undo2 } from 'lucide-react';
 interface ControlAccesoToolbarProps {
   isSaving: boolean;
   hayCambios: boolean;
+  /** false si no se pudo leer la configuración del servidor (o aún se está leyendo). */
+  puedeGuardar: boolean;
   onGuardar: () => void;
   onDescartar: () => void;
   onRestablecer: () => void;
@@ -15,6 +17,7 @@ interface ControlAccesoToolbarProps {
 export const ControlAccesoToolbar: React.FC<ControlAccesoToolbarProps> = ({
   isSaving,
   hayCambios,
+  puedeGuardar,
   onGuardar,
   onDescartar,
   onRestablecer,
@@ -24,14 +27,20 @@ export const ControlAccesoToolbar: React.FC<ControlAccesoToolbarProps> = ({
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
       <button
         onClick={onGuardar}
-        disabled={isSaving || !hayCambios}
+        disabled={isSaving || !hayCambios || !puedeGuardar}
         className="btn btn-primary"
         style={{
           fontSize: '0.825rem',
-          opacity: hayCambios && !isSaving ? 1 : 0.65,
+          opacity: hayCambios && !isSaving && puedeGuardar ? 1 : 0.65,
           position: 'relative',
         }}
-        title={hayCambios ? 'Guardar todos los cambios de la pestaña con validación de seguridad' : 'No hay cambios pendientes de guardar'}
+        title={
+          !puedeGuardar
+            ? 'No se puede guardar: no se pudo leer la configuración actual del servidor'
+            : hayCambios
+            ? 'Guardar todos los cambios de la pestaña con validación de seguridad'
+            : 'No hay cambios pendientes de guardar'
+        }
       >
         <Save size={15} /> {isSaving ? 'Guardando...' : 'Guardar Configuración'}
         {hayCambios && (
@@ -64,9 +73,9 @@ export const ControlAccesoToolbar: React.FC<ControlAccesoToolbarProps> = ({
         disabled={isSaving}
         className="btn btn-secondary"
         style={{ fontSize: '0.825rem' }}
-        title="Restablecer variables de acceso a valores por defecto"
+        title="Cargar en borrador los valores recomendados de las políticas y activar la telemetría"
       >
-        <RotateCcw size={14} /> Valores por Defecto
+        <RotateCcw size={14} /> Valores recomendados
       </button>
     </div>
 

@@ -78,7 +78,7 @@ export class AuthController {
     } catch (err) {
       // Si el backend respondió (p. ej. 401 por contraseña incorrecta), no se entra en modo demo.
       if (err instanceof ApiError && !esSinConexion(err)) {
-        // account_locked (5 intentos fallidos) tiene su propio aviso; el resto de 401 es usuario o contraseña.
+        // account_locked trae el tiempo de bloqueo en el mensaje del backend; el resto de 401 es usuario o contraseña.
         throw new Error(
           mensajeErrorApi(err, 'No se pudo iniciar sesión. Inténtalo de nuevo en unos minutos.', {
             invalid_credentials: 'El DNI, el correo o la contraseña no son correctos. Revisa los datos e inténtalo de nuevo.',
@@ -121,6 +121,18 @@ export class AuthController {
     } finally {
       storageService.clearSession();
     }
+  }
+
+  /**
+   * Endpoint backend: `POST /auth/cambiar-contrasena` → 204. Para la propia cuenta del personal. Errores 422 con el
+   * mensaje en español: `invalid_current_password`, `password_too_short` (con el mínimo), `password_reused`.
+   * Cierra las demás sesiones de esa persona; la actual sigue. Sin simulación: necesita el servidor.
+   */
+  async cambiarContrasena(contrasenaActual: string, contrasenaNueva: string): Promise<void> {
+    await apiClient<void>('/auth/cambiar-contrasena', {
+      method: 'POST',
+      body: JSON.stringify({ contrasenaActual, contrasenaNueva }),
+    });
   }
 
   async getCurrentUser(): Promise<Usuario | null> {

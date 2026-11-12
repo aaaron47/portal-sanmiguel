@@ -6,7 +6,8 @@ import {
   ShieldCheck,
   Lock,
   X,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { NotifyFn } from '@/types/ui.types';
 import { CardHeader, CardAside } from '@/components/shared/ui/CardHeader';
@@ -15,6 +16,16 @@ import { ControlAccesoToolbar } from './parts/ControlAccesoToolbar';
 import { VariablesAccesoCards } from './parts/VariablesAccesoCards';
 import { MatrizPermisosTable } from './parts/MatrizPermisosTable';
 import { GobernanzaDatosCard } from './parts/GobernanzaDatosCard';
+import { fechaHoraPeru } from '@/utils/fecha-peru.utils';
+
+/** Estilo de la sección: sin el marco propio de `fieldset` y atenuada si no se pudo leer del servidor. */
+const estiloSeccion = (habilitada: boolean): React.CSSProperties => ({
+  border: 0,
+  padding: 0,
+  margin: 0,
+  minWidth: 0,
+  opacity: habilitada ? 1 : 0.6,
+});
 
 export const ControlAccesoPanel: React.FC<{ onNotify: NotifyFn }> = ({ onNotify }) => {
   const c = useControlAcceso(onNotify);
@@ -34,17 +45,34 @@ export const ControlAccesoPanel: React.FC<{ onNotify: NotifyFn }> = ({ onNotify 
       <ControlAccesoToolbar
         isSaving={c.isSaving}
         hayCambios={c.hayCambios}
+        puedeGuardar={c.puedeGuardar}
         onGuardar={c.solicitarGuardar}
         onDescartar={c.descartarCambios}
         onRestablecer={c.restablecerValores}
         onDescargarCSV={c.descargarCSV}
       />
 
+      {/* Si no se pudo leer la configuración del servidor, se dice antes de mostrar los valores */}
+      {c.errorCarga && (
+        <div role="alert" className="alert-warning-box">
+          <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '1px' }} />
+          <span>{c.errorCarga}</span>
+        </div>
+      )}
+
       {/* Sección 1: Variables de configuración de acceso */}
-      <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.75rem' }}>
-        1. Variables de Sesión y Reglas de Autenticación
+      <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.25rem' }}>
+        1. Políticas de acceso del personal
       </h4>
-      <VariablesAccesoCards variables={c.variables} onChange={c.updateVariable} />
+      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 0.75rem' }}>
+        El servidor las aplica en el login y en las sesiones del portal.
+        {c.ultimaModificacion?.fecha &&
+          ` Último cambio: ${fechaHoraPeru(c.ultimaModificacion.fecha)}${c.ultimaModificacion.por ? `, por ${c.ultimaModificacion.por}` : ''}.`}
+      </p>
+      {/* Un fieldset deshabilitado bloquea todos sus controles: no se edita lo que no se pudo leer */}
+      <fieldset disabled={!c.leido.politicas} style={estiloSeccion(c.leido.politicas || c.cargandoConfig)}>
+        <VariablesAccesoCards variables={c.variables} onChange={c.updateVariable} />
+      </fieldset>
 
       {/* Sección 2: Matriz de Control de Acceso por Roles (RBAC) */}
       <div style={{ marginTop: '1.5rem' }}>
@@ -57,14 +85,19 @@ export const ControlAccesoPanel: React.FC<{ onNotify: NotifyFn }> = ({ onNotify 
         <MatrizPermisosTable permisos={c.matrizPermisos} />
       </div>
 
-      {/* Sección 3: Gobernanza de Datos y Seguridad Legal (Misma pestaña, guardado unificado) */}
+      {/* Sección 3: Gobernanza de datos. Cada control se habilita si su parte se pudo leer del servidor. */}
       <GobernanzaDatosCard
         telemetriaActiva={c.variables.telemetriaActiva}
         mesesRetencionUso={c.variables.mesesRetencionUso}
-        versionTerminosVigente={c.variables.versionTerminosVigente}
+        versionAvisoId={c.variables.versionAvisoId}
+        versionesAviso={c.versionesAviso}
+        versionAvisoVigente={c.versionAvisoVigente}
+        telemetriaLeida={c.leido.telemetria}
+        documentosLeidos={c.leido.documentos}
+        cargando={c.cargandoConfig}
         onChange={c.updateVariable}
         modificadoTelemetria={c.variables.telemetriaActiva !== c.variablesGuardadas.telemetriaActiva}
-        modificadoTerminos={c.variables.versionTerminosVigente !== c.variablesGuardadas.versionTerminosVigente}
+        modificadoVersion={c.variables.versionAvisoId !== c.variablesGuardadas.versionAvisoId}
       />
 
       {/* Modal Unificado de Confirmación de Alta Seguridad Institucional */}
@@ -140,7 +173,7 @@ export const ControlAccesoPanel: React.FC<{ onNotify: NotifyFn }> = ({ onNotify 
             {/* Advertencia y Reto de Seguridad */}
             <div style={{ marginBottom: '1.25rem' }}>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4', margin: '0 0 0.75rem' }}>
-                Cada modificación en las variables de esta pestaña afectará la seguridad de los usuarios, sesiones activas y recolección de datos en producción. Quedará registrado en auditoría.
+                Estos cambios se aplican de inmediato a las sesiones del personal y a la recolección de datos de la app. El servidor los registra en auditoría.
               </p>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.4rem' }}>
                 Para confirmar, escribe exactamente: <span style={{ color: 'var(--sky-600)', fontFamily: 'var(--font-mono)' }}>realizar cambios</span>

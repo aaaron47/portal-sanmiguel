@@ -75,7 +75,7 @@ export default function HomePage() {
   return (
     <div className="app-layout">
       {/* Navegación lateral adaptativa por Rol */}
-      <Sidebar currentTab={currentTab} onTabChange={setCurrentTab} />
+      <Sidebar currentTab={currentTab} onTabChange={setCurrentTab} onNotify={showNotification} />
 
       {/* Área Principal de Contenido */}
       <div className="main-content">

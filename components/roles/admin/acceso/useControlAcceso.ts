@@ -1,25 +1,45 @@
 import { useState, useEffect, useMemo } from 'react';
 import { NotifyFn } from '@/types/ui.types';
 import { exportarCSV } from '@/utils/csv.utils';
-import { apiClient, usarDatosDemo } from '@/services/api-client.service';
+import { mensajeErrorApi } from '@/services/api-client.service';
 import { telemetriaController } from '@/controllers/telemetria.controller';
-import { auditoriaController } from '@/controllers/auditoria.controller';
+import { seguridadController } from '@/controllers/seguridad.controller';
+import { CambiosPoliticas, DocumentoVersion } from '@/types/seguridad.types';
 
 export interface VariablesAcceso {
-  // 1. Políticas de Sesión y Autenticación
+  // 1. Políticas de acceso del personal (PUT /seguridad/politicas-acceso)
   sessionTimeoutMinutes: number;
   maxFailedLogins: number;
+  lockoutMinutes: number;
   minPasswordLength: number;
-  require2FAForPrivileged: boolean;
-  restrictToMunicipalNetwork: boolean;
-  passwordExpirationDays: number;
-  allowSimultaneousSessions: boolean;
-  // 2. Gobernanza de Datos y Telemetría Móvil (Ley N° 29733)
+  // 2. Telemetría de la app (PUT /telemetria/configuracion)
   telemetriaActiva: boolean;
-  /** Solo informativo: la purga mensual de la BD conserva 12 meses (RETENCION_USO_MESES). */
+  /** Solo informativo: el backend purga cada día lo que supera este plazo (RETENCION_USO_MESES). */
   mesesRetencionUso: number;
-  versionTerminosVigente: string;
+  // 3. Versión activa del aviso de analítica (PUT /documentos-versiones/{id}/activar)
+  versionAvisoId: string;
 }
+
+/** Cada sección se lee y se guarda con su propio endpoint. */
+type Seccion = 'politicas' | 'telemetria' | 'documentos';
+
+const SECCION: Record<keyof VariablesAcceso, Seccion> = {
+  sessionTimeoutMinutes: 'politicas',
+  maxFailedLogins: 'politicas',
+  lockoutMinutes: 'politicas',
+  minPasswordLength: 'politicas',
+  telemetriaActiva: 'telemetria',
+  mesesRetencionUso: 'telemetria',
+  versionAvisoId: 'documentos',
+};
+
+const CAMPOS_POLITICAS = ['sessionTimeoutMinutes', 'maxFailedLogins', 'lockoutMinutes', 'minPasswordLength'] as const;
+
+const NOMBRE_SECCION: Record<Seccion, string> = {
+  politicas: 'las políticas de acceso',
+  telemetria: 'la configuración de telemetría',
+  documentos: 'las versiones del aviso de analítica',
+};
 
 export interface PermisoRol {
   rol: string;
@@ -29,17 +49,15 @@ export interface PermisoRol {
   nivelAcceso: 'Total' | 'Operativo' | 'Supervisión' | 'Auditoría' | 'Monitoreo';
 }
 
+/** Valores recomendados (botón "Valores recomendados"). Mientras no se lea el servidor, solo se muestran atenuados. */
 const DEFAULT_VARIABLES: VariablesAcceso = {
-  sessionTimeoutMinutes: 45,
+  sessionTimeoutMinutes: 30,
   maxFailedLogins: 5,
+  lockoutMinutes: 15,
   minPasswordLength: 8,
-  require2FAForPrivileged: true,
-  restrictToMunicipalNetwork: false,
-  passwordExpirationDays: 90,
-  allowSimultaneousSessions: false,
   telemetriaActiva: true,
   mesesRetencionUso: 12,
-  versionTerminosVigente: 'v1.3 (2026-10)',
+  versionAvisoId: '',
 };
 
 const MATRIZ_PERMISOS: PermisoRol[] = [
@@ -80,32 +98,82 @@ const MATRIZ_PERMISOS: PermisoRol[] = [
   },
 ];
 
+/** "a", "a ni b", "a, b ni c". */
+const unirNi = (partes: string[]) =>
+  partes.length <= 1 ? partes.join('') : `${partes.slice(0, -1).join(', ')} ni ${partes[partes.length - 1]}`;
+
 export function useControlAcceso(onNotify: NotifyFn) {
   const [variablesGuardadas, setVariablesGuardadas] = useState<VariablesAcceso>(DEFAULT_VARIABLES);
   const [variables, setVariables] = useState<VariablesAcceso>(DEFAULT_VARIABLES);
   const [isSaving, setIsSaving] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [textoConfirmacion, setTextoConfirmacion] = useState('');
+  // Mientras se lee la configuración del servidor no se puede guardar.
+  const [cargandoConfig, setCargandoConfig] = useState(true);
+  // Si no se pudo leer algo del servidor, se explica aquí. Solo se cambia lo que sí se leyó:
+  // en lo demás, los valores en pantalla serían los recomendados, no los guardados.
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+  const [leido, setLeido] = useState<Record<Seccion, boolean>>({ politicas: false, telemetria: false, documentos: false });
+  const [versionPoliticas, setVersionPoliticas] = useState<number | undefined>(undefined);
+  const [ultimaModificacion, setUltimaModificacion] = useState<{ fecha?: string; por?: string } | null>(null);
+  const [versionesAviso, setVersionesAviso] = useState<DocumentoVersion[]>([]);
+  /** Versión que informa `/telemetria/resumen` (por si no se pudieron leer las versiones). */
+  const [versionAvisoVigente, setVersionAvisoVigente] = useState<string>('');
 
-  // Sincronizar con el backend al montar el componente
+  // Leer la configuración guardada al abrir la pestaña
   useEffect(() => {
     let montado = true;
-    telemetriaController
-      .getResumen()
-      .then((resumen) => {
-        if (!montado) return;
-        const configInicial: VariablesAcceso = {
-          ...DEFAULT_VARIABLES,
-          telemetriaActiva: resumen.onboarding.telemetriaActiva,
-          mesesRetencionUso: resumen.onboarding.mesesRetencionUso,
-          versionTerminosVigente: resumen.onboarding.versionTerminosVigente,
-        };
-        setVariablesGuardadas(configInicial);
-        setVariables(configInicial);
-      })
-      .catch(() => {
-        // En caso de fallo de red, se mantienen los valores por defecto seguros
+    Promise.allSettled([
+      seguridadController.getPoliticas(),
+      telemetriaController.getResumen(),
+      seguridadController.getDocumentosVersiones('AVISO_ANALITICA'),
+    ]).then(([resPoliticas, resTelemetria, resDocumentos]) => {
+      if (!montado) return;
+      const config: VariablesAcceso = { ...DEFAULT_VARIABLES };
+      const faltan: string[] = [];
+      let primerError: unknown;
+      const fallo = (seccion: Seccion, razon: unknown) => {
+        faltan.push(NOMBRE_SECCION[seccion]);
+        primerError ??= razon;
+      };
+
+      if (resPoliticas.status === 'fulfilled') {
+        const p = resPoliticas.value;
+        CAMPOS_POLITICAS.forEach((k) => (config[k] = p[k]));
+        setVersionPoliticas(p.version);
+        setUltimaModificacion({ fecha: p.actualizadoEn, por: p.actualizadoPor });
+      } else fallo('politicas', resPoliticas.reason);
+
+      if (resTelemetria.status === 'fulfilled') {
+        config.telemetriaActiva = resTelemetria.value.onboarding.telemetriaActiva;
+        config.mesesRetencionUso = resTelemetria.value.onboarding.mesesRetencionUso;
+        setVersionAvisoVigente(resTelemetria.value.onboarding.versionTerminosVigente);
+      } else fallo('telemetria', resTelemetria.reason);
+
+      if (resDocumentos.status === 'fulfilled') {
+        setVersionesAviso(resDocumentos.value);
+        config.versionAvisoId = resDocumentos.value.find((d) => d.activo)?.id ?? '';
+      } else fallo('documentos', resDocumentos.reason);
+
+      setVariablesGuardadas(config);
+      setVariables(config);
+      setLeido({
+        politicas: resPoliticas.status === 'fulfilled',
+        telemetria: resTelemetria.status === 'fulfilled',
+        documentos: resDocumentos.status === 'fulfilled',
       });
+      if (faltan.length > 0) {
+        const detalle = mensajeErrorApi(primerError, 'Inténtalo de nuevo más tarde.', {
+          404: 'El servidor todavía no ofrece esta configuración.',
+        });
+        setErrorCarga(
+          `No se pudo leer del servidor ${unirNi(faltan)}. ${detalle} En esa parte ves valores de referencia, ` +
+            'no los guardados, y no se puede cambiar hasta que el servidor responda.' +
+            (faltan.length < 3 ? ' Lo demás sí se puede guardar.' : '')
+        );
+      }
+      setCargandoConfig(false);
+    });
 
     return () => {
       montado = false;
@@ -113,42 +181,54 @@ export function useControlAcceso(onNotify: NotifyFn) {
   }, []);
 
   const updateVariable = <K extends keyof VariablesAcceso>(key: K, value: VariablesAcceso[K]) => {
+    // No se cambia una sección que no se pudo leer del servidor.
+    if (cargandoConfig || !leido[SECCION[key]]) return;
     setVariables((prev) => ({ ...prev, [key]: value }));
   };
 
-  // Comparar si existen cambios con respecto a lo guardado
-  const hayCambios = useMemo(() => {
-    return (Object.keys(variablesGuardadas) as (keyof VariablesAcceso)[]).some(
-      (k) => variables[k] !== variablesGuardadas[k]
+  const cambioEn = (seccion: Seccion) =>
+    (Object.keys(SECCION) as (keyof VariablesAcceso)[]).some(
+      (k) => SECCION[k] === seccion && variables[k] !== variablesGuardadas[k]
     );
-  }, [variables, variablesGuardadas]);
+  const cambioPoliticas = cambioEn('politicas');
+  const cambioTelemetria = cambioEn('telemetria');
+  const cambioDocumentos = cambioEn('documentos');
+  const hayCambios = cambioPoliticas || cambioTelemetria || cambioDocumentos;
 
-  // Lista detallada de cambios detectados para el modal y la auditoría
+  const textoVersion = (id: string) => versionesAviso.find((d) => d.id === id)?.version ?? (versionAvisoVigente || '—');
+
+  // Lista de cambios para el modal de confirmación
   const resumenCambios = useMemo(() => {
     const lista: string[] = [];
-    if (variables.sessionTimeoutMinutes !== variablesGuardadas.sessionTimeoutMinutes) {
-      lista.push(`Tiempo de Inactividad: ${variablesGuardadas.sessionTimeoutMinutes}m ➔ ${variables.sessionTimeoutMinutes}m`);
+    const v = variables;
+    const g = variablesGuardadas;
+    if (v.sessionTimeoutMinutes !== g.sessionTimeoutMinutes) {
+      lista.push(`Cierre de sesión por inactividad: ${g.sessionTimeoutMinutes} min ➔ ${v.sessionTimeoutMinutes} min`);
     }
-    if (variables.passwordExpirationDays !== variablesGuardadas.passwordExpirationDays) {
-      lista.push(`Renovación de Contraseña: ${variablesGuardadas.passwordExpirationDays}d ➔ ${variables.passwordExpirationDays}d`);
+    if (v.maxFailedLogins !== g.maxFailedLogins) {
+      lista.push(`Intentos fallidos antes del bloqueo: ${g.maxFailedLogins} ➔ ${v.maxFailedLogins}`);
     }
-    if (variables.maxFailedLogins !== variablesGuardadas.maxFailedLogins) {
-      lista.push(`Intentos fallidos antes de bloqueo: ${variablesGuardadas.maxFailedLogins} ➔ ${variables.maxFailedLogins}`);
+    if (v.lockoutMinutes !== g.lockoutMinutes) {
+      lista.push(`Duración del bloqueo: ${g.lockoutMinutes} min ➔ ${v.lockoutMinutes} min`);
     }
-    if (variables.minPasswordLength !== variablesGuardadas.minPasswordLength) {
-      lista.push(`Longitud mínima de contraseña: ${variablesGuardadas.minPasswordLength} ➔ ${variables.minPasswordLength} caracteres`);
+    if (v.minPasswordLength !== g.minPasswordLength) {
+      lista.push(`Longitud mínima de contraseña: ${g.minPasswordLength} ➔ ${v.minPasswordLength} caracteres`);
     }
-    if (variables.telemetriaActiva !== variablesGuardadas.telemetriaActiva) {
-      lista.push(`Telemetría Móvil: ${variablesGuardadas.telemetriaActiva ? 'ACTIVA' : 'EN PAUSA'} ➔ ${variables.telemetriaActiva ? 'REANUDADA (ACTIVA)' : 'PAUSADA (KILL-SWITCH ACTIVADO)'}`);
+    if (v.telemetriaActiva !== g.telemetriaActiva) {
+      lista.push(`Telemetría de la app: ${g.telemetriaActiva ? 'ACTIVA' : 'EN PAUSA'} ➔ ${v.telemetriaActiva ? 'ACTIVA' : 'EN PAUSA'}`);
     }
-    if (variables.versionTerminosVigente !== variablesGuardadas.versionTerminosVigente) {
-      lista.push(`Versión Términos App: ${variablesGuardadas.versionTerminosVigente} ➔ ${variables.versionTerminosVigente} (Re-aceptación ciudadana obligatoria)`);
+    if (v.versionAvisoId !== g.versionAvisoId) {
+      const antes = versionesAviso.find((d) => d.id === g.versionAvisoId)?.version ?? '—';
+      const despues = versionesAviso.find((d) => d.id === v.versionAvisoId)?.version ?? '—';
+      lista.push(`Versión activa del aviso de analítica: ${antes} ➔ ${despues} (los ciudadanos deberán aceptarla de nuevo)`);
     }
     return lista;
-  }, [variables, variablesGuardadas]);
+  }, [variables, variablesGuardadas, versionesAviso]);
+
+  const puedeGuardar = !cargandoConfig && (leido.politicas || leido.telemetria || leido.documentos);
 
   const solicitarGuardar = () => {
-    if (!hayCambios) return;
+    if (!hayCambios || !puedeGuardar) return;
     setTextoConfirmacion('');
     setIsModalOpen(true);
   };
@@ -160,41 +240,80 @@ export function useControlAcceso(onNotify: NotifyFn) {
 
   const confirmarYGuardar = async () => {
     if (textoConfirmacion.trim().toLowerCase() !== 'realizar cambios' || isSaving) return;
-
     setIsSaving(true);
-    try {
-      // 1. Guardar cambios de telemetría/gobernanza en Spring Boot
-      await telemetriaController.actualizarConfiguracionPrivacidad({
-        telemetriaActiva: variables.telemetriaActiva,
-        versionTerminosVigente: variables.versionTerminosVigente,
+
+    // Cada sección se guarda con su endpoint, y solo si cambió. El backend registra la auditoría de cada una.
+    const pasos: { seccion: Seccion; guardar: () => Promise<Partial<VariablesAcceso>> }[] = [];
+    if (cambioPoliticas) {
+      pasos.push({
+        seccion: 'politicas',
+        guardar: async () => {
+          const cambios: CambiosPoliticas = {};
+          CAMPOS_POLITICAS.forEach((k) => {
+            if (variables[k] !== variablesGuardadas[k]) cambios[k] = variables[k];
+          });
+          const p = await seguridadController.guardarPoliticas(cambios, versionPoliticas);
+          setVersionPoliticas(p.version);
+          setUltimaModificacion({ fecha: p.actualizadoEn, por: p.actualizadoPor });
+          // Lo que quedó guardado es lo que devuelve el servidor.
+          return Object.fromEntries(CAMPOS_POLITICAS.map((k) => [k, p[k] ?? variables[k]]));
+        },
       });
-
-      // 2. Guardar políticas de acceso en Spring Boot
-      try {
-        await apiClient('/seguridad/politicas-acceso', {
-          method: 'PUT',
-          body: JSON.stringify(variables),
-        });
-      } catch (err) {
-        if (!usarDatosDemo(err)) throw err;
-      }
-
-      // 3. Registrar formalmente en auditoría
-      await auditoriaController.registrarLog({
-        accion: 'ACTUALIZACION_POLITICA',
-        entidadAfectada: 'Políticas de Seguridad y Acceso',
-        detalles: `Configuración actualizada por Administrador. Modificaciones aplicadas: ${resumenCambios.join(' | ')}.`,
-      });
-
-      setVariablesGuardadas({ ...variables });
-      setIsModalOpen(false);
-      setTextoConfirmacion('');
-      onNotify('success', 'Todas las políticas de acceso y gobernanza fueron actualizadas con éxito y registradas en auditoría.');
-    } catch {
-      onNotify('error', 'Error al guardar las políticas en el servidor. Intente nuevamente.');
-    } finally {
-      setIsSaving(false);
     }
+    if (cambioTelemetria) {
+      pasos.push({
+        seccion: 'telemetria',
+        guardar: async () => {
+          const o = await telemetriaController.actualizarConfiguracionPrivacidad({ telemetriaActiva: variables.telemetriaActiva });
+          return { telemetriaActiva: o.telemetriaActiva ?? variables.telemetriaActiva };
+        },
+      });
+    }
+    if (cambioDocumentos) {
+      pasos.push({
+        seccion: 'documentos',
+        guardar: async () => {
+          const activada = await seguridadController.activarDocumentoVersion(variables.versionAvisoId);
+          setVersionesAviso((prev) => prev.map((d) => ({ ...d, activo: d.id === variables.versionAvisoId })));
+          setVersionAvisoVigente(activada.version ?? textoVersion(variables.versionAvisoId));
+          return { versionAvisoId: variables.versionAvisoId };
+        },
+      });
+    }
+
+    const guardadas: Seccion[] = [];
+    let acumulado: Partial<VariablesAcceso> = {};
+    for (const paso of pasos) {
+      try {
+        acumulado = { ...acumulado, ...(await paso.guardar()) };
+        guardadas.push(paso.seccion);
+      } catch (err) {
+        const detalle = mensajeErrorApi(err, 'Inténtalo de nuevo.', {
+          409: 'Otro administrador cambió esta configuración mientras la editabas. Recarga la página para ver los valores actuales.',
+          // 501 (`not_implemented`) solo lo responde la activación de una versión del aviso.
+          not_implemented: 'El servidor todavía no puede cambiar la versión activa: falta un permiso en la base de datos.',
+          501: 'El servidor todavía no puede cambiar la versión activa: falta un permiso en la base de datos.',
+        });
+        // Lo que ya se guardó queda como guardado; el modal sigue abierto solo con lo que falta.
+        if (guardadas.length > 0) {
+          setVariablesGuardadas((prev) => ({ ...prev, ...acumulado }));
+          setVariables((prev) => ({ ...prev, ...acumulado }));
+          onNotify('error', `Se guardó ${unirY(guardadas.map((s) => NOMBRE_SECCION[s]))}, pero no ${NOMBRE_SECCION[paso.seccion]}. ${detalle}`);
+        } else {
+          onNotify('error', `No se pudo guardar ${NOMBRE_SECCION[paso.seccion]}. ${detalle}`);
+        }
+        setIsSaving(false);
+        return;
+      }
+    }
+
+    const final = { ...variables, ...acumulado };
+    setVariablesGuardadas(final);
+    setVariables(final);
+    setIsModalOpen(false);
+    setTextoConfirmacion('');
+    setIsSaving(false);
+    onNotify('success', 'Los cambios se guardaron y el servidor los registró en auditoría.');
   };
 
   const descartarCambios = () => {
@@ -203,19 +322,18 @@ export function useControlAcceso(onNotify: NotifyFn) {
   };
 
   const restablecerValores = () => {
-    setVariables(DEFAULT_VARIABLES);
-    onNotify('info', 'Valores de acceso reestablecidos por defecto (en borrador). Presione "Guardar Configuración" para aplicarlos.');
+    // Solo las políticas y el interruptor, y solo si se pudieron leer. La versión del aviso no se toca.
+    setVariables((prev) => ({
+      ...prev,
+      ...(leido.politicas ? Object.fromEntries(CAMPOS_POLITICAS.map((k) => [k, DEFAULT_VARIABLES[k]])) : {}),
+      ...(leido.telemetria ? { telemetriaActiva: DEFAULT_VARIABLES.telemetriaActiva } : {}),
+    }));
+    onNotify('info', 'Valores recomendados cargados en borrador. Presiona "Guardar Configuración" para aplicarlos.');
   };
 
   const descargarCSV = () => {
     const cabeceras = ['Rol', 'Nombre del Rol', 'Alcance Municipal', 'Operaciones Permitidas', 'Nivel de Acceso'];
-    const filas = MATRIZ_PERMISOS.map((p) => [
-      p.rol,
-      p.nombreRol,
-      p.alcance,
-      p.operacionesPermitidas,
-      p.nivelAcceso,
-    ]);
+    const filas = MATRIZ_PERMISOS.map((p) => [p.rol, p.nombreRol, p.alcance, p.operacionesPermitidas, p.nivelAcceso]);
     exportarCSV('control_acceso', cabeceras, filas);
     onNotify('success', 'Matriz de control de acceso exportada a CSV');
   };
@@ -225,6 +343,13 @@ export function useControlAcceso(onNotify: NotifyFn) {
     variablesGuardadas,
     updateVariable,
     hayCambios,
+    puedeGuardar,
+    cargandoConfig,
+    errorCarga,
+    leido,
+    ultimaModificacion,
+    versionesAviso,
+    versionAvisoVigente,
     resumenCambios,
     isModalOpen,
     textoConfirmacion,
@@ -239,3 +364,7 @@ export function useControlAcceso(onNotify: NotifyFn) {
     descargarCSV,
   };
 }
+
+/** "a", "a y b", "a, b y c". */
+const unirY = (partes: string[]) =>
+  partes.length <= 1 ? partes.join('') : `${partes.slice(0, -1).join(', ')} y ${partes[partes.length - 1]}`;

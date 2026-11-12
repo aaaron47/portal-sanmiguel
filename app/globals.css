@@ -77,6 +77,9 @@
   --primary-700: var(--sky-700);
   --primary-900: var(--sky-900);
 
+  /* Gráficos de una sola serie (dashboard de uso). Validado en claro (#ffffff) y oscuro (#131d31). */
+  --chart-uso: var(--sky-600);
+
   /* Tonalidades de Fondo y Superficie */
   --bg-app: var(--slate-50);
   --bg-card: var(--white);
@@ -660,6 +663,17 @@ input:focus, select:focus, textarea:focus {
   background: rgba(239, 68, 68, 0.1);
   color: var(--red-600);
   border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Otras acciones de la cuenta (p. ej. cambiar contraseña): mismo botón, sin el rojo de cerrar sesión. */
+.popover-action-btn {
+  margin-bottom: 0.4rem;
+}
+
+.popover-action-btn:hover {
+  background: var(--bg-card-subtle);
+  color: var(--text-main);
+  border-color: var(--border-color);
 }
 
 .btn-logout:hover {

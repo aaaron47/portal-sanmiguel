@@ -25,8 +25,35 @@ export const esActivo = (t: Ticket) => ESTADOS_ACTIVOS.includes(t.estado);
 /** El backend dice qué puede hacer quien consulta (`accionesPermitidas`) y lo vuelve a comprobar al guardar. */
 export const puede = (t: Ticket, accion: AccionCodigo) => Boolean(t.accionesPermitidas?.includes(accion));
 
-/** Acciones que avanzan el reclamo (todas menos la nota interna). */
-export const tieneAccionesPendientes = (t: Ticket) => Boolean(t.accionesPermitidas?.some((a) => a !== 'NOTA'));
+/** Acciones que avanzan el reclamo (todas menos la nota interna y adjuntar una evidencia). */
+export const tieneAccionesPendientes = (t: Ticket) =>
+  Boolean(t.accionesPermitidas?.some((a) => a !== 'NOTA' && a !== 'ADJUNTAR_EVIDENCIA'));
+
+/** Reglas de las evidencias (las vuelve a comprobar el backend). */
+export const TIPOS_ADJUNTO_PERMITIDOS = ['application/pdf', 'image/jpeg', 'image/png'];
+export const TAMANO_MAXIMO_ADJUNTO = 10 * 1024 * 1024;
+export const MAXIMO_EVIDENCIAS = 5;
+
+/** 482133 → "471 KB"; 1830201 → "1,7 MB". */
+export function tamanoLegible(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1).replace('.', ',')} MB`;
+}
+
+/** Motivo por el que un archivo no se puede adjuntar, o null si cumple. */
+export function errorArchivoEvidencia(archivo: File): string | null {
+  const porExtension = /\.(pdf|jpe?g|png)$/i.test(archivo.name);
+  // Algunos navegadores no informan el tipo: en ese caso se mira la extensión.
+  if (archivo.type ? !TIPOS_ADJUNTO_PERMITIDOS.includes(archivo.type) : !porExtension) {
+    return 'Solo se aceptan archivos PDF, JPG o PNG.';
+  }
+  if (archivo.size === 0) return 'El archivo está vacío. Elige otro.';
+  if (archivo.size > TAMANO_MAXIMO_ADJUNTO) {
+    return `El archivo pesa ${tamanoLegible(archivo.size)} y el máximo es 10 MB. Redúcelo o elige otro.`;
+  }
+  return null;
+}
 
 export const puedeAprobar = (t: Ticket) => puede(t, 'APROBAR_RESPUESTA');
 export const puedeReasignar = (t: Ticket) => puede(t, 'REASIGNAR');
@@ -163,5 +190,7 @@ export function mensajeExitoAccion(accion: AccionCodigo, t: Ticket, datos: Datos
       return `Reclamo ${t.folio} declarado improcedente; se avisó al ciudadano`;
     case 'NOTA':
       return `Nota agregada al reclamo ${t.folio}`;
+    case 'ADJUNTAR_EVIDENCIA':
+      return `Evidencia ${datos.archivo ? `"${datos.archivo.name}" ` : ''}adjuntada al reclamo ${t.folio}`;
   }
 }

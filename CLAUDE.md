@@ -33,6 +33,11 @@ Notas para las pruebas en el navegador:
   Playwright; en el script se oculta `nextjs-portal`.
 - En Windows, al detener una tarea en segundo plano, `next dev` y `next start` pueden seguir ocupando el puerto
   y hay que cerrarlos a mano.
+- Solo un `next dev` a la vez: antes de levantar otro escenario (demo, simulado, real) hay que cerrar el anterior, o las
+  pruebas corren contra el servidor equivocado.
+- Para probar en local contra el backend real: `BACKEND_URL=http://32.200.209.224 NEXT_PUBLIC_API_URL=/api/v1/portal`.
+  En Git Bash, anteponer `MSYS_NO_PATHCONV=1`: si no, convierte `/api/v1/portal` en una ruta de Windows y el login
+  dice "No se pudo conectar con el servidor".
 
 ## 1. Contexto del negocio
 
@@ -81,8 +86,8 @@ npm run build        # compilación de producción
   `NEXT_PUBLIC_API_URL=/api/v1/portal`; `next.config.ts` reenvía `/api/*` al backend y así el navegador no bloquea
   las llamadas ("mixed content"). Sin `BACKEND_URL` no se reenvía nada.
 - **Despliegue temporal (05/11/2026):** https://portalsanmiguel.vercel.app, proyecto `portalsanmiguel` en la cuenta
-  Vercel `aaronarana29-9818`, conectado a la copia `aaaron47/portal-sanmiguel` (remoto `copia`). Cada push a `main`
-  de la copia se despliega solo. Variables: `NEXT_PUBLIC_API_URL=/api/v1/portal`, `BACKEND_URL=http://32.200.209.224`
+  Vercel `aaronarana29-9818`, conectado a `aaaron47/portal-sanmiguel` (remoto `origin`; el repo original de WEduardoRAyra ya no existe).
+  Cada push a `main` se despliega solo. Variables: `NEXT_PUBLIC_API_URL=/api/v1/portal`, `BACKEND_URL=http://32.200.209.224`
   (backend de Willy en EC2), `NEXT_PUBLIC_MODO_DEMO=false`. `vercel.json` fija el preset de Next.js.
 - No hay pruebas automáticas en el repositorio. Las comprobaciones en navegador se hicieron con
   Playwright + Microsoft Edge desde una carpeta temporal fuera del repo.
@@ -101,17 +106,18 @@ Funcionaria **Lic. Mariana Rios** (DNI `71239845`). La sesión dura 8 horas (`ex
 app/            page.tsx (elige la vista según el rol y la pestaña), layout.tsx, globals.css (tokens claro/oscuro)
 components/
 ├── auth/       LoginForm
-├── layout/     Sidebar (menú por rol), NotificationToast, ConfirmModal, RoleBadge
-├── modals/     TicketDetailModal + ticket-detail/parts (cabecera, metadatos, línea de tiempo, AccionesForm), FaqModal
+├── layout/     Sidebar (menú por rol), CambiarContrasenaModal, NotificationToast, ConfirmModal, RoleBadge
+├── modals/     TicketDetailModal + ticket-detail/parts (cabecera, metadatos, adjuntos, línea de tiempo, AccionesForm), FaqModal
 ├── roles/      una carpeta por rol: <Rol>View.tsx, use<Rol>*.ts (estado y llamadas), y subcarpetas por pestaña con parts/
 │   ├── funcionario/   bandeja, constancias
 │   └── supervisor/    supervision (panorama y por aprobar), reasignacion (carga por funcionario)
 └── shared/ui/  TabsBar, CardHeader, KpiCard, SearchInput, FormField, TicketLabels
 context/        AuthContext (sesión), ThemeContext (claro/oscuro)
-controllers/    auth, tickets, usuarios, auditoria, reportes, telemetria (API + datos simulados)
+controllers/    auth, tickets, usuarios, auditoria, reportes, telemetria, seguridad, areas, ia-dashboards (API + datos simulados)
 services/       api-client.service (fetch + JWT + ApiError), storage.service (sesión en localStorage)
 types/          auth, ticket, ui, auditoria, telemetria
-utils/          ticket.utils (reglas por estado, carga, áreas), csv.utils
+utils/          ticket.utils (reglas por estado, carga, áreas), csv.utils, fecha-peru.utils (fechas en hora de Perú),
+                telemetria.utils (nombres de los códigos del backend y uso del sistema a partir del resumen)
 docs/           Cambios_rama_supervisor_funcionario.md (todo lo de la rama), Plan_Supervisor_Funcionario.md y documentos de la etapa Oracle
 ```
 
@@ -175,6 +181,11 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
 | 02/11/2026 | PR #4 unido a `main`. Ulises sube `4cbbef9` (paginación, Modo Privacidad, pantallas nuevas de Control Municipal y Control TI). |
 | 05/11/2026 | Rama `feature/flujo-reclamos`: los 7 estados de la BD y el flujo completo del personal (recibir, validar, pedir información, asignar, evaluar, responder, aprobar u observar, cerrar, improcedente, nota) según `accionesPermitidas`, con `version`. Probado en el navegador contra el backend en H2 de punta a punta. |
 | 05/11/2026 | Revisión de `main` tras `4cbbef9`: `tsc`, `lint` y `build` OK; flujos de Supervisor y Funcionario OK en el navegador. Se agrega `--green-500` en `globals.css` (rama `fix/barra-carga-funcionarios`); comprobado en el navegador. |
+| 11/11/2026 | Pedido de Ulises. Pruebas de telemetría (`docs/Pruebas_telemetria.md`): el backend real responde 404 en `/telemetria/*`; 81 comprobaciones en el navegador (demo, backend simulado y backend real) OK. Documentos: `docs/Cumplimiento_requisitos.md` (los 5 requisitos de los JP, del Drive del grupo) y `docs/Solicitud_backend_control_acceso.md`. `main` en `f8543a7`: `tsc` y `build` OK, `lint` con 2 errores. |
+| 11/11/2026 | Rama `fix/telemetria-y-lint` (subida, sin PR): lint en 0 (errores de `f8543a7`); dashboard de uso del Req 4 en Control TI (filtros, usuarios únicos, sesiones, actividad por día y hora de Perú, % completadas, última actualización; formato propuesto en `docs/Solicitud_backend_telemetria.md`); tabla de eventos; mensajes claros sin backend; Control de Acceso lee las políticas (`seguridad.controller`), avisa si no puede leer y envía `version`; canal del reclamo en el expediente. Navegador: demo 34/34, simulado 31/31, real 13/13. |
+| 11/11/2026 (noche) | El backend publicó lo pedido para Control de Acceso y adjuntos. Portal: políticas del personal reales (`lockoutMinutes` nuevo; fuera los 4 campos que el backend no implementa; envía solo lo que cambió con `version`; sin `POST /auditoria`), versiones del aviso de analítica (activar → 501 hasta el permiso de la BD; fuera el botón "v1.4"), **Cambiar contraseña** en el menú de la cuenta, sección **Adjuntos y evidencias** del expediente (ver y descargar con la sesión; "Archivo no disponible" para los de la app) y acción **Adjuntar evidencia** (`multipart`, campo `archivo`). Navegador: simulado 56/56, real 9/9 (solo lecturas). `tsc`, `lint` y `build` OK. |
+| 11/11/2026 (noche, 2) | Respuestas del backend: telemetría sin dudas abiertas (se quitan la tarjeta y la columna de notificaciones y la IP del CSV; nombre para `ACCION`). **Evidencia probada contra el backend real** en `REC-2026-000001` con `supervisor.demo` (autorizado por Adrian): `PRUEBA_portal_evidencia.pdf` subida (201), lista, nota en la línea de tiempo, Ver y Descargar con los mismos bytes; 10/10. Constancias: el backend las tiene listas para el próximo despliegue (contrato en `docs/Constancias_contrato.md` del repo del backend). |
+| 11/11/2026 (tarde) | El backend publicó `/telemetria/*` con un formato distinto al propuesto (filtros `fechaDesde`/`fechaHasta`/`canal`, códigos como `DEUDAS` o `ANDROID`, `sesiones` y `consultas` en la raíz). Se adaptó el portal: tipos, controlador, `utils/telemetria.utils.ts`, filtro de canal, tabla de eventos con resultado, Control de Acceso por secciones (guarda la telemetría aunque falten las políticas, envía solo lo que cambió y no duplica la auditoría). Navegador: demo 48/48, simulado 108/108, **backend real 92/92** (incluye pausar y reanudar la telemetría; quedó activa). Detalle en `docs/Pruebas_telemetria.md`, sección 7. Nuevo: `docs/Solicitud_backend_adjuntos.md`. |
 
 ## 9. Pendientes
 
@@ -189,7 +200,12 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
 - [x] Respaldo simulado de `tickets.controller` solo sin conexión; el formulario queda abierto si la acción falla.
 - [x] `esSinConexion` en todos los controladores.
 - [x] Selector de período de Control Municipal: ahora se envía al backend (los datos simulados no cambian por período).
-- [ ] Control TI: "Dashboard Telemetría App" y "Privacidad y Onboarding" muestran lo mismo, y "Flujo de Eventos Anónimos" no está en el menú; definir qué va en cada una con Braulio.
+- [x] Control TI: el backend publicó `/telemetria/*` el 11/11 y el portal los usa (rama `fix/telemetria-y-lint`). Quedan dudas para el backend en `docs/Solicitud_backend_telemetria.md`, sección 5 (reglas de conteo, `versionTerminosVigente`, datos reales de la app).
+- [x] Control de Acceso con el backend (políticas, telemetría, versiones del aviso) y cambio de contraseña. Falta el permiso `UPDATE (activo)` en `documentos_versiones` para activar otra versión (hoy 501).
+- [x] Adjuntos y evidencias del reclamo (Req 1). Los adjuntos que el ciudadano subió desde la app no se pueden descargar hasta que la app use el backend único.
+- [x] Subir una evidencia contra el backend real (`REC-2026-000001`, `PRUEBA_portal_evidencia.pdf`; no se puede borrar y quedan 3 cupos).
+- [ ] Probar contra el backend real guardar políticas y cambiar contraseña: solo se probaron en el simulado.
+- [ ] Constancias (Req 2): el backend ya las hizo (`GET /constancias`, `/constancias/{id}`, `POST .../aprobar` y `.../desaprobar`, `GET /reportes/constancias` y `/reportes/constancias/{id}/pdf`); salen en el próximo despliegue. Falta conectar el portal con el contrato del backend (`docs/Constancias_contrato.md` de su repo).
 - [ ] Integrar con el backend cuando esté listo y quitar los datos simulados.
 - [ ] Pruebas automáticas en el repositorio (hoy solo hay scripts de Playwright fuera del repo).
 - [x] `README.md` actualizado (estructura `components/roles/`, Next.js 16, datos que no coincidían con el código).

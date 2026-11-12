@@ -1,5 +1,5 @@
-import { apiClient, usarDatosDemo } from '@/services/api-client.service';
-import { AccionCodigo, DatosAccion, Ticket, TicketFiltros } from '@/types/ticket.types';
+import { apiClient, apiClientArchivo, usarDatosDemo } from '@/services/api-client.service';
+import { AccionCodigo, DatosAccion, Ticket, TicketAdjunto, TicketFiltros } from '@/types/ticket.types';
 
 // Mock dataset representativo de la base de datos municipal para pruebas de flujos
 const MOCK_TICKETS: Ticket[] = [
@@ -17,6 +17,7 @@ const MOCK_TICKETS: Ticket[] = [
     funcionarioAsignadoNombre: 'Lic. Mariana Rios',
     estado: 'en evaluación',
     prioridad: 'ALTA',
+    canalIncidente: 'App móvil',
     tieneConstancia: true,
     estadoConstancia: 'sin_evaluar',
     fechaCreacion: '2026-10-28 09:15',
@@ -176,6 +177,17 @@ const MOCK_TICKETS: Ticket[] = [
   }
 ];
 
+// Adjuntos simulados (solo sin conexión y en modo demo): se ve la lista, pero no hay archivos que descargar.
+const MOCK_ADJUNTOS: Record<string, TicketAdjunto[]> = {
+  'REC-001': [
+    { id: 'ADJ-001', nombreArchivo: 'foto_local_nocturno.jpg', tipoMime: 'image/jpeg', tamanoBytes: 1830201, origen: 'CIUDADANO', tipoAdjunto: 'SUSTENTO', subidoPor: 'Ciudadano', subidoEn: '2026-10-28 09:15:40', disponible: true },
+    { id: 'ADJ-002', nombreArchivo: 'acta_inspeccion_serenazgo.pdf', tipoMime: 'application/pdf', tamanoBytes: 482133, origen: 'EVALUACION', tipoAdjunto: 'EVIDENCIA', subidoPor: 'Lic. Mariana Rios', subidoEn: '2026-10-29 11:42:05', disponible: true },
+  ],
+  'REC-002': [
+    { id: 'ADJ-003', nombreArchivo: 'bache_jr_tacna.png', tipoMime: 'image/png', tamanoBytes: 920554, origen: 'CIUDADANO', tipoAdjunto: 'SUSTENTO', subidoPor: 'Ciudadano', subidoEn: '2026-10-26 14:01:12', disponible: true },
+  ],
+};
+
 /** Ruta de cada acción del flujo bajo /tickets/{id}/. */
 const RUTAS_ACCION: Record<AccionCodigo, string> = {
   RECIBIR: 'recibir',
@@ -191,6 +203,7 @@ const RUTAS_ACCION: Record<AccionCodigo, string> = {
   CERRAR: 'cerrar',
   DECLARAR_IMPROCEDENTE: 'improcedente',
   NOTA: 'nota',
+  ADJUNTAR_EVIDENCIA: 'adjuntos',
 };
 
 export class TicketsController {
@@ -244,6 +257,16 @@ export class TicketsController {
    * persona lo cambió, el backend responde 409 version_conflict. En modo demo no hay acciones (necesitan el servidor).
    */
   async ejecutarAccion(ticket: Ticket, accion: AccionCodigo, datos: DatosAccion): Promise<Ticket> {
+    if (accion === 'ADJUNTAR_EVIDENCIA') {
+      // Un archivo por llamada, como formulario (`multipart/form-data`, campo `archivo`). El backend valida el tipo
+      // por contenido, el tamaño y el máximo de evidencias. Después se vuelve a leer el reclamo: la evidencia deja
+      // una nota en la línea de tiempo.
+      if (!datos.archivo) throw new Error('Falta el archivo de la evidencia');
+      const formulario = new FormData();
+      formulario.append('archivo', datos.archivo, datos.archivo.name);
+      await apiClient<TicketAdjunto>(`/tickets/${ticket.id}/${RUTAS_ACCION[accion]}`, { method: 'POST', body: formulario });
+      return apiClient<Ticket>(`/tickets/${ticket.id}`);
+    }
     const cuerpo: Record<string, unknown> =
       accion === 'REASIGNAR'
         ? { nuevoFuncionarioId: datos.funcionarioId, motivoReasignacion: datos.motivo }
@@ -254,6 +277,27 @@ export class TicketsController {
       method: 'POST',
       body: JSON.stringify(cuerpo),
     });
+  }
+
+  /**
+   * Endpoint backend: `GET /tickets/{id}/adjuntos`. Archivos del ciudadano y evidencias del personal; lo ve
+   * quien puede ver el reclamo.
+   */
+  async getAdjuntos(ticketId: string): Promise<TicketAdjunto[]> {
+    try {
+      return await apiClient<TicketAdjunto[]>(`/tickets/${ticketId}/adjuntos`);
+    } catch (err) {
+      if (!usarDatosDemo(err)) throw err;
+      return MOCK_ADJUNTOS[ticketId] ?? [];
+    }
+  }
+
+  /**
+   * Endpoint backend: `GET /tickets/{id}/adjuntos/{adjuntoId}`. Devuelve el archivo; se pide con la sesión del
+   * portal. Si el archivo lo guardó el backend de la app responde 404 `attachment_unavailable`. Sin simulación.
+   */
+  async descargarAdjunto(ticketId: string, adjuntoId: string): Promise<Blob> {
+    return apiClientArchivo(`/tickets/${ticketId}/adjuntos/${adjuntoId}`);
   }
 }
 
