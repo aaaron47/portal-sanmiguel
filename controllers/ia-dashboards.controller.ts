@@ -83,7 +83,7 @@ export const CONFIG_MODULOS_IA: Record<ModuloAnalitico, ConfiguracionModuloIA> =
     modulo: 'CONTROL_MUNICIPAL',
     tituloPantalla: 'Apache Superset y Consultas IA',
     subtituloPantalla:
-      'Explora los dashboards embebidos de Apache Superset (oficiales y generados por IA) y realiza consultas cruzadas entre tableros.',
+      'Explora los dashboards analíticos (oficiales y borradores) y realiza consultas cruzadas entre tableros.',
     contextoBackend: 'tributacion_y_control_municipal_san_miguel',
     etiquetaFuentes: 'Dashboards de Superset (R1–R11) y Control OCI',
     modeloLocalNombre: MODELO_IA_LOCAL_NOMBRE,
@@ -605,7 +605,7 @@ function construirRespuestaDemoChat(solicitud: SolicitudChatIA): RespuestaChatIA
     };
 
     return {
-      texto: `He generado el nuevo dashboard "${nuevoDashboard.titulo}" utilizando ${etiquetaModelo} a partir de los datos disponibles en ${fuentes.join(', ')}. Ya se encuentra disponible en la sección "Dashboards creados por la IA".`,
+      texto: `He generado el nuevo dashboard "${nuevoDashboard.titulo}" utilizando ${etiquetaModelo} a partir de los datos disponibles en ${fuentes.join(', ')}. Ya se encuentra disponible en la sección "Borradores".`,
       modo: 'GENERAR_DASHBOARD',
       proveedorModelo: solicitud.proveedorModelo,
       nombreModelo: etiquetaModelo,
@@ -964,6 +964,50 @@ export class IaDashboardsController {
   }
 
   /**
+   * Obtiene exclusivamente el dashboard oficial de Reportes Tributarios desde la API (sección 3.1 de la guía).
+   * Consulta los dashboards publicados (`GET /api/v1/admin/bi/dashboards?ambito=publicados`) y filtra el correspondiente
+   * a Reportes Tributarios para obtener su `embedUuid` y metadatos reales sin depender de identificadores fijos en el front.
+   */
+  async getDashboardOficialTributario(
+    modulo: ModuloAnalitico = 'CONTROL_MUNICIPAL'
+  ): Promise<SupersetDashboardInfo | null> {
+    try {
+      const publicados = await this.getDashboardsBi('publicados', modulo);
+      // Prioridad 1: Coincidencia exacta o que contenga 'reportes tributarios'
+      let encontrado = publicados.find((d) => {
+        const t = (d.titulo || '').toLowerCase().trim();
+        return t === 'reportes tributarios' || t.includes('reportes tributarios');
+      });
+
+      // Prioridad 2: ID numérico conocido del Dashboard oficial de Reportes Tributarios (id 12 o slug/id 'reportes-tributarios')
+      if (!encontrado) {
+        encontrado = publicados.find(
+          (d) => d.supersetId === 12 || d.id === '12' || d.id === 'reportes-tributarios'
+        );
+      }
+
+      // Prioridad 3: slug que contenga 'reportes-tributarios'
+      if (!encontrado) {
+        encontrado = publicados.find((d) => (d.slug || '').toLowerCase().includes('reportes-tributarios'));
+      }
+
+      // Fallback: Si no existe 'Reportes Tributarios', buscar otro publicado evitando 'Comportamiento Tributario'
+      if (!encontrado) {
+        encontrado =
+          publicados.find((d) => !(d.titulo || '').toLowerCase().includes('comportamiento')) ||
+          publicados[0] ||
+          null;
+      }
+
+      return encontrado;
+    } catch (err) {
+      if (!usarDatosDemo(err)) throw err;
+      const demo = DASHBOARDS_POR_MODULO_DEMO[modulo] || DASHBOARDS_POR_MODULO_DEMO.CONTROL_MUNICIPAL;
+      return demo.superset.find((d) => d.id === 'reportes-tributarios') || demo.superset[0] || null;
+    }
+  }
+
+  /**
    * Publicados (los que ve el grupo de datos) y borradores (los que posee la persona).
    * `dashboardsSuperset` = publicados y `dashboardsIA` = borradores, para reutilizar la vista existente.
    */
@@ -975,10 +1019,37 @@ export class IaDashboardsController {
       ]);
       // Si los publicados fallan, el error llega a la vista; los borradores son complementarios.
       if (publicados.status === 'rejected') throw publicados.reason;
+
+      const publicadosRaw = publicados.value || [];
+      const borradoresRaw = borradores.status === 'fulfilled' ? borradores.value : [];
+
+      const idNormalizado = (d: SupersetDashboardInfo) => String(d.supersetId || d.id);
+
+      // Dashboards despublicados devueltos por el backend en 'publicados' con flag publicado: false
+      const despublicadosEnPublicados = publicadosRaw.filter((p) => p.publicado === false);
+
+      // Diccionario de borradores (desduplicado y garantizando que pertenezcan a borradores)
+      const borradoresMap = new Map<string, SupersetDashboardInfo>();
+      for (const b of borradoresRaw) {
+        borradoresMap.set(idNormalizado(b), { ...b, publicado: false, origen: 'IA' });
+      }
+      for (const d of despublicadosEnPublicados) {
+        borradoresMap.set(idNormalizado(d), { ...d, publicado: false, origen: 'IA' });
+      }
+
+      // Oficiales son estrictamente aquellos con publicado !== false y que no estén en borradores
+      const dashboardsSuperset = publicadosRaw.filter((p) => {
+        if (p.publicado === false) return false;
+        if (borradoresMap.has(idNormalizado(p))) return false;
+        return true;
+      });
+
+      const dashboardsIA = Array.from(borradoresMap.values());
+
       return {
         modulo,
-        dashboardsSuperset: publicados.value,
-        dashboardsIA: borradores.status === 'fulfilled' ? borradores.value : [],
+        dashboardsSuperset,
+        dashboardsIA,
       };
     } catch (err) {
       if (!usarDatosDemo(err)) throw err;
@@ -1055,10 +1126,15 @@ export class IaDashboardsController {
    * Endpoint backend: `PUT /api/v1/admin/bi/dashboards/{id}/publicacion`
    */
   async publicarDashboard(id: number, publicado: boolean): Promise<BiPublicacionResponse> {
-    return apiClient<BiPublicacionResponse>(`${RUTA_BI}/dashboards/${id}/publicacion`, {
-      method: 'PUT',
-      body: JSON.stringify({ publicado }),
-    });
+    try {
+      return await apiClient<BiPublicacionResponse>(`${RUTA_BI}/dashboards/${id}/publicacion`, {
+        method: 'PUT',
+        body: JSON.stringify({ publicado }),
+      });
+    } catch (err) {
+      if (!usarDatosDemo(err)) throw err;
+      return { dashboardId: id, publicado };
+    }
   }
 
   /**

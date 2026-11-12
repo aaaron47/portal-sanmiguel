@@ -63,6 +63,8 @@ interface SupersetEmbedViewerProps {
   isFullscreen?: boolean;
   /** Callback para alternar pantalla completa desde el contenedor padre */
   onToggleFullscreen?: () => void;
+  /** Callback opcional cuando se sube a oficial o se devuelve a borrador */
+  onPublicarDashboard?: (dashboardId: string | number, publicar: boolean) => Promise<void>;
 }
 
 export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
@@ -77,6 +79,7 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
   controlDerechoCabecera,
   isFullscreen: externalFullscreen,
   onToggleFullscreen,
+  onPublicarDashboard,
 }) => {
   const { theme } = useTheme();
   const [internalId, setInternalId] = useState(dashboardSeleccionadoId);
@@ -131,8 +134,7 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
     uuidManual[dashboardActual.id] !== undefined
       ? uuidManual[dashboardActual.id] || undefined
       : dashboardActual.embedUuid ||
-        (dashboardActual.embedKey && dashboardActual.embedKey.length > 20 ? dashboardActual.embedKey : undefined) ||
-        (dashboardActual.id === 'reportes-tributarios' ? '29e399ef-75cd-4927-893f-9713435c9766' : undefined);
+        (dashboardActual.embedKey && dashboardActual.embedKey.length > 20 ? dashboardActual.embedKey : undefined);
 
   const estadoPublicado =
     publicadoManual[dashboardActual.id] !== undefined
@@ -169,18 +171,24 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
   };
 
   const handleAlternarPublicacion = async () => {
-    if (!sidNumerico) return;
+    const idDashboard = sidNumerico ?? dashboardActual.id;
+    if (!idDashboard) return;
     setPublicando(true);
     try {
       const nuevo = !estadoPublicado;
-      const res = await iaDashboardsController.publicarDashboard(sidNumerico, nuevo);
-      setPublicadoManual((prev) => ({ ...prev, [dashboardActual.id]: res.publicado }));
-      dashboardActual.publicado = res.publicado;
+      if (onPublicarDashboard) {
+        await onPublicarDashboard(idDashboard, nuevo);
+      } else if (sidNumerico) {
+        const res = await iaDashboardsController.publicarDashboard(sidNumerico, nuevo);
+        dashboardActual.publicado = res.publicado;
+      }
+      setPublicadoManual((prev) => ({ ...prev, [dashboardActual.id]: nuevo }));
+      dashboardActual.publicado = nuevo;
     } catch (err) {
       alert(
         formatearErrorIaBackend(
           err,
-          'No se pudo actualizar la publicación. Solo un ADMIN dueño del dashboard puede publicarlo.'
+          'No se pudo actualizar el estado de publicación del dashboard.'
         )
       );
     } finally {
@@ -350,35 +358,62 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           {controlDerechoCabecera}
 
-          {/* Acciones de gestión Superset (sección 3 de la guía) */}
-          {esAdmin && sidNumerico !== null && (
-            <button
-              type="button"
-              onClick={handleAlternarPublicacion}
-              disabled={publicando}
-              className="btn btn-secondary"
-              style={{
-                fontSize: '0.78rem',
-                padding: '0.4rem 0.65rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-              }}
-              title={
-                estadoPublicado
-                  ? 'Devolver dashboard a borrador'
-                  : 'Publicar dashboard para todo el grupo de datos'
-              }
-            >
-              {estadoPublicado ? <Lock size={13} /> : <Globe size={13} />}
-              <span>
-                {publicando
-                  ? 'Guardando...'
-                  : estadoPublicado
-                  ? 'Borrador'
-                  : 'Publicar'}
-              </span>
-            </button>
+          {/* Acciones de gestión y publicación: Subir a oficial / Devolver a borrador */}
+          {(sidNumerico !== null || onPublicarDashboard) && (
+            estadoPublicado ? (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span
+                  className="badge badge-success"
+                  style={{
+                    fontSize: '0.72rem',
+                    padding: '0.35rem 0.55rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                  }}
+                  title="Dashboard oficial publicado y visible para todos los usuarios"
+                >
+                  <Globe size={12} />
+                  Oficial
+                </span>
+
+                <button
+                  type="button"
+                  onClick={handleAlternarPublicacion}
+                  disabled={publicando}
+                  className="btn btn-secondary"
+                  style={{
+                    fontSize: '0.78rem',
+                    padding: '0.4rem 0.65rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                  }}
+                  title="Devolver este dashboard a borrador privado"
+                >
+                  <Lock size={13} />
+                  <span>{publicando ? 'Guardando...' : 'Devolver a borrador'}</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleAlternarPublicacion}
+                disabled={publicando}
+                className="btn btn-primary"
+                style={{
+                  fontSize: '0.78rem',
+                  padding: '0.4rem 0.65rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                }}
+                title="Subir borrador a oficial (visible para todos los usuarios de Control Municipal)"
+              >
+                <Globe size={13} />
+                <span>{publicando ? 'Subiendo...' : 'Subir a oficial'}</span>
+              </button>
+            )
           )}
 
           {!uuidEmbebido && sidNumerico !== null && (

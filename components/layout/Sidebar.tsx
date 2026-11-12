@@ -196,7 +196,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNot
                 onClick={() => onTabChange('control-ia')}
               >
                 <Sparkles size={18} />
-                Asistente MCP (Consultas IA)
+                Centro de Analítica
               </button>
               <button
                 className={`nav-item ${currentTab === 'control-constancias' ? 'active' : ''}`}

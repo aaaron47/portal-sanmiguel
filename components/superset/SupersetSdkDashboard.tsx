@@ -22,7 +22,7 @@ export interface SupersetSdkDashboardProps {
 }
 
 export const SupersetSdkDashboard: React.FC<SupersetSdkDashboardProps> = ({
-  dashboardId = '29e399ef-75cd-4927-893f-9713435c9766',
+  dashboardId,
   height = '750px',
   hideTitle = true,
   hideTab = false,
@@ -39,7 +39,7 @@ export const SupersetSdkDashboard: React.FC<SupersetSdkDashboardProps> = ({
   const temaActivoRef = useRef(temaActivo);
 
   const [error, setError] = useState<string | null>(null);
-  const [cargando, setCargando] = useState<boolean>(true);
+  const [cargando, setCargando] = useState<boolean>(Boolean(dashboardId));
   const [recargaKey, setRecargaKey] = useState<number>(0);
 
   const reintentar = useCallback(() => {
@@ -244,6 +244,33 @@ export const SupersetSdkDashboard: React.FC<SupersetSdkDashboardProps> = ({
           <RefreshCw size={26} color="var(--sky-500, #0ea5e9)" style={{ animation: 'spin 1s linear infinite' }} />
           <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted, #64748b)' }}>
             Cargando dashboard de Superset...
+          </span>
+        </div>
+      )}
+
+      {/* Estado cuando no se proporciona dashboardId */}
+      {!dashboardId && !cargando && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '2rem',
+            textAlign: 'center',
+            background: 'var(--bg-card, #ffffff)',
+            zIndex: 3,
+            gap: '0.75rem',
+          }}
+        >
+          <AlertTriangle size={26} color="var(--amber-600, #d97706)" />
+          <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main, #0f172a)' }}>
+            No se especificó un identificador de dashboard (dashboardId)
+          </div>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted, #64748b)', maxWidth: '420px' }}>
+            Se requiere el UUID de embebido generado por Apache Superset para montar el tablero.
           </span>
         </div>
       )}

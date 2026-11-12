@@ -11,6 +11,7 @@ import {
   Calendar,
   Trash2,
   Layers,
+  Globe,
 } from 'lucide-react';
 import { SupersetDashboardInfo } from '@/types/superset.types';
 
@@ -19,6 +20,7 @@ interface DashboardListCardProps {
   seleccionado: boolean;
   onVisualizar: (dashboard: SupersetDashboardInfo) => void;
   onConsultarConIA: (dashboard: SupersetDashboardInfo) => void;
+  onSubirAOficial?: (dashboardId: string) => void;
   onEliminar?: (dashboardId: string) => void;
 }
 
@@ -27,6 +29,7 @@ export const DashboardListCard: React.FC<DashboardListCardProps> = ({
   seleccionado,
   onVisualizar,
   onConsultarConIA,
+  onSubirAOficial,
   onEliminar,
 }) => {
   const esIA = dashboard.origen === 'IA';
@@ -58,11 +61,11 @@ export const DashboardListCard: React.FC<DashboardListCardProps> = ({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
             <span
-              className={esIA ? 'badge badge-success' : 'badge badge-primary'}
+              className={esIA ? 'badge badge-warning' : 'badge badge-success'}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.7rem', fontWeight: 700 }}
             >
               {esIA ? <Sparkles size={12} /> : <Database size={12} />}
-              {esIA ? 'Creado por IA' : 'Apache Superset'}
+              {esIA ? 'Borrador' : 'Oficial'}
             </span>
 
             {esIA && dashboard.modeloUsado && (
@@ -217,6 +220,19 @@ export const DashboardListCard: React.FC<DashboardListCardProps> = ({
             <MessageSquare size={14} />
             Consultar con IA
           </button>
+
+          {esIA && onSubirAOficial && (
+            <button
+              type="button"
+              onClick={() => onSubirAOficial(dashboard.id)}
+              className="btn btn-primary"
+              style={{ fontSize: '0.78rem', padding: '0.4rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+              title="Subir borrador a oficial (visible para todos)"
+            >
+              <Globe size={13} />
+              Subir a oficial
+            </button>
+          )}
         </div>
 
         {esIA && onEliminar && (
@@ -225,7 +241,7 @@ export const DashboardListCard: React.FC<DashboardListCardProps> = ({
             onClick={() => onEliminar(dashboard.id)}
             className="btn btn-secondary"
             style={{ padding: '0.4rem 0.55rem', color: 'var(--red-600)' }}
-            title="Eliminar dashboard generado por IA"
+            title="Eliminar borrador"
             aria-label={`Eliminar ${dashboard.titulo}`}
           >
             <Trash2 size={14} />

@@ -530,7 +530,7 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 700, fontSize: '0.73rem', marginBottom: '0.35rem' }}>
                       <CheckCircle2 size={13} color="var(--green-600)" />
-                      Agregado a Generados por IA
+                      Agregado a Borradores
                     </div>
                     {onVisualizarDashboard && (
                       <button

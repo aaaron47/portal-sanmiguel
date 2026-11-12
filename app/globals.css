@@ -1080,16 +1080,28 @@ dialog.ia-chat-modal-dialog[open] {
   text-overflow: ellipsis;
 }
 
+.dashboard-sidebar-item .dashboard-action-btn,
 .dashboard-sidebar-item .dashboard-delete-btn {
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.15s ease, color 0.15s ease;
 }
 
+.dashboard-sidebar-item:hover .dashboard-action-btn,
+.dashboard-sidebar-item:focus-within .dashboard-action-btn,
 .dashboard-sidebar-item:hover .dashboard-delete-btn,
 .dashboard-sidebar-item:focus-within .dashboard-delete-btn {
   opacity: 1;
   visibility: visible;
+}
+
+.dashboard-sidebar-item .dashboard-action-btn.is-loading {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.dashboard-sidebar-item .dashboard-action-btn:hover {
+  color: var(--sky-700) !important;
 }
 
 .dashboard-sidebar-item .dashboard-delete-btn:hover {
