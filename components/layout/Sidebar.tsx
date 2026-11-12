@@ -126,7 +126,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNot
                 onClick={() => onTabChange('funcionario-bandeja')}
               >
                 <Inbox size={18} />
-                Bandeja de Reclamos ({usuario?.area || 'Mi Área'})
+                Bandeja de Reclamos
               </button>
               <button
                 className={`nav-item ${currentTab === 'funcionario-constancias' ? 'active' : ''}`}
