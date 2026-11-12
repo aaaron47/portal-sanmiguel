@@ -18,8 +18,6 @@ const MOCK_TICKETS: Ticket[] = [
     estado: 'en evaluación',
     prioridad: 'ALTA',
     canalIncidente: 'App móvil',
-    tieneConstancia: true,
-    estadoConstancia: 'sin_evaluar',
     fechaCreacion: '2026-10-28 09:15',
     fechaActualizacion: '2026-10-29 11:30',
     seguimientos: [
@@ -60,8 +58,6 @@ const MOCK_TICKETS: Ticket[] = [
     estado: 'en evaluación',
     respuestaPorAprobar: true,
     prioridad: 'ALTA',
-    tieneConstancia: true,
-    estadoConstancia: 'aprobada',
     fechaCreacion: '2026-10-26 14:00',
     fechaActualizacion: '2026-10-30 10:15',
     seguimientos: [
@@ -73,7 +69,7 @@ const MOCK_TICKETS: Ticket[] = [
         autorRol: 'Ciudadano',
         fecha: '2026-10-26 14:00',
         tipoAccion: 'CREACION',
-        comentario: 'Reclamo vecinal registrado con solicitud de constancia de recepción formal.',
+        comentario: 'Reclamo vecinal registrado desde la app.',
       },
       {
         id: 'SEG-004',
@@ -100,7 +96,6 @@ const MOCK_TICKETS: Ticket[] = [
     funcionarioAsignadoNombre: 'Bach. Laura Paredes',
     estado: 'pendiente de validación',
     prioridad: 'MEDIA',
-    tieneConstancia: false,
     fechaCreacion: '2026-10-30 16:45',
     fechaActualizacion: '2026-10-30 16:45',
     seguimientos: [
@@ -129,8 +124,6 @@ const MOCK_TICKETS: Ticket[] = [
     funcionarioAsignadoNombre: 'Lic. Mariana Rios',
     estado: 'pendiente de asignación',
     prioridad: 'MEDIA',
-    tieneConstancia: true,
-    estadoConstancia: 'sin_evaluar',
     fechaCreacion: '2026-10-27 11:20',
     fechaActualizacion: '2026-10-29 17:00',
     seguimientos: [
@@ -159,7 +152,6 @@ const MOCK_TICKETS: Ticket[] = [
     funcionarioAsignadoNombre: 'Sr. Walter Quispe',
     estado: 'cerrado',
     prioridad: 'ALTA',
-    tieneConstancia: false,
     fechaCreacion: '2026-10-25 08:30',
     fechaActualizacion: '2026-10-28 15:40',
     seguimientos: [

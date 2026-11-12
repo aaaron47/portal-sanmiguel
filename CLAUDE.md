@@ -107,15 +107,16 @@ app/            page.tsx (elige la vista según el rol y la pestaña), layout.ts
 components/
 ├── auth/       LoginForm
 ├── layout/     Sidebar (menú por rol), CambiarContrasenaModal, NotificationToast, ConfirmModal, RoleBadge
+├── constancias/ ConstanciasPanel (funcionario y supervisor), useConstancias, parts (conteos, filtros, tabla, detalle con aprobar y desaprobar)
 ├── modals/     TicketDetailModal + ticket-detail/parts (cabecera, metadatos, adjuntos, línea de tiempo, AccionesForm), FaqModal
 ├── roles/      una carpeta por rol: <Rol>View.tsx, use<Rol>*.ts (estado y llamadas), y subcarpetas por pestaña con parts/
-│   ├── funcionario/   bandeja, constancias
+│   ├── funcionario/   bandeja (las constancias usan components/constancias)
 │   └── supervisor/    supervision (panorama y por aprobar), reasignacion (carga por funcionario)
 └── shared/ui/  TabsBar, CardHeader, KpiCard, SearchInput, FormField, TicketLabels
 context/        AuthContext (sesión), ThemeContext (claro/oscuro)
-controllers/    auth, tickets, usuarios, auditoria, reportes, telemetria, seguridad, areas, ia-dashboards (API + datos simulados)
+controllers/    auth, tickets, constancias, usuarios, auditoria, reportes, telemetria, seguridad, areas, ia-dashboards (API + datos simulados)
 services/       api-client.service (fetch + JWT + ApiError), storage.service (sesión en localStorage)
-types/          auth, ticket, ui, auditoria, telemetria
+types/          auth, ticket, constancia, ui, auditoria, telemetria
 utils/          ticket.utils (reglas por estado, carga, áreas), csv.utils, fecha-peru.utils (fechas en hora de Perú),
                 telemetria.utils (nombres de los códigos del backend y uso del sistema a partir del resumen)
 docs/           Cambios_rama_supervisor_funcionario.md (todo lo de la rama), Plan_Supervisor_Funcionario.md y documentos de la etapa Oracle
@@ -185,6 +186,7 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
 | 11/11/2026 | Rama `fix/telemetria-y-lint` (subida, sin PR): lint en 0 (errores de `f8543a7`); dashboard de uso del Req 4 en Control TI (filtros, usuarios únicos, sesiones, actividad por día y hora de Perú, % completadas, última actualización; formato propuesto en `docs/Solicitud_backend_telemetria.md`); tabla de eventos; mensajes claros sin backend; Control de Acceso lee las políticas (`seguridad.controller`), avisa si no puede leer y envía `version`; canal del reclamo en el expediente. Navegador: demo 34/34, simulado 31/31, real 13/13. |
 | 11/11/2026 (noche) | El backend publicó lo pedido para Control de Acceso y adjuntos. Portal: políticas del personal reales (`lockoutMinutes` nuevo; fuera los 4 campos que el backend no implementa; envía solo lo que cambió con `version`; sin `POST /auditoria`), versiones del aviso de analítica (activar → 501 hasta el permiso de la BD; fuera el botón "v1.4"), **Cambiar contraseña** en el menú de la cuenta, sección **Adjuntos y evidencias** del expediente (ver y descargar con la sesión; "Archivo no disponible" para los de la app) y acción **Adjuntar evidencia** (`multipart`, campo `archivo`). Navegador: simulado 56/56, real 9/9 (solo lecturas). `tsc`, `lint` y `build` OK. |
 | 11/11/2026 (noche, 2) | Respuestas del backend: telemetría sin dudas abiertas (se quitan la tarjeta y la columna de notificaciones y la IP del CSV; nombre para `ACCION`). **Evidencia probada contra el backend real** en `REC-2026-000001` con `supervisor.demo` (autorizado por Adrian): `PRUEBA_portal_evidencia.pdf` subida (201), lista, nota en la línea de tiempo, Ver y Descargar con los mismos bytes; 10/10. Constancias: el backend las tiene listas para el próximo despliegue (contrato en `docs/Constancias_contrato.md` del repo del backend). |
+| 11/11/2026 (noche, 3) | PR #2 unido a `main` (`0d1d5e4`). **Constancias de no adeudo (Req 2)** con el backend: bandeja nueva `components/constancias/` en Funcionario y en Supervisor (pestaña nueva), detalle con cuotas, Aprobar (comentario opcional) y Desaprobar (motivo obligatorio) según `accionesPermitidas`, mensajes para `invalid_state`, `fee_required` y `outstanding_debts`, CSV de todas las páginas. Se quitó la marca `tieneConstancia` del reclamo (columna, filtro, tarjeta y dato del expediente). Navegador: simulado 40/40, real 9/9 (solo lectura), demo 3/3. `tsc`, `lint` y `build` OK. |
 | 11/11/2026 (tarde) | El backend publicó `/telemetria/*` con un formato distinto al propuesto (filtros `fechaDesde`/`fechaHasta`/`canal`, códigos como `DEUDAS` o `ANDROID`, `sesiones` y `consultas` en la raíz). Se adaptó el portal: tipos, controlador, `utils/telemetria.utils.ts`, filtro de canal, tabla de eventos con resultado, Control de Acceso por secciones (guarda la telemetría aunque falten las políticas, envía solo lo que cambió y no duplica la auditoría). Navegador: demo 48/48, simulado 108/108, **backend real 92/92** (incluye pausar y reanudar la telemetría; quedó activa). Detalle en `docs/Pruebas_telemetria.md`, sección 7. Nuevo: `docs/Solicitud_backend_adjuntos.md`. |
 
 ## 9. Pendientes
@@ -205,7 +207,7 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
 - [x] Adjuntos y evidencias del reclamo (Req 1). Los adjuntos que el ciudadano subió desde la app no se pueden descargar hasta que la app use el backend único.
 - [x] Subir una evidencia contra el backend real (`REC-2026-000001`, `PRUEBA_portal_evidencia.pdf`; no se puede borrar y quedan 3 cupos).
 - [ ] Probar contra el backend real guardar políticas y cambiar contraseña: solo se probaron en el simulado.
-- [ ] Constancias (Req 2): el backend ya las hizo (`GET /constancias`, `/constancias/{id}`, `POST .../aprobar` y `.../desaprobar`, `GET /reportes/constancias` y `/reportes/constancias/{id}/pdf`); salen en el próximo despliegue. Falta conectar el portal con el contrato del backend (`docs/Constancias_contrato.md` de su repo).
+- [x] Constancias (Req 2) conectadas al backend (funcionario y supervisor). Falta probar aprobar y desaprobar en el backend real: hoy ninguna solicitud está en verificación (pedir una de prueba al backend).
 - [ ] Integrar con el backend cuando esté listo y quitar los datos simulados.
 - [ ] Pruebas automáticas en el repositorio (hoy solo hay scripts de Playwright fuera del repo).
 - [x] `README.md` actualizado (estructura `components/roles/`, Next.js 16, datos que no coincidían con el código).

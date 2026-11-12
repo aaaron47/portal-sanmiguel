@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, MapPin, Clock, FileCheck2, Radio } from 'lucide-react';
+import { User, MapPin, Clock, Radio } from 'lucide-react';
 import { Ticket } from '@/types/ticket.types';
 
 interface ExpedienteMetadatosProps {
@@ -48,22 +48,6 @@ export const ExpedienteMetadatos: React.FC<ExpedienteMetadatosProps> = ({ ticket
       </div>
       <div style={{ fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>
         {ticket.canalIncidente || 'No indicado'}
-      </div>
-    </div>
-    <div>
-      <div style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-        <FileCheck2 size={14} color="var(--primary-500)" /> Constancia:
-      </div>
-      <div style={{ fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>
-        {ticket.tieneConstancia
-          ? `Solicitada (${
-              ticket.estadoConstancia === 'aprobada'
-                ? 'Aprobada'
-                : ticket.estadoConstancia === 'observada'
-                ? 'Observada'
-                : 'Por Evaluar'
-            })`
-          : 'No requerida'}
       </div>
     </div>
   </div>

@@ -5,7 +5,7 @@ import { RoleViewProps } from '@/types/ui.types';
 import { TicketDetailModal } from '@/components/modals/TicketDetailModal';
 import { useFuncionarioTickets } from './useFuncionarioTickets';
 import { BandejaPanel } from './bandeja/BandejaPanel';
-import { ConstanciasPanel } from './constancias/ConstanciasPanel';
+import { ConstanciasPanel } from '@/components/constancias/ConstanciasPanel';
 
 export const FuncionarioView: React.FC<RoleViewProps> = ({ initialTab = 'funcionario-bandeja', onNotify }) => {
   const f = useFuncionarioTickets(onNotify);
@@ -15,11 +15,7 @@ export const FuncionarioView: React.FC<RoleViewProps> = ({ initialTab = 'funcion
   return (
     <div>
       {esModoConstancias ? (
-        <ConstanciasPanel
-          tickets={f.tickets}
-          onSelectTicket={f.abrirTicket}
-          onNotify={onNotify}
-        />
+        <ConstanciasPanel onNotify={onNotify} />
       ) : (
         <BandejaPanel
           tickets={f.tickets}
@@ -31,8 +27,6 @@ export const FuncionarioView: React.FC<RoleViewProps> = ({ initialTab = 'funcion
           onEstadoChange={f.setFiltroEstado}
           filtroPrioridad={f.filtroPrioridad}
           onPrioridadChange={f.setFiltroPrioridad}
-          filtroConstancia={f.filtroConstancia}
-          onConstanciaChange={f.setFiltroConstancia}
           soloAsignadosAMi={f.soloAsignadosAMi}
           onSoloAsignadosChange={f.setSoloAsignadosAMi}
           onLimpiarFiltros={f.limpiarFiltros}

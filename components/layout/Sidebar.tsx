@@ -163,6 +163,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNot
                 <Eye size={18} />
                 Reasignación de Casos
               </button>
+              <button
+                className={`nav-item ${currentTab === 'supervisor-constancias' ? 'active' : ''}`}
+                onClick={() => onTabChange('supervisor-constancias')}
+              >
+                <FileCheck size={18} />
+                Constancias de No Adeudo
+              </button>
             </>
           )}
 

@@ -1,7 +1,6 @@
 import React from 'react';
 import { Inbox } from 'lucide-react';
 import { Ticket, TicketFiltroEstado, TicketPrioridad } from '@/types/ticket.types';
-import { FiltroConstancia } from '../useFuncionarioTickets';
 import { CardHeader, CardAside } from '@/components/shared/ui/CardHeader';
 import { FuncionarioKpis } from './parts/FuncionarioKpis';
 import { ReclamosFiltros } from './parts/ReclamosFiltros';
@@ -17,8 +16,6 @@ interface BandejaPanelProps {
   onEstadoChange: (estado: TicketFiltroEstado | 'todos') => void;
   filtroPrioridad: TicketPrioridad | 'todos';
   onPrioridadChange: (prioridad: TicketPrioridad | 'todos') => void;
-  filtroConstancia: FiltroConstancia;
-  onConstanciaChange: (constancia: FiltroConstancia) => void;
   soloAsignadosAMi: boolean;
   onSoloAsignadosChange: (val: boolean) => void;
   onLimpiarFiltros?: () => void;
@@ -36,8 +33,6 @@ export const BandejaPanel: React.FC<BandejaPanelProps> = ({
   onEstadoChange,
   filtroPrioridad,
   onPrioridadChange,
-  filtroConstancia,
-  onConstanciaChange,
   soloAsignadosAMi,
   onSoloAsignadosChange,
   onLimpiarFiltros,
@@ -65,8 +60,6 @@ export const BandejaPanel: React.FC<BandejaPanelProps> = ({
         onEstadoChange={onEstadoChange}
         filtroPrioridad={filtroPrioridad}
         onPrioridadChange={onPrioridadChange}
-        filtroConstancia={filtroConstancia}
-        onConstanciaChange={onConstanciaChange}
         soloAsignadosAMi={soloAsignadosAMi}
         onSoloAsignadosChange={onSoloAsignadosChange}
         onLimpiarFiltros={onLimpiarFiltros}

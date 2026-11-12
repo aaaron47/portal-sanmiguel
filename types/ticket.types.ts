@@ -39,8 +39,6 @@ export interface Ticket {
   funcionarioAsignadoNombre?: string;
   estado: TicketEstado;
   prioridad: TicketPrioridad;
-  tieneConstancia: boolean;
-  estadoConstancia?: 'sin_evaluar' | 'aprobada' | 'observada';
   fechaCreacion: string;
   fechaActualizacion: string;
   seguimientos: TicketSeguimiento[];

@@ -1,7 +1,6 @@
 import React from 'react';
 import { Download } from 'lucide-react';
 import { TicketFiltroEstado, TicketPrioridad } from '@/types/ticket.types';
-import { FiltroConstancia } from '../../useFuncionarioTickets';
 import { SearchInput } from '@/components/shared/ui/SearchInput';
 import {
   FilterSelectWrapper,
@@ -18,8 +17,6 @@ interface ReclamosFiltrosProps {
   onEstadoChange: (estado: TicketFiltroEstado | 'todos') => void;
   filtroPrioridad: TicketPrioridad | 'todos';
   onPrioridadChange: (prioridad: TicketPrioridad | 'todos') => void;
-  filtroConstancia: FiltroConstancia;
-  onConstanciaChange: (constancia: FiltroConstancia) => void;
   soloAsignadosAMi: boolean;
   onSoloAsignadosChange: (val: boolean) => void;
   onLimpiarFiltros?: () => void;
@@ -33,8 +30,6 @@ export const ReclamosFiltros: React.FC<ReclamosFiltrosProps> = ({
   onEstadoChange,
   filtroPrioridad,
   onPrioridadChange,
-  filtroConstancia,
-  onConstanciaChange,
   soloAsignadosAMi,
   onSoloAsignadosChange,
   onLimpiarFiltros,
@@ -44,7 +39,6 @@ export const ReclamosFiltros: React.FC<ReclamosFiltrosProps> = ({
     searchQuery.trim() ||
       filtroEstado !== 'todos' ||
       filtroPrioridad !== 'todos' ||
-      filtroConstancia !== 'todos' ||
       soloAsignadosAMi
   );
 
@@ -55,7 +49,6 @@ export const ReclamosFiltros: React.FC<ReclamosFiltrosProps> = ({
       onSearchChange('');
       onEstadoChange('todos');
       onPrioridadChange('todos');
-      onConstanciaChange('todos');
       onSoloAsignadosChange(false);
     }
   };
@@ -107,22 +100,6 @@ export const ReclamosFiltros: React.FC<ReclamosFiltrosProps> = ({
           <option value="BAJA">Baja</option>
           <option value="MEDIA">Media</option>
           <option value="ALTA">Alta</option>
-        </select>
-      </FilterSelectWrapper>
-
-      <FilterSelectWrapper label="Constancia">
-        <select
-          aria-label="Filtrar por constancia"
-          value={filtroConstancia}
-          onChange={(e) => onConstanciaChange(e.target.value as FiltroConstancia)}
-          style={ESTILO_SELECT_FILTRO}
-        >
-          <option value="todos">Todo</option>
-          <option value="con_constancia">Requerida</option>
-          <option value="sin_constancia">Sin requerir</option>
-          <option value="por_evaluar">Por evaluar</option>
-          <option value="aprobada">Aprobada</option>
-          <option value="observada">Observada</option>
         </select>
       </FilterSelectWrapper>
 

@@ -10,16 +10,19 @@ import { SupervisorKpis } from './supervision/parts/SupervisorKpis';
 import { SupervisorFiltros } from './supervision/parts/SupervisorFiltros';
 import { SupervisorTable } from './supervision/parts/SupervisorTable';
 import { ReasignacionPanel } from './reasignacion/ReasignacionPanel';
+import { ConstanciasPanel } from '@/components/constancias/ConstanciasPanel';
 import { cumpleFiltroEstado, puedeAprobar } from '@/utils/ticket.utils';
 
-type SupervisorTab = 'panorama' | 'aprobaciones' | 'reasignaciones';
+type SupervisorTab = 'panorama' | 'aprobaciones' | 'reasignaciones' | 'constancias';
 
 const tabDesdeMenu = (initialTab: string): SupervisorTab =>
   initialTab === 'supervisor-aprobaciones'
     ? 'aprobaciones'
     : initialTab === 'supervisor-reasignaciones'
       ? 'reasignaciones'
-      : 'panorama';
+      : initialTab === 'supervisor-constancias'
+        ? 'constancias'
+        : 'panorama';
 
 export const SupervisorView: React.FC<RoleViewProps> = ({
   initialTab = 'supervisor-panorama',
@@ -57,9 +60,11 @@ export const SupervisorView: React.FC<RoleViewProps> = ({
 
   return (
     <div>
-      {subTab !== 'reasignaciones' && <SupervisorKpis tickets={s.tickets} />}
+      {subTab !== 'reasignaciones' && subTab !== 'constancias' && <SupervisorKpis tickets={s.tickets} />}
 
-      {subTab === 'reasignaciones' ? (
+      {subTab === 'constancias' ? (
+        <ConstanciasPanel onNotify={onNotify} />
+      ) : subTab === 'reasignaciones' ? (
         <ReasignacionPanel
           tickets={s.tickets}
           carga={s.carga}

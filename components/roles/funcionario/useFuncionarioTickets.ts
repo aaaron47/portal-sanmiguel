@@ -7,7 +7,6 @@ import { exportarCSV } from '@/utils/csv.utils';
 import { mensajeErrorApi } from '@/services/api-client.service';
 import { MENSAJES_ERROR_RECLAMO, cumpleFiltroEstado, mensajeExitoAccion, textoEstado } from '@/utils/ticket.utils';
 
-export type FiltroConstancia = 'todos' | 'con_constancia' | 'sin_constancia' | 'por_evaluar' | 'aprobada' | 'observada';
 
 export function useFuncionarioTickets(onNotify: NotifyFn) {
   const { usuario } = useAuth();
@@ -16,7 +15,6 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
   const [modalAction, setModalAction] = useState<AccionTicket>('ninguna');
   const [filtroEstado, setFiltroEstado] = useState<TicketFiltroEstado | 'todos'>('todos');
   const [filtroPrioridad, setFiltroPrioridad] = useState<TicketPrioridad | 'todos'>('todos');
-  const [filtroConstancia, setFiltroConstancia] = useState<FiltroConstancia>('todos');
   const [searchQuery, setSearchQuery] = useState('');
   const [soloAsignadosAMi, setSoloAsignadosAMi] = useState(false);
 
@@ -70,13 +68,6 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
     if (soloAsignadosAMi && t.funcionarioAsignadoId !== usuario?.id) return false;
     if (!cumpleFiltroEstado(t, filtroEstado)) return false;
     if (filtroPrioridad !== 'todos' && t.prioridad !== filtroPrioridad) return false;
-    if (filtroConstancia !== 'todos') {
-      if (filtroConstancia === 'con_constancia' && !t.tieneConstancia) return false;
-      if (filtroConstancia === 'sin_constancia' && t.tieneConstancia) return false;
-      if (filtroConstancia === 'aprobada' && (!t.tieneConstancia || t.estadoConstancia !== 'aprobada')) return false;
-      if (filtroConstancia === 'observada' && (!t.tieneConstancia || t.estadoConstancia !== 'observada')) return false;
-      if (filtroConstancia === 'por_evaluar' && (!t.tieneConstancia || (t.estadoConstancia && t.estadoConstancia !== 'sin_evaluar'))) return false;
-    }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       return (
@@ -97,8 +88,6 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
       'Asunto',
       'Estado',
       'Prioridad',
-      'Constancia',
-      'Dictamen Constancia',
       'Fecha Ingreso',
       'Área Asignada',
     ];
@@ -109,14 +98,6 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
       t.asunto,
       textoEstado(t),
       t.prioridad,
-      t.tieneConstancia ? 'Solicitada' : 'No Requerida',
-      t.tieneConstancia
-        ? t.estadoConstancia === 'aprobada'
-          ? 'Aprobada'
-          : t.estadoConstancia === 'observada'
-          ? 'Observada'
-          : 'Por Evaluar'
-        : 'N/A',
       t.fechaCreacion,
       t.areaAsignada,
     ]);
@@ -129,7 +110,6 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
     setSearchQuery('');
     setFiltroEstado('todos');
     setFiltroPrioridad('todos');
-    setFiltroConstancia('todos');
     setSoloAsignadosAMi(false);
   };
 
@@ -147,8 +127,6 @@ export function useFuncionarioTickets(onNotify: NotifyFn) {
     setFiltroEstado,
     filtroPrioridad,
     setFiltroPrioridad,
-    filtroConstancia,
-    setFiltroConstancia,
     searchQuery,
     setSearchQuery,
     soloAsignadosAMi,

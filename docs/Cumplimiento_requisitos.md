@@ -28,7 +28,7 @@ de punta a punta el 05/11 (rama `feature/flujo-reclamos`; 57 pruebas según la r
 | Req | Funcionalidad | Portal | Bloqueo principal |
 |---|---|---|---|
 | 1 | Gestión y seguimiento de reclamos | ✅ *(rama)* | Los adjuntos que el ciudadano subió desde la app todavía no se pueden descargar (están en el almacenamiento del backend anterior) |
-| 2 | Constancias de no adeudo | 🟡 parcial | No hay acción para evaluar la solicitud; el registro de constancias no tiene endpoint |
+| 2 | Constancias de no adeudo | ✅ *(rama)* | Aprobar y desaprobar probados en el simulado; en el real falta una solicitud en verificación |
 | 3 | Registro de uso del sistema | ✅ *(rama)* | Ninguno en el portal. Hoy el backend solo tiene eventos de prueba |
 | 4 | Dashboard de uso del sistema | ✅ *(rama)* | Ninguno. Falta confirmar con el backend las reglas de conteo |
 | 5 | Onboarding y preferencias de privacidad | ✅ *(rama)* (el onboarding está en la app) | Activar otra versión del aviso espera un permiso en la BD (501) |
@@ -65,14 +65,17 @@ descargar desde el portal (hoy son 6 archivos en 5 reclamos). Probado contra el 
 | Criterio | Cómo lo cubre el portal | Estado |
 |---|---|---|
 | El ciudadano solicita la constancia | App móvil. | ➖ |
-| El responsable municipal evalúa y aprueba o desaprueba | Funcionario → **Constancias** lista los casos, pero el botón "Evaluar Constancia" abre el detalle del reclamo y **ahí no hay acción para aprobar o desaprobar**. El backend del portal no tiene endpoint de constancias (`GET /constancias` → 404). | ❌ |
+| El responsable municipal evalúa y aprueba o desaprueba | Funcionario → **Evaluación de Constancias** y Supervisor → **Constancias de No Adeudo**: conteos por estado, búsqueda, filtro y paginación en el servidor (`GET /constancias`); el detalle (`GET /constancias/{id}`) muestra contribuyente, predio, tasa, deuda y cuotas. **Aprobar** (comentario opcional; emite la constancia y la envía a la bandeja del ciudadano) y **Desaprobar** (motivo obligatorio, máximo 255) salen de `accionesPermitidas`; si no se puede aprobar, la pantalla dice por qué (tasa sin pagar o deuda). | ✅ *(rama)* |
 | Flujo de pago simulado | App y backend. | ➖ |
-| Generar y enviar la constancia | Backend (la emisión ya funciona desde la base, según la semana 12). | ➖ |
-| Reportes para la municipalidad | Dashboard General: constancias emitidas, aprobadas, observadas y pendientes (`/reportes/kpis`, ✅ en el backend real). Control Municipal → **Constancias de No Adeudo** (registro con PDF): `GET /reportes/constancias` da **404**, se ve solo en modo demo. | ✅ / 🟡 |
+| Generar y enviar la constancia | Backend: al aprobar emite la constancia con su código de verificación y la deja en la bandeja del ciudadano; el portal muestra el código, la vigencia y el enlace de verificación. | ✅ / ➖ |
+| Reportes para la municipalidad | Dashboard General: constancias emitidas, aprobadas, observadas y pendientes (`/reportes/kpis`, ✅ en el backend real). Control Municipal → **Constancias de No Adeudo** (registro con PDF): `GET /reportes/constancias` ya responde y la pantalla muestra los datos reales. | ✅ |
 | Reportes para el ciudadano | App móvil. | ➖ |
 
-**Falta:** definir con el backend el endpoint para que el responsable municipal apruebe o desapruebe la
-solicitud, y conectarlo en la pestaña Constancias; publicar `GET /reportes/constancias`.
+**Probado:** backend simulado 40/40 (aprobar, desaprobar, errores `invalid_state`, `fee_required` y
+`outstanding_debts`, 404, paginación, búsqueda, CSV, supervisor), backend real 9/9 (solo lectura: hoy hay 9 solicitudes
+y ninguna en verificación) y modo demo 3/3. **Falta:** probar aprobar y desaprobar en el backend real con una solicitud
+en verificación. Antes, el portal trataba la constancia como una marca del reclamo (`tieneConstancia`); en el backend es
+una solicitud aparte (`SOL-…`), así que se quitaron esa columna, ese filtro y esa tarjeta de la bandeja de reclamos.
 
 ## Req 3. Registro de uso del sistema
 
@@ -146,8 +149,8 @@ lo muestra.
 | 1 | ~~Endpoints `/telemetria/*`~~ Publicados el 11/11; el portal ya los usa *(rama)* | — | 3, 4, 5 |
 | 2 | ~~Agregar "resultado" y sesión a los eventos de uso~~ Hecho en el backend. Falta que la app móvil envíe eventos reales y confirmar las reglas de conteo (`docs/Solicitud_backend_telemetria.md`) | Backend + app | 3, 4 |
 | 3 | ~~Dashboard: sesiones, usuarios únicos, actividad por día y hora, % completadas, filtros y última actualización~~ Hecho en la rama y probado con el backend real | — | 4 |
-| 4 | Endpoint para aprobar o desaprobar constancias y conectarlo en Funcionario → Constancias | Backend + portal | 2 |
-| 5 | `GET /reportes/constancias` | Backend | 2 |
+| 4 | ~~Endpoint para aprobar o desaprobar constancias y conectarlo~~ Hecho en la rama. Falta probarlo en el backend real con una solicitud en verificación | Backend (dato de prueba) | 2 |
+| 5 | ~~`GET /reportes/constancias`~~ Publicado; Control Municipal ya lo muestra | — | 2 |
 | 6 | ~~Mostrar adjuntos y adjuntar evidencias~~ Hecho en la rama. Falta que la app suba sus adjuntos al backend único | App | 1 |
 | 7 | ~~Endpoints de Control de Acceso~~ Hechos y usados en la rama. Falta el permiso `UPDATE (activo)` en `documentos_versiones` | Responsable de la BD | 5 |
 | 8 | ~~Arreglar los 2 errores de lint de `f8543a7`~~ Hecho en la rama | Portal | — |

@@ -19,14 +19,13 @@ export const ReclamosTable: React.FC<ReclamosTableProps> = ({ tickets, onSelectT
           <th>Asunto / Incidencia</th>
           <th>Estado</th>
           <th>Prioridad</th>
-          <th>Constancia</th>
           <th>Acción</th>
         </tr>
       </thead>
       <tbody>
         {tickets.length === 0 ? (
           <tr>
-            <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+            <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
               <AlertCircle size={24} style={{ margin: '0 auto 0.5rem', display: 'block', color: 'var(--text-muted)' }} />
               No se encontraron reclamos con los filtros seleccionados.
             </td>
@@ -52,19 +51,6 @@ export const ReclamosTable: React.FC<ReclamosTableProps> = ({ tickets, onSelectT
               </td>
               <td>
                 <PriorityLabel prioridad={ticket.prioridad} />
-              </td>
-              <td>
-                {ticket.tieneConstancia ? (
-                  <span style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-main)' }}>
-                    {ticket.estadoConstancia === 'aprobada'
-                      ? 'Aprobada'
-                      : ticket.estadoConstancia === 'observada'
-                      ? 'Observada'
-                      : 'Por Evaluar'}
-                  </span>
-                ) : (
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No requerida</span>
-                )}
               </td>
               <td>
                 <button

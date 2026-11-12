@@ -37,8 +37,8 @@ const FAQS: FaqItem[] = [
   {
     id: '3',
     categoria: 'Constancias Digitales',
-    pregunta: '¿Cómo se evalúan las Constancias de Recepción Ciudadana?',
-    respuesta: 'Cuando un vecino solicita constancia formal, el funcionario revisa los requisitos y emite un dictamen ("aprobada" u "observada"). Esto asegura trazabilidad legal para el ciudadano con su código hash y fecha de confirmación.',
+    pregunta: '¿Cómo se evalúa una solicitud de Constancia de No Adeudo?',
+    respuesta: 'El ciudadano la pide desde la app y paga la tasa del trámite. Con la tasa pagada, la solicitud queda en verificación y aparece en "Constancias de No Adeudo" del funcionario y del supervisor. Solo se puede aprobar si el contribuyente no tiene deudas: al aprobarla se emite la constancia y el ciudadano la recibe en su bandeja. Si se desaprueba, hay que escribir el motivo, y el ciudadano recibe un aviso con ese motivo.',
   },
   {
     id: '4',
