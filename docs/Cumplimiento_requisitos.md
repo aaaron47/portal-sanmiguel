@@ -31,7 +31,7 @@ de punta a punta el 05/11 (rama `feature/flujo-reclamos`; 57 pruebas según la r
 | 2 | Constancias de no adeudo | 🟡 parcial | No hay acción para evaluar la solicitud; el registro de constancias no tiene endpoint |
 | 3 | Registro de uso del sistema | ✅ *(rama)* | Ninguno en el portal. Hoy el backend solo tiene eventos de prueba |
 | 4 | Dashboard de uso del sistema | ✅ *(rama)* | Ninguno. Falta confirmar con el backend las reglas de conteo |
-| 5 | Onboarding y preferencias de privacidad | ✅ *(rama)* (el onboarding está en la app) | El backend aún no registra el permiso de notificaciones. Activar otra versión del aviso espera un permiso en la BD (501) |
+| 5 | Onboarding y preferencias de privacidad | ✅ *(rama)* (el onboarding está en la app) | Activar otra versión del aviso espera un permiso en la BD (501) |
 
 ## Req 1. Gestión y seguimiento de reclamos
 
@@ -125,8 +125,9 @@ El portal muestra lo que decidieron los ciudadanos y deja administrar la telemet
 | Recordar la elección y permitir cambiarla en la configuración | App móvil. | ➖ |
 | Registrar la decisión, su fecha y la versión del aviso | Control TI muestra la tabla de consentimientos (hash del dispositivo, analítica, versión del aviso y fecha) y la exporta a CSV. | ✅ *(rama)* |
 
-**Falta en el backend:** el permiso de notificaciones (`notificacionesDisponibles: false`; el portal
-muestra "—" en vez de 0 %) y cambiar la versión del aviso (`docs/Solicitud_backend_control_acceso.md`).
+**Falta en el backend:** cambiar la versión del aviso (`PUT /documentos-versiones/{id}/activar` responde 501 hasta que
+la BD dé el permiso). El permiso de notificaciones no se va a registrar (la BD no tiene dónde), así que el portal ya no
+lo muestra.
 
 ## Otras funciones del portal (fuera de los 5 requisitos)
 

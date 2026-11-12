@@ -67,9 +67,11 @@ Cómo lo usa el portal:
 - Los códigos se muestran con nombres (`DEUDAS` → "Consulta de deuda", `IOS` → "iOS", `MOVIL` → "App
   móvil"); la tabla está en `utils/telemetria.utils.ts`. Un código nuevo se ve como texto ("Func nueva x")
   hasta que se le ponga nombre.
-- `ultimaActualizacion` se muestra como "Último dato registrado", sin convertir la hora (ya es de Perú).
-- `notificacionesDisponibles: false` → el portal muestra "—" y "El servidor todavía no registra el permiso
-  de notificaciones", en vez de 0 %.
+- `ultimaActualizacion` se muestra como "Último dato registrado", sin convertir la hora (ya es de Perú). Es la hora en
+  que el servidor recibió el último dato (evento o actividad de una sesión) y no depende de los filtros.
+- `tasaErroresAppPorcentaje` = fallidas / (completadas + fallidas) × 100, con todos los eventos del período filtrado
+  (incluye los inicios de sesión fallidos).
+- El permiso de notificaciones no se registra (la BD no tiene dónde): el portal ya no muestra esa tarjeta.
 - `actividadDiaHora` todavía no se usa.
 
 ## 2. `GET /telemetria/eventos?limite=15`
@@ -83,7 +85,8 @@ Cómo lo usa el portal:
    "codigoError": null, "duracionMs": 9000, "canal": "MOVIL", "tipoActor": "CIUDADANO" }]
 ```
 
-Valores vistos: `tipoEvento` = `PANTALLA`, `CONSULTA`, `INICIO_SESION`, `CIERRE_SESION`; `resultado` =
+Valores de `tipoEvento` (lista cerrada, confirmada por el backend): `INICIO_SESION`, `CIERRE_SESION`, `PANTALLA`,
+`ACCION` y `CONSULTA`. Otros valores vistos: `resultado` =
 `INICIADA`, `COMPLETADA`, `FALLIDA`, `NO_APLICA`; `tipoActor` = `CIUDADANO`, `PERSONAL`.
 
 ## 3. `GET /telemetria/consentimientos`
@@ -108,7 +111,11 @@ pausa" / "activada"); por eso el portal ya no llama a `POST /auditoria` para est
 > eventos: guarda el consentimiento solo en el teléfono; se integrará cuando pase al backend único. (8) Con
 > `telemetriaActiva = false` el backend deja de guardar pantallas, acciones y consultas y solo guarda inicio y cierre
 > de sesión; el portal lo explica en el interruptor. Retención: sale de `RETENCION_USO_MESES` y la purga es diaria.
-> Siguen abiertas la 2, 3, 4 y 6.
+> **Segunda tanda (11/11):** (2) `ultimaActualizacion` es la hora en que el servidor recibió el último dato, en hora
+> de Perú, y no depende de los filtros. (3) `tipoEvento`: `INICIO_SESION`, `CIERRE_SESION`, `PANTALLA`, `ACCION` y
+> `CONSULTA`; el portal agregó el nombre de `ACCION`. (4) Sí: fallidas / (completadas + fallidas) × 100, incluidos los
+> inicios de sesión fallidos. (6) El permiso de notificaciones e `ipAnonimizada` no se van a registrar: el portal quitó
+> la tarjeta, la columna de la tabla y las dos columnas del CSV. **Ya no queda ninguna duda abierta.**
 
 | # | Pregunta o pedido | Por qué |
 |---|---|---|

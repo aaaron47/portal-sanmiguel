@@ -199,14 +199,13 @@ registro duplicado. También hubo un intento de ingreso fallido con un usuario d
 | Tabla de funcionalidades con eventos, ordenada por uso | `UsoSistemaPanel.tsx` |
 | Tabla de eventos con funcionalidad, resultado, código de error y canal | `EventosAnonimosTable.tsx` |
 | Dispositivos con "Otros" (portal web); dispositivos y pantallas junto a lo que sigue los filtros | `DispositivosCard.tsx`, `ControlTiView.tsx` |
-| Notificaciones "—" cuando el backend no tiene el dato | `PrivacidadOnboardingPanel.tsx` |
+| Sin tarjeta ni columna de notificaciones (el backend no las registra; quitadas el 11/11) | `PrivacidadOnboardingPanel.tsx` |
 | "Último dato registrado" sin convertir la hora (el backend ya la envía en hora de Perú) | `utils/fecha-peru.utils.ts` |
 | Control de Acceso por secciones: se guarda lo que se pudo leer, se envía solo lo que cambió y no se duplica la auditoría | `useControlAcceso.ts`, `ControlAccesoPanel.tsx`, `types/auditoria.types.ts` |
 
 ### 7.4 Lo que queda
 
-- Dudas para el backend sobre la telemetría: `docs/Solicitud_backend_telemetria.md`, sección 5 (reglas de
-  conteo, valores de `tipoEvento`, `versionTerminosVigente`, notificaciones, datos reales de la app).
+- Las dudas sobre la telemetría ya están respondidas (`docs/Solicitud_backend_telemetria.md`, sección 5).
 - Repetir la prueba cuando la app móvil envíe eventos reales.
-- Control de Acceso (políticas y versiones del aviso), constancias y adjuntos siguen sin endpoint:
-  `docs/Solicitud_backend_control_acceso.md` y `docs/Solicitud_backend_adjuntos.md`.
+- Control de Acceso y adjuntos ya tienen endpoint y el portal los usa (`docs/Solicitud_backend_control_acceso.md`,
+  `docs/Solicitud_backend_adjuntos.md`). Las constancias salen en el próximo despliegue del backend.

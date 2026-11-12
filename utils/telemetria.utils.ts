@@ -34,6 +34,7 @@ const CANALES: Record<string, string> = { MOVIL: 'App móvil', WEB: 'Portal web'
 const TIPOS_EVENTO: Record<string, string> = {
   PANTALLA: 'Pantalla vista',
   CONSULTA: 'Consulta',
+  ACCION: 'Acción',
   INICIO_SESION: 'Inicio de sesión',
   CIERRE_SESION: 'Cierre de sesión',
 };

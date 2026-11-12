@@ -43,7 +43,7 @@ export const ControlTiView: React.FC<RoleViewProps> = ({
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>
             {esOnboarding 
-              ? 'Trazabilidad de consentimiento vecinal (Ley N° 29733), notificaciones push y embudo de adopción.'
+              ? 'Trazabilidad de consentimiento vecinal (Ley N° 29733) y embudo de adopción.'
               : 'Monitoreo de tráfico, versiones de clientes móviles y estabilidad en producción.'}
           </p>
         </div>

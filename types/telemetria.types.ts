@@ -109,11 +109,8 @@ export interface ConsentimientoAuditoriaLog {
   id: string;
   dispositivoHash: string;
   aceptaAnalitica: boolean;
-  permiteNotificaciones: boolean;
   versionTerminos: string;
   fechaDecision: string;
-  /** El backend puede no guardarla (llega `null`). */
-  ipAnonimizada?: string | null;
   /** Dónde se tomó la decisión (`ONBOARDING`, configuración de privacidad...). */
   origen?: string | null;
   canal?: CanalUso | null;
@@ -131,13 +128,6 @@ export interface OnboardingStats {
   rechazaAnaliticaPorcentaje: number;
   /** Usuarios que todavía no aceptaron ni rechazaron la analítica opcional. */
   sinDecisionAnaliticaCount?: number;
-  // Permiso de Notificaciones Push
-  notificacionesPermitidasCount: number;
-  notificacionesPermitidasPorcentaje: number;
-  notificacionesBloqueadasCount: number;
-  notificacionesBloqueadasPorcentaje: number;
-  /** `false` cuando el backend no tiene el dato de notificaciones: los cuatro campos de arriba llegan en 0. */
-  notificacionesDisponibles?: boolean;
   // Gobernanza y Controles de Privacidad
   versionTerminosVigente: string;
   fechaRevisionTerminos: string;

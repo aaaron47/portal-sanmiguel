@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { 
   ShieldCheck, 
-  Bell, 
   FileText, 
   Clock, 
   Power, 
@@ -33,8 +32,6 @@ export const PrivacidadOnboardingPanel: React.FC<PrivacidadOnboardingPanelProps>
 }) => {
   const [auditLogs, setAuditLogs] = useState<ConsentimientoAuditoriaLog[]>([]);
   const [cargandoLogs, setCargandoLogs] = useState(true);
-  // El backend avisa con `notificacionesDisponibles: false` cuando no tiene ese dato (llega todo en 0).
-  const sinNotificaciones = stats.notificacionesDisponibles === false;
 
   // Cargar logs para la tabla y exportación
   React.useEffect(() => {
@@ -67,19 +64,15 @@ export const PrivacidadOnboardingPanel: React.FC<PrivacidadOnboardingPanelProps>
       'ID Registro',
       'Dispositivo Hash (SHA-256)',
       'Acepta Analítica (Ley 29733)',
-      'Permiso Notificaciones Push',
       'Versión Términos',
       'Fecha y Hora Decisión',
-      'IP Anonimizada',
     ];
     const filas = auditLogs.map((log) => [
       log.id,
       log.dispositivoHash,
       log.aceptaAnalitica ? 'SÍ' : 'NO',
-      sinNotificaciones ? 'SIN DATO' : log.permiteNotificaciones ? 'AUTORIZADO' : 'DENEGADO',
       log.versionTerminos,
       log.fechaDecision,
-      log.ipAnonimizada ?? '',
     ]);
 
     exportarCSV('Auditoria_Privacidad_Ley29733', cabeceras, filas);
@@ -121,30 +114,6 @@ export const PrivacidadOnboardingPanel: React.FC<PrivacidadOnboardingPanelProps>
           </div>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
             <strong>{stats.aceptaAnaliticaCount.toLocaleString()}</strong> aceptan compartir analítica anónima
-          </span>
-        </div>
-
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-            <div style={{ padding: '0.5rem', borderRadius: '10px', background: 'var(--violet-50)', color: 'var(--violet-700)' }}>
-              <Bell size={20} />
-            </div>
-            <div>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Notificaciones Push</span>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--violet-700)' }}>
-                {sinNotificaciones ? '—' : `${stats.notificacionesPermitidasPorcentaje}%`}
-              </div>
-            </div>
-          </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            {sinNotificaciones ? (
-              'El servidor todavía no registra el permiso de notificaciones.'
-            ) : (
-              <>
-                <strong>{stats.notificacionesPermitidasCount.toLocaleString()}</strong> autorizadas para seguimiento de
-                reclamos
-              </>
-            )}
           </span>
         </div>
 
@@ -271,7 +240,7 @@ export const PrivacidadOnboardingPanel: React.FC<PrivacidadOnboardingPanelProps>
               {stats.mesesRetencionUso} meses
             </span>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-              (purga mensual automática)
+              (el servidor depura cada día)
             </span>
           </div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-dim)', background: 'var(--bg-card-subtle)', padding: '0.4rem 0.65rem', borderRadius: '6px' }}>
@@ -341,7 +310,6 @@ export const PrivacidadOnboardingPanel: React.FC<PrivacidadOnboardingPanelProps>
                   <th>ID Registro</th>
                   <th>Hash Dispositivo (Anonimizado)</th>
                   <th>Analítica Ley 29733</th>
-                  <th>Notificaciones Push</th>
                   <th>Versión Términos</th>
                   <th>Fecha de Decisión</th>
                 </tr>
@@ -361,19 +329,6 @@ export const PrivacidadOnboardingPanel: React.FC<PrivacidadOnboardingPanelProps>
                       ) : (
                         <span className="badge badge-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
                           <XCircle size={12} /> Rechazado
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      {sinNotificaciones ? (
-                        <span style={{ color: 'var(--text-muted)' }}>—</span>
-                      ) : log.permiteNotificaciones ? (
-                        <span className="badge badge-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <CheckCircle2 size={12} /> Autorizado
-                        </span>
-                      ) : (
-                        <span className="badge badge-neutral" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <AlertTriangle size={12} /> Denegado
                         </span>
                       )}
                     </td>
