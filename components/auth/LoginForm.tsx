@@ -92,7 +92,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
             />
           </div>
           <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--slate-900)', letterSpacing: '-0.02em' }}>
-            Sistema Integrado San Miguel
+            Portal San Miguel
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--slate-500)', marginTop: '0.25rem' }}>
             Portal Único de Atención, Supervisión y Telemetría

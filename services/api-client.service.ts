@@ -22,7 +22,17 @@ export class ApiError extends Error {
 async function pedir(endpoint: string, options: RequestOptions = {}): Promise<Response> {
   const { params, headers, ...restOptions } = options;
   
-  let url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  let url: string;
+  if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+    url = endpoint;
+  } else if (endpoint.startsWith('/api/')) {
+    // Si el endpoint ya incluye el prefijo global /api/ (p. ej. /api/v1/admin/bi/ia/chat),
+    // se remueve /api/v1/portal, /api/v1/admin o /api de API_BASE_URL para obtener la raíz del host.
+    const raizBackend = API_BASE_URL.replace(/\/api(\/v1)?(\/portal|\/admin)?\/?$/, '');
+    url = `${raizBackend}${endpoint}`;
+  } else {
+    url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  }
   
   if (params) {
     const searchParams = new URLSearchParams();
@@ -99,6 +109,44 @@ export async function apiClientArchivo(endpoint: string, options: RequestOptions
   return response.blob();
 }
 
+export interface ArchivoDescargado {
+  blob: Blob;
+  nombreArchivo: string | null;
+  tablaIncompleta: boolean;
+  tablaFilas: number;
+}
+
+/**
+ * Descarga un archivo con la sesión del portal y devuelve además las cabeceras de metadatos
+ * (`Content-Disposition`, `X-Tabla-Incompleta`, `X-Tabla-Filas`).
+ */
+export async function apiClientArchivoConMeta(
+  endpoint: string,
+  options: RequestOptions = {}
+): Promise<ArchivoDescargado> {
+  const response = await pedir(endpoint, {
+    ...options,
+    headers: { Accept: '*/*', ...options.headers },
+  });
+  const disposition = response.headers.get('Content-Disposition') ?? '';
+  const match = /filename="?([^";]+)"?/i.exec(disposition);
+  const nombreArchivo = match?.[1]?.trim() || null;
+  const tablaIncompleta = response.headers.get('X-Tabla-Incompleta') === 'true';
+  const filasHeader = response.headers.get('X-Tabla-Filas');
+  const tablaFilas =
+    filasHeader !== null && filasHeader.trim() !== '' && !Number.isNaN(Number(filasHeader))
+      ? Number(filasHeader)
+      : -1;
+  const blob = await response.blob();
+
+  return {
+    blob,
+    nombreArchivo,
+    tablaIncompleta,
+    tablaFilas,
+  };
+}
+
 /**
  * Si se permiten los datos simulados. En desarrollo (`npm run dev`) sí; en un build de producción solo con
  * `NEXT_PUBLIC_MODO_DEMO=true`. Así, si el backend real se cae, nadie entra sin contraseña ni "guarda" en datos falsos.
@@ -135,10 +183,57 @@ const MENSAJES_POR_CODIGO: Record<string, string> = {
   not_implemented: 'Esta acción todavía no está disponible.',
   attachment_unavailable:
     'Este archivo se subió desde la app y todavía no está disponible en el portal.',
+  // Módulo BI / Superset / IA / MCP (Sección 8 de la guía BI)
+  bi_no_configurado: 'Esta función de Business Intelligence aún no está configurada en el servidor.',
+  bi_area_sin_rol_datos: 'El área de la persona no tiene un grupo de datos asignado. Avisa a un administrador.',
+  bi_rol_datos_invalido: 'El grupo de datos asignado al área no es válido. Avisa a un administrador.',
+  bi_superset_no_disponible: 'Apache Superset no está disponible o tarda en responder. Inténtalo de nuevo.',
+  bi_no_es_dueno: 'No eres dueño de ese dashboard en Apache Superset.',
+  bi_sin_cuenta_superset: 'La persona no tiene usuario en Superset. Habilita su acceso MCP primero.',
+  bi_graficos_sin_query_context:
+    'Los gráficos recién creados se están preparando en Superset. Reintenta en unos segundos.',
+  bi_dominios_no_configurados:
+    'Falta configurar los dominios permitidos de embebido en el servidor. Avisa al administrador del sistema.',
+  bi_ambito_invalido: 'El parámetro de ámbito solicitado no es válido.',
+  bi_formato_invalido: 'El formato de descarga solicitado no es válido (usa CSV o XLSX).',
+  bi_descarga_no_lista: 'El archivo comprimido (ZIP) aún no termina de generarse. Espera unos segundos.',
+  bi_tabla_sin_columnas: 'La tabla seleccionada no tiene columnas disponibles.',
+  bi_rol_superset_no_existe: 'Falta un rol requerido en Apache Superset. Avisa al administrador del sistema.',
+  bi_usuario_superset_ajeno:
+    'El nombre de usuario ya existe en Superset como cuenta humana independiente y no se puede modificar.',
+  bi_usuario_superset_en_uso: 'Ese usuario de Superset ya está en uso por otra persona.',
+  bi_cuenta_inactiva: 'La cuenta del personal está inactiva. Actívala antes de habilitar MCP.',
+  bi_lector_rechazado:
+    'Superset no aceptó la cuenta de servicio de lectura del grupo. Avisa al administrador del sistema.',
+  bi_descarga_rechazada:
+    'Superset no aceptó la cuenta de servicio para descargar la tabla. Avisa al administrador del sistema.',
+  bi_descarga_muy_grande: 'El archivo ZIP superó el límite de 150 MB. Descarga las tablas una por una.',
+  bi_descarga_error: 'Ocurrió un error al generar la descarga comprimida de las tablas.',
+  ia_no_configurada: 'El modelo local de IA no está disponible o no está configurado en el servidor.',
+  ia_api_no_configurada: 'El modelo por API (Claude) no está disponible o no está configurado en el servidor.',
+  ia_ocupada: 'La cola del modelo local está llena en este momento. Reintenta en unos minutos o usa el modelo API.',
+  llm_no_disponible: 'El modelo de IA no respondió a tiempo. Inténtalo de nuevo.',
+  llm_respuesta_invalida: 'El modelo de IA devolvió una respuesta inválida. Inténtalo de nuevo.',
+  llm_limite: 'La API de Claude alcanzó su límite de uso. Reintenta más tarde.',
+  llm_credencial_invalida: 'La clave de la API de Claude falló. Avisa al administrador del sistema.',
+  llm_rechazo: 'Claude declinó responder esta consulta por sus filtros de seguridad. Reformula la pregunta.',
+  ia_limite_iteraciones: 'El asistente dio demasiadas vueltas sin concluir. Reformula tu pregunta.',
+  mcp_no_disponible: 'No se pudo conectar con el servidor MCP. Avisa al administrador del sistema.',
+  mcp_no_autorizado: 'Falla de autorización en la conexión con el MCP. Avisa al administrador.',
+  mcp_error: 'Ocurrió un error en la conexión con el MCP. Avisa al administrador.',
+  not_found: 'No existe este recurso o no pertenece al grupo de datos de tu área.',
 };
 
-/** Códigos en los que el backend manda un mensaje más preciso que el del front (p. ej. los minutos del bloqueo). */
-const CODIGOS_CON_MENSAJE_DEL_BACKEND = new Set(['account_locked']);
+/** Códigos en los que el backend manda un mensaje más preciso que el del front (p. ej. los minutos del bloqueo o 409 de MCP). */
+const CODIGOS_CON_MENSAJE_DEL_BACKEND = new Set([
+  'account_locked',
+  'bi_area_sin_rol_datos',
+  'bi_rol_datos_invalido',
+  'bi_rol_superset_no_existe',
+  'bi_cuenta_inactiva',
+  'bi_usuario_superset_ajeno',
+  'bi_usuario_superset_en_uso',
+]);
 
 /** Cuerpo de error del backend: `{"error": {"code", "message", "details"?}}`. */
 function cuerpoError(err: unknown): { code?: string; message?: string } | undefined {

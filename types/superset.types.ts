@@ -30,6 +30,8 @@ export interface SupersetDashboardWidget {
 
 export interface SupersetDashboardInfo {
   id: string;
+  /** Identificador numérico real en Apache Superset (`id` devuelto por `GET /api/v1/admin/bi/dashboards`) */
+  supersetId?: number;
   slug: string;
   titulo: string;
   descripcion: string;
@@ -37,9 +39,13 @@ export interface SupersetDashboardInfo {
   urlRelativa: string;
   origen?: OrigenDashboard;
   modulo?: ModuloAnalitico;
+  /** true si el dashboard está publicado; false si es un borrador */
+  publicado?: boolean;
   /** Key / UUID generado en Apache Superset al activar "Embed dashboard" */
   embedKey?: string;
-  embedUuid?: string;
+  embedUuid?: string | null;
+  /** Fecha o texto relativo de última actualización devuelto por el backend */
+  actualizado?: string;
   /** Dominio permitido configurado en Apache Superset (Allowed Domains) */
   allowedDomain?: string;
   creadoEn?: string;
@@ -51,6 +57,13 @@ export interface SupersetDashboardInfo {
   metricasResumen?: SupersetMetricItem[];
   widgets?: SupersetDashboardWidget[];
   sqlBase?: string;
+}
+
+export interface ProgresoChatIA {
+  estado: string;
+  segundos: number;
+  pasos: string[];
+  creados?: string[];
 }
 
 export interface SupersetChatMessage {
@@ -68,6 +81,9 @@ export interface SupersetChatMessage {
   metricas?: SupersetMetricItem[];
   sqlGenerado?: string;
   estado?: 'pensando' | 'completado' | 'error';
+  pasos?: string[];
+  creados?: string[];
+  segundos?: number;
   /** true si el asistente no respondió y se muestra un ejemplo con datos ficticios (se avisa en pantalla). */
   esEjemplo?: boolean;
 }
@@ -84,6 +100,8 @@ export interface SolicitudChatIA {
     rol: 'user' | 'assistant';
     texto: string;
   }>;
+  onProgreso?: (progreso: ProgresoChatIA) => void;
+  signal?: AbortSignal;
 }
 
 /** Contrato de respuesta del backend para el chat de IA. */
@@ -98,7 +116,64 @@ export interface RespuestaChatIA {
   sqlGenerado?: string;
   metricas?: SupersetMetricItem[];
   dashboardGenerado?: SupersetDashboardInfo;
+  pasos?: string[];
+  creados?: string[];
+  segundos?: number;
   esEjemplo?: boolean;
+}
+
+export type AmbitoDashboardBi = 'publicados' | 'borradores';
+
+/** Elemento devuelto por `GET /api/v1/admin/bi/dashboards?ambito=publicados|borradores` */
+export interface BiDashboardItemResponse {
+  id: number;
+  titulo: string;
+  publicado: boolean;
+  embedUuid: string | null;
+  actualizado?: string;
+}
+
+/** Respuesta de `GET /api/v1/admin/bi/dashboards/{embedUuid}/guest-token` */
+export interface BiGuestTokenResponse {
+  token: string;
+  supersetUrl: string;
+  dashboardId: string;
+  expiraEn: number;
+}
+
+/** Respuesta de `PUT /api/v1/admin/bi/dashboards/{id}/publicacion` */
+export interface BiPublicacionResponse {
+  dashboardId: number;
+  publicado: boolean;
+}
+
+/** Respuesta de `PUT /api/v1/admin/bi/dashboards/{id}/embebido` */
+export interface BiEmbebidoResponse {
+  dashboardId: number;
+  uuid: string;
+  dominiosPermitidos: string[];
+}
+
+export type EstadoDisponibilidadIa = 'DISPONIBLE' | 'SIN_RESPUESTA' | 'NO_CONFIGURADO';
+
+/** Respuesta de `GET /api/v1/admin/bi/ia/estado` */
+export interface EstadoIaBiResponse {
+  modelo: EstadoDisponibilidadIa;
+  trabajosPendientes: number;
+  maxEnCola: number;
+  api: 'DISPONIBLE' | 'NO_CONFIGURADO';
+  trabajosPendientesApi: number;
+}
+
+export type NivelMcp = 'CONSULTA' | 'CONSTRUCCION';
+
+/** Respuesta de `PUT / DELETE /api/v1/admin/bi/personal/{administradorId}/mcp` */
+export interface AccesoMcpPersonalResponse {
+  administradorId: string;
+  supersetUsuario: string;
+  nivel: NivelMcp;
+  habilitado: boolean;
+  rolesSuperset: string[];
 }
 
 /** Respuesta del endpoint GET /ia/dashboards?modulo=... */

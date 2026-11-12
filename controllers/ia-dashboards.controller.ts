@@ -1,8 +1,24 @@
-import { apiClient, usarDatosDemo } from '@/services/api-client.service';
 import {
+  apiClient,
+  apiClientArchivo,
+  apiClientArchivoConMeta,
+  ApiError,
+  codigoErrorApi,
+  mensajeErrorApi,
+  usarDatosDemo,
+} from '@/services/api-client.service';
+import {
+  AccesoMcpPersonalResponse,
+  AmbitoDashboardBi,
+  BiDashboardItemResponse,
+  BiEmbebidoResponse,
+  BiGuestTokenResponse,
+  BiPublicacionResponse,
   ConfiguracionModuloIA,
+  EstadoIaBiResponse,
   ListadoDashboardsResponse,
   ModuloAnalitico,
+  NivelMcp,
   ProveedorModeloIA,
   RespuestaChatIA,
   SolicitudChatIA,
@@ -10,6 +26,15 @@ import {
   SupersetEmbedTokenResponse,
   SupersetMetricItem,
 } from '@/types/superset.types';
+import {
+  CATALOGO_REPORTES_OFICIALES,
+  FormatoDescargaTablaBi,
+  ResultadoDescargaTablaBi,
+  TablaCertificadaBi,
+  TrabajoDescargaTodasBi,
+} from '@/types/reportes-tributarios.types';
+import { MOCK_ROWS_BY_REPORT } from '@/controllers/reportes.controller';
+import { descargarBlobArchivo, exportarCSV, parsearCSV } from '@/utils/csv.utils';
 
 /**
  * Configuración global para el selector de modelos de IA y embebido de Apache Superset.
@@ -18,7 +43,7 @@ import {
 export const MODELO_IA_LOCAL_NOMBRE =
   process.env.NEXT_PUBLIC_IA_MODEL_LOCAL_NAME || 'San Miguel 1';
 export const MODELO_IA_API_NOMBRE =
-  process.env.NEXT_PUBLIC_IA_MODEL_API_NAME || 'API';
+  process.env.NEXT_PUBLIC_IA_MODEL_API_NAME || 'Claude Opus';
 export const SUPERSET_BASE_URL =
   process.env.NEXT_PUBLIC_SUPERSET_URL || '';
 export const SUPERSET_ALLOWED_DOMAIN =
@@ -36,14 +61,14 @@ export function obtenerOpcionesSelectorModelo(
   const cfg = CONFIG_MODULOS_IA[modulo] || CONFIG_MODULOS_IA.CONTROL_MUNICIPAL;
   return [
     {
-      valor: 'LOCAL',
-      etiqueta: cfg.modeloLocalNombre,
-      descripcion: cfg.modeloLocalDescripcion,
+      valor: 'API',
+      etiqueta: `${cfg.modeloApiNombre} (API)`,
+      descripcion: cfg.modeloApiDescripcion,
     },
     {
-      valor: 'API',
-      etiqueta: cfg.modeloApiNombre,
-      descripcion: cfg.modeloApiDescripcion,
+      valor: 'LOCAL',
+      etiqueta: `${cfg.modeloLocalNombre} (Local)`,
+      descripcion: cfg.modeloLocalDescripcion,
     },
   ];
 }
@@ -64,7 +89,7 @@ export const CONFIG_MODULOS_IA: Record<ModuloAnalitico, ConfiguracionModuloIA> =
     modeloLocalNombre: MODELO_IA_LOCAL_NOMBRE,
     modeloLocalDescripcion: `Modelo local municipal (${MODELO_IA_LOCAL_NOMBRE} · Inferencia privada sin salida a internet)`,
     modeloApiNombre: MODELO_IA_API_NOMBRE,
-    modeloApiDescripcion: 'Modelo externo por API configurado en el servidor',
+    modeloApiDescripcion: `Modelo ${MODELO_IA_API_NOMBRE} por API externa (rápido, ~15s, con herramientas MCP para Superset)`,
     sugerenciasConsulta: [
       'Cruzar deuda con beneficio (R1) frente a PRICOS con deuda pendiente (R5)',
       'Comparar % de recaudación efectiva (R3) con reincidencia en mora (R11)',
@@ -87,7 +112,7 @@ export const CONFIG_MODULOS_IA: Record<ModuloAnalitico, ConfiguracionModuloIA> =
     modeloLocalNombre: MODELO_IA_LOCAL_NOMBRE,
     modeloLocalDescripcion: `Modelo local municipal (${MODELO_IA_LOCAL_NOMBRE} · Procesamiento privado de telemetría)`,
     modeloApiNombre: MODELO_IA_API_NOMBRE,
-    modeloApiDescripcion: 'Modelo externo por API configurado en el servidor',
+    modeloApiDescripcion: `Modelo ${MODELO_IA_API_NOMBRE} por API externa (rápido, ~15s, con herramientas MCP para Superset)`,
     sugerenciasConsulta: [
       '¿Cuál es la tasa de conversión del onboarding ciudadano y aceptación de privacidad?',
       '¿Qué pantallas concentran mayor tiempo de carga o errores en Android vs iOS?',
@@ -107,7 +132,7 @@ export const CONFIG_MODULOS_IA: Record<ModuloAnalitico, ConfiguracionModuloIA> =
     modeloLocalNombre: MODELO_IA_LOCAL_NOMBRE,
     modeloLocalDescripcion: `Modelo local municipal (${MODELO_IA_LOCAL_NOMBRE} · Auditoría privada en infraestructura local)`,
     modeloApiNombre: MODELO_IA_API_NOMBRE,
-    modeloApiDescripcion: 'Modelo externo por API configurado en el servidor',
+    modeloApiDescripcion: `Modelo ${MODELO_IA_API_NOMBRE} por API externa (rápido, ~15s, con herramientas MCP para Superset)`,
     sugerenciasConsulta: [
       '¿Cuántos intentos fallidos de inicio de sesión y bloqueos se registraron esta semana?',
       '¿Qué roles y áreas tienen mayor actividad de modificación de expedientes?',
@@ -135,7 +160,7 @@ export const DASHBOARDS_SUPERSET_CONTROL_MUNICIPAL: SupersetDashboardInfo[] = [
     origen: 'SUPERSET',
     modulo: 'CONTROL_MUNICIPAL',
     urlRelativa: '/superset/dashboard/reportes-tributarios/?standalone=true',
-    embedUuid: 'superset-embed-reportes-tributarios-001',
+    embedUuid: '29e399ef-75cd-4927-893f-9713435c9766',
     creadoEn: '01/11/2026',
     autor: 'Gerencia de Administración Tributaria · Superset',
     fuentesDatos: ['R1 Morosos', 'R2 Sin Pagos', 'R3 Recaudación', 'R4 Valores', 'R5 PRICOS', 'R6–R11 Cumplimiento'],
@@ -590,6 +615,8 @@ function construirRespuestaDemoChat(solicitud: SolicitudChatIA): RespuestaChatIA
       sqlGenerado: sql,
       metricas,
       dashboardGenerado: nuevoDashboard,
+      pasos: ['superset_mcp.analizar_esquema', 'superset_mcp.generar_vista_dashboard'],
+      segundos: 4,
       esEjemplo: true,
     };
   }
@@ -664,21 +691,295 @@ function construirRespuestaDemoChat(solicitud: SolicitudChatIA): RespuestaChatIA
     graficoTitulo: tituloGrafico,
     sqlGenerado: sql,
     metricas,
+    pasos: ['superset_mcp.obtener_tablas', 'superset_mcp.ejecutar_consulta_sql'],
+    segundos: 3,
     esEjemplo: true,
   };
 }
 
+/**
+ * Diccionario de códigos de error devueltos por el asistente de IA y el módulo BI (Superset / MCP) en el backend.
+ */
+export const ERRORES_IA_SANMI: Record<string, string> = {
+  bi_no_configurado: 'Esta función de Business Intelligence aún no está configurada en el servidor.',
+  bi_area_sin_rol_datos: 'El área de tu cuenta no tiene un grupo de datos asignado. Avisa a un administrador.',
+  bi_rol_datos_invalido: 'El grupo de datos asignado a tu área no es válido. Avisa a un administrador.',
+  bi_superset_no_disponible: 'Apache Superset está caído o tarda en responder. Inténtalo de nuevo.',
+  bi_no_es_dueno: 'No eres dueño de ese dashboard en Apache Superset.',
+  bi_sin_cuenta_superset: 'Tu cuenta no tiene usuario en Superset. Un administrador debe habilitar tu acceso MCP primero.',
+  bi_graficos_sin_query_context:
+    'Los gráficos recién creados se están preparando en Superset. Reintenta en unos segundos.',
+  bi_dominios_no_configurados:
+    'Falta configurar los dominios permitidos de embebido en el servidor. Avisa al administrador del sistema.',
+  bi_ambito_invalido: 'El ámbito de dashboards solicitado no es válido.',
+  bi_formato_invalido: 'El formato de descarga solicitado no es válido (usa CSV o XLSX).',
+  bi_descarga_no_lista: 'El archivo ZIP aún no termina de generarse.',
+  bi_tabla_sin_columnas: 'La tabla seleccionada no tiene columnas disponibles.',
+  bi_rol_superset_no_existe: 'Falta un rol requerido en Apache Superset. Avisa al administrador del sistema.',
+  bi_usuario_superset_ajeno:
+    'El nombre de usuario ya existe en Superset como cuenta humana independiente y no se puede modificar.',
+  bi_usuario_superset_en_uso: 'Ese usuario de Superset ya está asignado a otra persona.',
+  bi_cuenta_inactiva: 'La cuenta del personal está inactiva.',
+  bi_lector_rechazado: 'Superset no aceptó la cuenta de servicio del grupo. Avisa al administrador.',
+  bi_descarga_rechazada: 'Superset no aceptó la cuenta de servicio para descargar la tabla. Avisa al administrador.',
+  bi_descarga_muy_grande: 'El archivo ZIP superó los 150 MB. Descarga las tablas una por una.',
+  bi_descarga_error: 'Ocurrió un error al generar el archivo ZIP de las tablas.',
+  ia_ocupada: 'La cola del modelo local está llena en este momento. Reintenta en unos minutos o cambia al modelo API.',
+  ia_no_configurada: 'El modelo local de IA no está disponible o no está configurado en el servidor.',
+  ia_api_no_configurada: 'El modelo por API (Claude) no está configurado en el servidor.',
+  llm_no_disponible: 'El modelo de IA no respondió (¿VM del modelo apagada o túnel Tailscale sin conexión?). Prueba cambiar entre modelo Local y API.',
+  llm_respuesta_invalida: 'El modelo devolvió una respuesta inválida o incompleta. Intenta de nuevo.',
+  llm_limite: 'La API de Claude alcanzó su límite de uso. Reintenta más tarde o usa el modelo local.',
+  llm_credencial_invalida: 'La clave de la API de Claude falló. Avisa al administrador del sistema.',
+  llm_rechazo: 'Claude declinó responder esa consulta por sus filtros de seguridad. Reformula la pregunta.',
+  mcp_no_disponible: 'No se pudo conectar con el servidor MCP de Superset.',
+  mcp_no_autorizado: 'Superset rechazó la autorización del conector MCP.',
+  mcp_error: 'El conector MCP devolvió un error al ejecutar la operación.',
+  ia_limite_iteraciones: 'El asistente dio demasiadas vueltas sin concluir. Reformula la pregunta de forma más concreta.',
+  ia_error_interno: 'Error interno del asistente de IA.',
+  not_found: 'No existe este recurso o no pertenece al grupo de datos de tu área.',
+};
+
+export interface EnviarTrabajoChatResponse {
+  id?: string;
+  estado?: string;
+  texto?: string;
+  respuesta?: string | null;
+  error?: string | null;
+  pasos?: string[];
+  creados?: string[];
+  proveedor?: ProveedorModeloIA;
+}
+
+export interface ConsultarTrabajoChatResponse {
+  id?: string;
+  estado: 'EN_COLA' | 'EJECUTANDO' | 'PENDIENTE' | 'EN_PROCESO' | 'COMPLETADO' | 'ERROR';
+  pasos?: string[];
+  creados?: string[];
+  respuesta?: string | null;
+  error?: string | null;
+  proveedor?: ProveedorModeloIA;
+}
+
+/**
+ * Error enriquecido cuando un trabajo del asistente termina en estado `ERROR` pero ya había creado
+ * recursos en Superset (`creados` no vacío, sección 5.2 de la guía).
+ */
+export class ErrorTrabajoIa extends Error {
+  codigo: string;
+  creados: string[];
+  pasos: string[];
+
+  constructor(message: string, codigo: string, creados: string[] = [], pasos: string[] = []) {
+    super(message);
+    this.name = 'ErrorTrabajoIa';
+    this.codigo = codigo;
+    this.creados = creados;
+    this.pasos = pasos;
+  }
+}
+
+/**
+ * Convierte un item devuelto por `GET /api/v1/admin/bi/dashboards?ambito=...`
+ * al modelo `SupersetDashboardInfo` usado por el visor del portal.
+ */
+function mapearBiDashboardItem(
+  item: BiDashboardItemResponse,
+  modulo: ModuloAnalitico,
+  origenPorDefecto: 'SUPERSET' | 'IA'
+): SupersetDashboardInfo {
+  return {
+    id: String(item.id),
+    supersetId: item.id,
+    slug: `superset-${item.id}`,
+    titulo: item.titulo || `Dashboard #${item.id}`,
+    descripcion: item.actualizado
+      ? `Actualizado ${item.actualizado}`
+      : item.publicado
+      ? 'Dashboard publicado en Apache Superset'
+      : 'Borrador en Apache Superset',
+    categoria:
+      modulo === 'CONTROL_TI' ? 'telemetria' : modulo === 'ADMIN' ? 'seguridad' : 'tributario',
+    urlRelativa: `/superset/dashboard/${item.id}/?standalone=true`,
+    origen: item.publicado ? 'SUPERSET' : origenPorDefecto,
+    modulo,
+    publicado: item.publicado,
+    embedUuid: item.embedUuid,
+    embedKey: item.embedUuid || undefined,
+    actualizado: item.actualizado,
+    creadoEn: item.actualizado,
+  };
+}
+
+/**
+ * Extrae metadatos de un dashboard si el arreglo `creados` de `/ia/chat/{id}` incluye
+ * p. ej. `"Dashboard creado: «Reclamos por mes» (id 18) - https://bi.../superset/dashboard/18/"`.
+ */
+export function extraerDashboardDeCreados(
+  creados: string[] | undefined,
+  modulo: ModuloAnalitico,
+  proveedor: ProveedorModeloIA,
+  promptOrigen: string
+): SupersetDashboardInfo | undefined {
+  if (!creados || creados.length === 0) return undefined;
+  for (const linea of creados) {
+    const matchId = /\(id\s+(\d+)\)/i.exec(linea) || /\/dashboard\/(\d+)/i.exec(linea);
+    if (matchId) {
+      const numId = Number(matchId[1]);
+      const matchTitulo = /[«"“]([^»"”]+)[»"”]/.exec(linea);
+      const titulo = matchTitulo?.[1]?.trim() || `Dashboard #${numId}`;
+      return {
+        id: String(numId),
+        supersetId: numId,
+        slug: `superset-${numId}`,
+        titulo,
+        descripcion: 'Borrador recién creado por el asistente en Apache Superset',
+        categoria:
+          modulo === 'CONTROL_TI' ? 'telemetria' : modulo === 'ADMIN' ? 'seguridad' : 'tributario',
+        urlRelativa: `/superset/dashboard/${numId}/?standalone=true`,
+        origen: 'IA',
+        modulo,
+        publicado: false,
+        embedUuid: null,
+        actualizado: 'Recién creado',
+        creadoEn: 'Recién creado',
+        modeloUsado: proveedor,
+        promptOrigen,
+      };
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Extrae y formatea el mensaje de error real del backend (FastAPI, Spring Boot o REST estándar),
+ * evitando mostrar textos genéricos sin detalle como "Error HTTP 422: ".
+ */
+export function formatearErrorIaBackend(
+  err: unknown,
+  fallback = 'No se pudo completar la consulta con el asistente de IA.'
+): string {
+  if (!(err instanceof ApiError)) {
+    return err instanceof Error ? err.message : fallback;
+  }
+
+  // 1. Si el backend devolvió un objeto de error (JSON)
+  if (err.data && typeof err.data === 'object') {
+    const data = err.data as Record<string, unknown>;
+
+    // Caso FastAPI / Pydantic: { detail: [...] } o { detail: string }
+    if (data.detail !== undefined) {
+      if (typeof data.detail === 'string' && data.detail.trim()) {
+        return data.detail;
+      }
+      if (Array.isArray(data.detail)) {
+        const detalles = (data.detail as Array<{ loc?: unknown[]; msg?: string; type?: string }>).map((d) => {
+          const campo = Array.isArray(d.loc)
+            ? d.loc.filter((x) => x !== 'body').map(String).join('.')
+            : '';
+          return campo ? `${campo}: ${d.msg || d.type || 'error'}` : (d.msg || JSON.stringify(d));
+        });
+        return `Error en los datos de la consulta (422): ${detalles.join('; ')}`;
+      }
+    }
+
+    // Caso Spring Boot con DTO de error: { error: { code, message } }
+    if (data.error && typeof data.error === 'object') {
+      const errObj = data.error as { code?: string; message?: string };
+      if (errObj.code && ERRORES_IA_SANMI[errObj.code]) {
+        return ERRORES_IA_SANMI[errObj.code];
+      }
+      if (errObj.message) return errObj.message;
+      if (errObj.code) return `Error: ${errObj.code}`;
+    }
+
+    // Caso { message: "..." }
+    if (typeof data.message === 'string' && data.message.trim()) {
+      return data.message;
+    }
+
+    // Caso { error: "codigo_o_mensaje" }
+    if (typeof data.error === 'string' && data.error.trim()) {
+      if (ERRORES_IA_SANMI[data.error]) return ERRORES_IA_SANMI[data.error];
+      return data.error;
+    }
+
+    // Caso errores de validación en lista: { errors: [...] }
+    if (Array.isArray(data.errors)) {
+      const detalles = (data.errors as Array<{ defaultMessage?: string; message?: string }>).map(
+        (e) => e.defaultMessage || e.message || JSON.stringify(e)
+      );
+      return `Error de validación (422): ${detalles.join('; ')}`;
+    }
+  }
+
+  // 2. Si err.data es texto plano
+  if (typeof err.data === 'string' && err.data.trim()) {
+    return err.data;
+  }
+
+  // 3. Fallback con traductor estándar o por estado HTTP
+  if (err.status === 422) {
+    return 'El backend no pudo procesar los datos de la consulta (422 Unprocessable Entity).';
+  }
+  if (err.status === 403) {
+    return 'El backend rechazó el acceso (403 Prohibido). La ruta del asistente de IA requiere que el rol Control Municipal esté autorizado en el servidor.';
+  }
+
+  return mensajeErrorApi(err, fallback);
+}
+
+export const RUTA_BI = '/api/v1/admin/bi';
+
+export const MOCK_TABLAS_CERTIFICADAS: TablaCertificadaBi[] = [
+  { id: 1, nombre: 'V_REP_R01_MOROSOS', descripcion: 'Reporte de Morosos con Beneficio vs sin Beneficio', certificadoPor: 'Control Municipal' },
+  { id: 2, nombre: 'V_REP_R02_SIN_PAGO', descripcion: 'Contribuyentes sin Registros de Pago (2022-2025)', certificadoPor: 'Control Municipal' },
+  { id: 3, nombre: 'V_REP_R03_RECAUDACION', descripcion: '% de Recaudación vs Morosidad y Efectividad de Cobranza', certificadoPor: 'Control Municipal' },
+  { id: 4, nombre: 'V_REP_R04_VALORES', descripcion: 'Estado de Cobranza de Valores Emitidos', certificadoPor: 'Control Municipal' },
+  { id: 5, nombre: 'V_REP_R05_PRICOS', descripcion: 'Principales Contribuyentes (PRICOS) con Deuda Tributaria', certificadoPor: 'Control Municipal' },
+  { id: 6, nombre: 'V_REP_R06_BUEN_PAGADOR', descripcion: 'Contribuyentes con Pagos Oportunos en Impuesto Predial y Arbitrios', certificadoPor: 'Control Municipal' },
+  { id: 7, nombre: 'V_REP_R07_EFECTIVIDAD_ANUAL', descripcion: 'Efectividad de Cobranza por Año Tributario', certificadoPor: 'Control Municipal' },
+  { id: 8, nombre: 'V_REP_R08_ESTRATIFICACION', descripcion: 'Estratificación de Deuda por Antigüedad', certificadoPor: 'Control Municipal' },
+  { id: 9, nombre: 'V_REP_R09_CUMPLIMIENTO', descripcion: 'Historial de Cumplimiento (Pagos a Tiempo vs Fuera de Plazo)', certificadoPor: 'Control Municipal' },
+  { id: 10, nombre: 'V_REP_R10_PROMEDIO_PUNTUAL', descripcion: 'Monto Promedio Recaudado por Contribuyente Puntual', certificadoPor: 'Control Municipal' },
+  { id: 11, nombre: 'V_REP_R11_REINCIDENCIA', descripcion: 'Reincidencia en la Mora Tributaria', certificadoPor: 'Control Municipal' },
+];
+
 export class IaDashboardsController {
   /**
-   * Obtiene el listado de dashboards creados en Apache Superset y dashboards creados por la IA
-   * para el módulo indicado (`CONTROL_MUNICIPAL`, `CONTROL_TI` o `ADMIN`).
-   * Endpoint backend: `GET /ia/dashboards?modulo=<MODULO>`
+   * Lista los dashboards de un ámbito del módulo BI (sección 3.1 de la guía).
+   * El backend deduce el grupo de datos del área de la persona: no se envía `modulo`.
+   * Endpoint backend: `GET /api/v1/admin/bi/dashboards?ambito=publicados|borradores`
+   */
+  async getDashboardsBi(
+    ambito: AmbitoDashboardBi,
+    modulo: ModuloAnalitico = 'CONTROL_MUNICIPAL'
+  ): Promise<SupersetDashboardInfo[]> {
+    const items = await apiClient<BiDashboardItemResponse[]>(`${RUTA_BI}/dashboards`, {
+      params: { ambito },
+    });
+    return (Array.isArray(items) ? items : []).map((item) =>
+      mapearBiDashboardItem(item, modulo, ambito === 'borradores' ? 'IA' : 'SUPERSET')
+    );
+  }
+
+  /**
+   * Publicados (los que ve el grupo de datos) y borradores (los que posee la persona).
+   * `dashboardsSuperset` = publicados y `dashboardsIA` = borradores, para reutilizar la vista existente.
    */
   async getDashboards(modulo: ModuloAnalitico): Promise<ListadoDashboardsResponse> {
     try {
-      return await apiClient<ListadoDashboardsResponse>('/ia/dashboards', {
-        params: { modulo },
-      });
+      const [publicados, borradores] = await Promise.allSettled([
+        this.getDashboardsBi('publicados', modulo),
+        this.getDashboardsBi('borradores', modulo),
+      ]);
+      // Si los publicados fallan, el error llega a la vista; los borradores son complementarios.
+      if (publicados.status === 'rejected') throw publicados.reason;
+      return {
+        modulo,
+        dashboardsSuperset: publicados.value,
+        dashboardsIA: borradores.status === 'fulfilled' ? borradores.value : [],
+      };
     } catch (err) {
       if (!usarDatosDemo(err)) throw err;
       const demo = DASHBOARDS_POR_MODULO_DEMO[modulo] || DASHBOARDS_POR_MODULO_DEMO.CONTROL_MUNICIPAL;
@@ -691,48 +992,42 @@ export class IaDashboardsController {
   }
 
   /**
-   * Obtiene el Key de embebido y la URL para incrustar un dashboard de Apache Superset
-   * validando el dominio permitido (Allowed Domains).
-   * Flujo de Superset:
-   * 1. En Superset se habilita "Embed dashboard", se registra el dominio permitido y se genera un `embedKey` (UUID).
-   * 2. Con el `embedKey` y el dominio permitido, se construye la URL embebida (`/superset/embedded/<embedKey>/?standalone=true`).
-   * Endpoint backend: `GET /ia/dashboards/:id/embed-token?modulo=<MODULO>&allowedDomain=<ORIGIN>`
+   * Pide al backend el token temporal (5 min) para mostrar un dashboard embebido (sección 3.1).
+   * Endpoint backend: `GET /api/v1/admin/bi/dashboards/{embedUuid}/guest-token`
+   */
+  async getGuestToken(embedUuid: string): Promise<BiGuestTokenResponse> {
+    return apiClient<BiGuestTokenResponse>(
+      `${RUTA_BI}/dashboards/${encodeURIComponent(embedUuid)}/guest-token`
+    );
+  }
+
+  /**
+   * Compatibilidad con el visor: devuelve la URL de Superset y el UUID de embebido a partir del guest token.
+   * Ya no existe `/ia/dashboards/:id/embed-token`: el SDK usa `getGuestToken`.
    */
   async getSupersetEmbedToken(
     dashboardId: string,
-    modulo: ModuloAnalitico = 'CONTROL_MUNICIPAL'
+    modulo: ModuloAnalitico = 'CONTROL_MUNICIPAL',
+    theme: 'light' | 'dark' = 'light'
   ): Promise<SupersetEmbedTokenResponse> {
     const originActual =
       SUPERSET_ALLOWED_DOMAIN ||
       (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+    const modoTema = theme === 'dark' ? 'dark' : 'default';
 
     try {
-      const resp = await apiClient<SupersetEmbedTokenResponse>(
-        `/ia/dashboards/${encodeURIComponent(dashboardId)}/embed-token`,
-        {
-          params: {
-            modulo,
-            allowedDomain: originActual,
-          },
-        }
-      );
-
-      const supersetDomain = (resp.supersetDomain || SUPERSET_BASE_URL).replace(/\/$/, '');
-      const embedKey = resp.embedKey || '';
-      const embedUrlResuelta =
-        resp.embedUrl ||
-        (supersetDomain && embedKey
-          ? `${supersetDomain}/superset/embedded/${encodeURIComponent(embedKey)}/?standalone=true${
-              resp.guestToken ? `&guest_token=${encodeURIComponent(resp.guestToken)}` : ''
-            }`
-          : '');
-
+      const resp = await this.getGuestToken(dashboardId);
+      const supersetDomain = (resp.supersetUrl || SUPERSET_BASE_URL).replace(/\/$/, '');
       return {
-        ...resp,
-        embedKey,
+        dashboardId: resp.dashboardId || dashboardId,
+        embedKey: resp.dashboardId || dashboardId,
         supersetDomain,
-        allowedDomain: resp.allowedDomain || originActual,
-        embedUrl: embedUrlResuelta,
+        allowedDomain: originActual,
+        embedUrl: supersetDomain
+          ? `${supersetDomain}/superset/embedded/${encodeURIComponent(dashboardId)}/?standalone=true&themeMode=${modoTema}&theme=${theme}`
+          : '',
+        guestToken: resp.token,
+        expiraEn: String(resp.expiraEn),
       };
     } catch (err) {
       if (!usarDatosDemo(err)) throw err;
@@ -742,75 +1037,393 @@ export class IaDashboardsController {
       const encontrado = todos.find((d) => d.id === dashboardId);
       const embedKey =
         encontrado?.embedKey || encontrado?.embedUuid || `superset-key-${dashboardId}`;
-
-      const embedUrl = supersetDomain
-        ? `${supersetDomain}/superset/embedded/${encodeURIComponent(embedKey)}/?standalone=true`
-        : '';
-
       return {
         dashboardId,
         embedKey,
         supersetDomain,
         allowedDomain: originActual,
-        embedUrl,
+        embedUrl: supersetDomain
+          ? `${supersetDomain}/superset/embedded/${encodeURIComponent(embedKey)}/?standalone=true&themeMode=${modoTema}&theme=${theme}`
+          : '',
         guestToken: undefined,
       };
     }
   }
 
   /**
-   * Envía un mensaje al asistente de IA eligiendo entre:
-   * - `modo`: `'CONSULTA_DATOS'` (obtener información de los dashboards) o `'GENERAR_DASHBOARD'`
-   * - `proveedorModelo`: `'LOCAL'` (modelo local MCP/On-Premise) o `'API'` (modelo en la nube vía backend)
-   * Endpoint backend: `POST /ia/chat`
+   * Publica un dashboard o lo devuelve a borrador. Solo ADMIN y dueño del dashboard (sección 3.2).
+   * Endpoint backend: `PUT /api/v1/admin/bi/dashboards/{id}/publicacion`
+   */
+  async publicarDashboard(id: number, publicado: boolean): Promise<BiPublicacionResponse> {
+    return apiClient<BiPublicacionResponse>(`${RUTA_BI}/dashboards/${id}/publicacion`, {
+      method: 'PUT',
+      body: JSON.stringify({ publicado }),
+    });
+  }
+
+  /**
+   * Habilita el embebido de un dashboard y devuelve su UUID (sección 3.3).
+   * Endpoint backend: `PUT /api/v1/admin/bi/dashboards/{id}/embebido`
+   */
+  async habilitarEmbebido(id: number): Promise<BiEmbebidoResponse> {
+    return apiClient<BiEmbebidoResponse>(`${RUTA_BI}/dashboards/${id}/embebido`, {
+      method: 'PUT',
+    });
+  }
+
+  /**
+   * Habilita el embebido reintentando mientras el backend responde 409 `bi_graficos_sin_query_context`
+   * (los gráficos recién creados por el asistente tardan unos segundos en quedar listos).
+   * Reintenta cada 4 s hasta unos 60 s; `onEspera` permite mostrar "Preparando…".
+   */
+  async habilitarEmbebidoConReintentos(
+    id: number,
+    onEspera?: (intento: number) => void,
+    signal?: AbortSignal
+  ): Promise<BiEmbebidoResponse> {
+    const INTERVALO_MS = 4000;
+    const MAX_INTENTOS = 15;
+    for (let intento = 1; ; intento++) {
+      try {
+        return await this.habilitarEmbebido(id);
+      } catch (err) {
+        const reintentable =
+          codigoErrorApi(err) === 'bi_graficos_sin_query_context' && intento < MAX_INTENTOS;
+        if (!reintentable) throw err;
+        onEspera?.(intento);
+        await new Promise((resolve) => setTimeout(resolve, INTERVALO_MS));
+        if (signal?.aborted) throw new Error('Operación cancelada.');
+      }
+    }
+  }
+
+  /**
+   * Retira el embebido de un dashboard (sección 3.3).
+   * Endpoint backend: `DELETE /api/v1/admin/bi/dashboards/{id}/embebido`
+   */
+  async retirarEmbebido(id: number): Promise<void> {
+    await apiClient<void>(`${RUTA_BI}/dashboards/${id}/embebido`, { method: 'DELETE' });
+  }
+
+  /**
+   * Estado del modelo local y de la API de Claude, y preguntas en cola (sección 5.1).
+   * Endpoint backend: `GET /api/v1/admin/bi/ia/estado`
+   */
+  async getEstadoIa(): Promise<EstadoIaBiResponse> {
+    return apiClient<EstadoIaBiResponse>(`${RUTA_BI}/ia/estado`);
+  }
+
+  /**
+   * Envía una pregunta al asistente de IA (modelo local o API de Claude) y espera su respuesta.
+   *
+   * Flujo con el backend real (sección 5.2 de la guía):
+   * 1. `POST /api/v1/admin/bi/ia/chat` con `{ mensaje, historial, proveedor }` → 202 con `{ id }`.
+   * 2. Consulta periódica a `GET /api/v1/admin/bi/ia/chat/{id}` cada 3 s hasta `COMPLETADO` o `ERROR`.
+   *    No hay tiempo límite corto: el modelo local puede tardar varios minutos.
+   * 3. `creados` (lo que el asistente ya creó en Superset) se devuelve siempre, también cuando el estado es `ERROR`.
+   * 4. Si no hay conexión y estamos en modo demo, se utiliza `construirRespuestaDemoChat`.
    */
   async enviarConsultaChat(solicitud: SolicitudChatIA): Promise<RespuestaChatIA> {
+    const historialFormateado = (solicitud.historial || [])
+      .slice(-10)
+      .map((t) => ({
+        rol: t.rol === 'user' ? ('usuario' as const) : ('asistente' as const),
+        contenido: t.texto.slice(0, 4000),
+      }));
+
+    const cuerpo = {
+      mensaje: solicitud.mensaje.trim().slice(0, 2000),
+      historial: historialFormateado,
+      proveedor: solicitud.proveedorModelo,
+    };
+
+    const cfg = CONFIG_MODULOS_IA[solicitud.modulo] || CONFIG_MODULOS_IA.CONTROL_MUNICIPAL;
+    const nombreModelo =
+      solicitud.proveedorModelo === 'LOCAL' ? cfg.modeloLocalNombre : cfg.modeloApiNombre;
+
     try {
-      const respuesta = await apiClient<RespuestaChatIA>('/ia/chat', {
+      const envio = await apiClient<EnviarTrabajoChatResponse>(`${RUTA_BI}/ia/chat`, {
         method: 'POST',
-        body: JSON.stringify(solicitud),
+        body: JSON.stringify(cuerpo),
+        signal: solicitud.signal,
       });
-      return { ...respuesta, esEjemplo: false };
+
+      const trabajoId = envio?.id;
+      if (!trabajoId) {
+        throw new Error('El backend no devolvió un identificador de tarea para la consulta.');
+      }
+
+      const INTERVALO_MS = 3000;
+      const ESPERA_MAX_MS = 25 * 60 * 1000; // El trabajo se conserva 30 min en el servidor
+      const inicio = Date.now();
+
+      while (true) {
+        if (solicitud.signal?.aborted) throw new Error('Consulta cancelada.');
+        if (Date.now() - inicio > ESPERA_MAX_MS) {
+          throw new Error('Se agotó la espera máxima (25 min). El modelo puede estar saturado.');
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, INTERVALO_MS));
+        if (solicitud.signal?.aborted) throw new Error('Consulta cancelada.');
+
+        const poll = await apiClient<ConsultarTrabajoChatResponse>(
+          `${RUTA_BI}/ia/chat/${encodeURIComponent(trabajoId)}`,
+          { method: 'GET', signal: solicitud.signal }
+        );
+
+        const seg = Math.round((Date.now() - inicio) / 1000);
+        const pasos = poll.pasos || [];
+        const creados = poll.creados || [];
+
+        solicitud.onProgreso?.({
+          estado: poll.estado === 'EN_COLA' ? 'En cola' : 'Procesando',
+          segundos: seg,
+          pasos,
+          creados,
+        });
+
+        if (poll.estado === 'COMPLETADO') {
+          return {
+            texto: poll.respuesta || '(Respuesta vacía del asistente)',
+            modo: solicitud.modo,
+            proveedorModelo: poll.proveedor || solicitud.proveedorModelo,
+            nombreModelo,
+            pasos,
+            creados,
+            segundos: seg,
+            dashboardGenerado: extraerDashboardDeCreados(
+              creados,
+              solicitud.modulo,
+              solicitud.proveedorModelo,
+              solicitud.mensaje
+            ),
+            esEjemplo: false,
+          };
+        }
+
+        if (poll.estado === 'ERROR') {
+          const cod = poll.error || 'ia_error_interno';
+          const msg = ERRORES_IA_SANMI[cod] || `El asistente terminó con error: ${cod}`;
+          throw new ErrorTrabajoIa(msg, cod, creados, pasos);
+        }
+      }
     } catch (err) {
-      if (!usarDatosDemo(err)) throw err;
-      return construirRespuestaDemoChat(solicitud);
+      if (usarDatosDemo(err)) return construirRespuestaDemoChat(solicitud);
+      if (err instanceof ErrorTrabajoIa) throw err;
+      if (err instanceof ApiError) throw new Error(formatearErrorIaBackend(err));
+      if (err instanceof Error) throw err;
+      throw new Error(formatearErrorIaBackend(err));
     }
   }
 
   /**
-   * Registra o persiste en el backend un dashboard generado por la IA.
-   * Endpoint backend: `POST /ia/dashboards`
+   * Registra o persiste en memoria/servidor un dashboard generado por la IA.
+   * Flujo de la guía: el asistente crea un borrador; si tiene supersetId, se intenta habilitar el embebido.
    */
   async guardarDashboardIA(
-    modulo: ModuloAnalitico,
+    _modulo: ModuloAnalitico,
     dashboard: SupersetDashboardInfo
   ): Promise<SupersetDashboardInfo> {
-    try {
-      return await apiClient<SupersetDashboardInfo>('/ia/dashboards', {
-        method: 'POST',
-        body: JSON.stringify({ modulo, dashboard }),
-      });
-    } catch (err) {
-      if (!usarDatosDemo(err)) throw err;
-      return dashboard;
+    if (dashboard.supersetId && !dashboard.embedUuid) {
+      try {
+        const resp = await this.habilitarEmbebidoConReintentos(dashboard.supersetId);
+        return {
+          ...dashboard,
+          embedUuid: resp.uuid,
+          embedKey: resp.uuid,
+        };
+      } catch {
+        return dashboard;
+      }
+    }
+    return dashboard;
+  }
+
+  /**
+   * Retira el embebido de un dashboard generado por la IA.
+   */
+  async eliminarDashboardIA(_modulo: ModuloAnalitico, dashboardId: string): Promise<void> {
+    const numId = Number(dashboardId);
+    if (!Number.isNaN(numId)) {
+      try {
+        await this.retirarEmbebido(numId);
+      } catch (err) {
+        if (!usarDatosDemo(err)) throw err;
+      }
     }
   }
 
   /**
-   * Elimina un dashboard generado por la IA.
-   * Endpoint backend: `DELETE /ia/dashboards/:id`
+   * Tablas certificadas que puede descargar el grupo de datos del área (sección 4 de la guía).
+   * Endpoint backend: `GET /api/v1/admin/bi/tablas`
    */
-  async eliminarDashboardIA(modulo: ModuloAnalitico, dashboardId: string): Promise<void> {
+  async getTablas(): Promise<TablaCertificadaBi[]> {
     try {
-      await apiClient<void>(`/ia/dashboards/${encodeURIComponent(dashboardId)}`, {
-        method: 'DELETE',
-        params: { modulo },
-      });
+      const items = await apiClient<TablaCertificadaBi[]>(`${RUTA_BI}/tablas`);
+      return Array.isArray(items) ? items : [];
     } catch (err) {
       if (!usarDatosDemo(err)) throw err;
+      return [...MOCK_TABLAS_CERTIFICADAS];
     }
+  }
+
+  /**
+   * Descarga una tabla certificada en CSV o XLSX (sección 4.1 de la guía).
+   * Lee cabeceras `X-Tabla-Incompleta` y `X-Tabla-Filas` devueltas por el servidor.
+   * Endpoint backend: `GET /api/v1/admin/bi/tablas/{datasetId}/descarga?formato=csv|xlsx`
+   */
+  async descargarTabla(
+    datasetId: number,
+    formato: FormatoDescargaTablaBi = 'csv'
+  ): Promise<ResultadoDescargaTablaBi> {
+    try {
+      const archivo = await apiClientArchivoConMeta(
+        `${RUTA_BI}/tablas/${encodeURIComponent(datasetId)}/descarga`,
+        { params: { formato } }
+      );
+      const nombreArchivo =
+        archivo.nombreArchivo || `tabla_${datasetId}.${formato}`;
+
+      let cabeceras: string[] = [];
+      let filas: string[][] = [];
+
+      if (formato === 'csv') {
+        const texto = await archivo.blob.text();
+        const parseado = parsearCSV(texto);
+        cabeceras = parseado.cabeceras;
+        filas = parseado.filas;
+      }
+
+      return {
+        datasetId,
+        nombreArchivo,
+        tablaIncompleta: archivo.tablaIncompleta,
+        tablaFilas: archivo.tablaFilas >= 0 ? archivo.tablaFilas : filas.length,
+        cabeceras,
+        filas,
+      };
+    } catch (err) {
+      if (!usarDatosDemo(err)) throw err;
+      const codigoReporte = `R${datasetId}`;
+      const info =
+        CATALOGO_REPORTES_OFICIALES.find((r) => r.codigo === codigoReporte) ||
+        CATALOGO_REPORTES_OFICIALES[0];
+      const filas = MOCK_ROWS_BY_REPORT[info.codigo] || [];
+      return {
+        datasetId,
+        nombreArchivo: `${info.codigo}_${info.nombre.replace(/\s+/g, '_')}.${formato}`,
+        tablaIncompleta: false,
+        tablaFilas: filas.length,
+        cabeceras: info.cabeceras,
+        filas,
+      };
+    }
+  }
+
+  /**
+   * Descarga directamente en el navegador el archivo CSV o XLSX de una tabla certificada (sección 4.1).
+   */
+  async descargarTablaArchivo(
+    datasetId: number,
+    formato: FormatoDescargaTablaBi = 'csv'
+  ): Promise<{ nombreArchivo: string; tablaIncompleta: boolean; tablaFilas: number }> {
+    try {
+      const archivo = await apiClientArchivoConMeta(
+        `${RUTA_BI}/tablas/${encodeURIComponent(datasetId)}/descarga`,
+        { params: { formato } }
+      );
+      const nombre = archivo.nombreArchivo || `V_REP_${datasetId}.${formato}`;
+      descargarBlobArchivo(archivo.blob, nombre);
+      return {
+        nombreArchivo: nombre,
+        tablaIncompleta: archivo.tablaIncompleta,
+        tablaFilas: archivo.tablaFilas,
+      };
+    } catch (err) {
+      if (!usarDatosDemo(err)) throw err;
+      const codigoReporte = `R${datasetId}`;
+      const info =
+        CATALOGO_REPORTES_OFICIALES.find((r) => r.codigo === codigoReporte) ||
+        CATALOGO_REPORTES_OFICIALES[0];
+      const filas = MOCK_ROWS_BY_REPORT[info.codigo] || [];
+      const nombre = `Reporte_${info.codigo}_${info.nombre.replace(/\s+/g, '_')}`;
+      if (formato === 'csv') {
+        exportarCSV(nombre, info.cabeceras, filas);
+      } else {
+        const contenido = [info.cabeceras.join('\t'), ...filas.map((f) => f.join('\t'))].join('\n');
+        const blob = new Blob([contenido], { type: 'application/vnd.ms-excel' });
+        descargarBlobArchivo(blob, `${nombre}.xls`);
+      }
+      return {
+        nombreArchivo: `${nombre}.${formato}`,
+        tablaIncompleta: false,
+        tablaFilas: filas.length,
+      };
+    }
+  }
+
+  /**
+   * Inicia el trabajo asíncrono para bajar todas las tablas en un archivo ZIP (sección 4.2).
+   * Endpoint backend: `POST /api/v1/admin/bi/tablas/descarga-todas?formato=csv|xlsx`
+   */
+  async iniciarDescargaTodas(
+    formato: FormatoDescargaTablaBi = 'csv'
+  ): Promise<TrabajoDescargaTodasBi> {
+    return apiClient<TrabajoDescargaTodasBi>(`${RUTA_BI}/tablas/descarga-todas`, {
+      method: 'POST',
+      params: { formato },
+    });
+  }
+
+  /**
+   * Consulta el estado de un trabajo de descarga de todas las tablas (sección 4.2).
+   * Endpoint backend: `GET /api/v1/admin/bi/tablas/descarga-todas/{id}`
+   */
+  async consultarDescargaTodas(id: string): Promise<TrabajoDescargaTodasBi> {
+    return apiClient<TrabajoDescargaTodasBi>(
+      `${RUTA_BI}/tablas/descarga-todas/${encodeURIComponent(id)}`
+    );
+  }
+
+  /**
+   * Obtiene el archivo ZIP generado cuando el estado es COMPLETADO (sección 4.2).
+   * Endpoint backend: `GET /api/v1/admin/bi/tablas/descarga-todas/{id}/archivo`
+   */
+  async obtenerArchivoDescargaTodas(id: string): Promise<Blob> {
+    return apiClientArchivo(
+      `${RUTA_BI}/tablas/descarga-todas/${encodeURIComponent(id)}/archivo`
+    );
+  }
+
+  /**
+   * Habilita el acceso MCP en Superset a un personal (ADMIN, sección 6 de la guía).
+   * Endpoint backend: `PUT /api/v1/admin/bi/personal/{administradorId}/mcp`
+   */
+  async habilitarMcpPersonal(
+    administradorId: string,
+    nivel: NivelMcp
+  ): Promise<AccesoMcpPersonalResponse> {
+    return apiClient<AccesoMcpPersonalResponse>(
+      `${RUTA_BI}/personal/${encodeURIComponent(administradorId)}/mcp`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ nivel }),
+      }
+    );
+  }
+
+  /**
+   * Retira el acceso MCP a un personal (ADMIN, sección 6 de la guía).
+   * Endpoint backend: `DELETE /api/v1/admin/bi/personal/{administradorId}/mcp`
+   */
+  async retirarMcpPersonal(administradorId: string): Promise<AccesoMcpPersonalResponse> {
+    return apiClient<AccesoMcpPersonalResponse>(
+      `${RUTA_BI}/personal/${encodeURIComponent(administradorId)}/mcp`,
+      {
+        method: 'DELETE',
+      }
+    );
   }
 }
 
 export const iaDashboardsController = new IaDashboardsController();
-

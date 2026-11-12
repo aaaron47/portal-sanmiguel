@@ -11,7 +11,7 @@ import { CardHeader, CardAside } from '@/components/shared/ui/CardHeader';
 import { KpisReporte, ReportePorArea } from '@/controllers/reportes.controller';
 import { ControlMunicipalKpis } from '../reportes/parts/ControlMunicipalKpis';
 import { CumplimientoAreasTable } from '../reportes/parts/CumplimientoAreasTable';
-import { SupersetEmbedViewer } from '../superset/SupersetEmbedViewer';
+import { SupersetSdkDashboard } from '@/components/superset/SupersetSdkDashboard';
 
 interface DashboardGeneralControlProps {
   kpis: KpisReporte | null;
@@ -80,11 +80,9 @@ export const DashboardGeneralControl: React.FC<DashboardGeneralControlProps> = (
 
       {/* 4. Sección Embebida: Dashboard de Apache Superset (Un solo cuadro general) */}
       {mostrarSuperset && (
-        <SupersetEmbedViewer
-          dashboardSeleccionadoId="reportes-tributarios"
-          modoFijo
-          mostrarCatalogoPlantillas={false}
-        />
+        <div className="card" style={{ padding: '0.75rem', borderRadius: '16px' }}>
+          <SupersetSdkDashboard />
+        </div>
       )}
     </div>
   );

@@ -23,6 +23,11 @@ export interface Usuario {
   activo: boolean;
   ultimoAcceso?: string;
   creadoEn: string;
+  /** Estado de acceso MCP en Apache Superset (`PUT / DELETE /api/v1/admin/bi/personal/{id}/mcp`) */
+  mcpHabilitado?: boolean;
+  mcpNivel?: 'CONSULTA' | 'CONSTRUCCION';
+  supersetUsuario?: string;
+  rolesSuperset?: string[];
 }
 
 export interface LoginCredentials {

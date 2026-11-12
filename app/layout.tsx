@@ -4,8 +4,13 @@ import { AuthProvider } from '@/context/AuthContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 
 export const metadata: Metadata = {
-  title: 'Sistema Integrado San Miguel | Portal Web Municipal',
+  title: 'Portal San Miguel',
   description: 'Portal web unificado municipal para gestión de reclamos vecinales, supervisión general, reportes institucionales y telemetría de la app móvil.',
+  icons: {
+    icon: '/logo-san-miguel-icon.ico',
+    shortcut: '/logo-san-miguel-icon.ico',
+    apple: '/icon.png',
+  },
 };
 
 export default function RootLayout({

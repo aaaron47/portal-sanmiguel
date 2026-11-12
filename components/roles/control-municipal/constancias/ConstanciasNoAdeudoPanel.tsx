@@ -1,18 +1,14 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  FileCheck, 
-  Search, 
-  Download, 
-  Eye, 
+import {
+  FileCheck,
+  Search,
+  Download,
+  Eye,
   EyeOff,
-  ShieldCheck, 
-  AlertTriangle, 
-  QrCode, 
-  Printer, 
-  X,
-  FileText,
+  ShieldCheck,
+  AlertTriangle,
   ExternalLink,
   ChevronLeft,
   ChevronRight,
@@ -26,13 +22,13 @@ import {
   ConstanciaPdfResponse,
 } from '@/types/reportes-tributarios.types';
 import { MOCK_CONSTANCIAS, reportesController } from '@/controllers/reportes.controller';
-import Image from 'next/image';
 import {
   FilterSelectWrapper,
   FilterResetButton,
   ESTILO_SELECT_FILTRO,
   ESTILO_LABEL_FILTRO,
 } from '@/components/shared/ui/FilterControls';
+import { ConstanciaPdfModal } from './parts/ConstanciaPdfModal';
 
 export type { ConstanciaItem };
 
@@ -93,33 +89,6 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
   const handleCerrarModalPdf = () => {
     setConstanciaSeleccionada(null);
     setPdfData(null);
-  };
-
-  const pdfEmbedSrc = useMemo(() => {
-    if (!pdfData) return '';
-    if (pdfData.pdfUrl) return pdfData.pdfUrl;
-    if (pdfData.pdfBase64) {
-      return pdfData.pdfBase64.startsWith('data:')
-        ? pdfData.pdfBase64
-        : `data:application/pdf;base64,${pdfData.pdfBase64}`;
-    }
-    return '';
-  }, [pdfData]);
-
-  const handleDescargarPdfFirmado = () => {
-    if (!constanciaSeleccionada) return;
-    const nombreArchivo = pdfData?.nombreArchivo || `${constanciaSeleccionada.folio}.pdf`;
-    if (pdfEmbedSrc) {
-      const link = document.createElement('a');
-      link.href = pdfEmbedSrc;
-      link.download = nombreArchivo;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      return;
-    }
-    window.print();
   };
 
   // Filtrado reactivo
@@ -259,7 +228,7 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
               title="Enmascarar datos de personas según Ley 29733 de Protección de Datos Personales"
             >
               {enmascararPrivacidad ? <EyeOff size={15} /> : <Eye size={15} />}
-              {enmascararPrivacidad ? 'Privacidad: Nombres Enmascarados' : 'Modo Privacidad LPDP'}
+              Modo Privacidad
             </button>
 
             <button
@@ -468,210 +437,14 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
         )}
       </div>
 
-      {/* 5. Modal de Vista Previa Oficial del Certificado con Firma Digital PAdES */}
+      {/* 5. Modal de Vista Previa Oficial y Visor PDF de la Constancia */}
       {constanciaSeleccionada && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.65)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '1.5rem',
-        }}>
-          <div style={{
-            background: 'var(--bg-card)',
-            color: 'var(--text-main)',
-            borderRadius: '14px',
-            maxWidth: '720px',
-            width: '100%',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            padding: '2rem',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
-            position: 'relative',
-            border: '1px solid var(--border-color)',
-          }}>
-            {/* Botón Cerrar */}
-            <button
-              onClick={handleCerrarModalPdf}
-              style={{
-                position: 'absolute',
-                top: '1rem',
-                right: '1rem',
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-muted)',
-                cursor: 'pointer',
-              }}
-            >
-              <X size={20} />
-            </button>
-
-            {cargandoPdf && (
-              <div style={{ textAlign: 'center', padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Consultando documento PDF en el servidor...
-              </div>
-            )}
-
-            {/* Si el endpoint GET /reportes/constancias/:id/pdf devuelve pdfUrl o pdfBase64, se incrusta el visor PDF */}
-            {pdfEmbedSrc && (
-              <div style={{ marginBottom: '1.25rem', border: '1px solid var(--border-color)', borderRadius: '10px', overflow: 'hidden' }}>
-                <iframe
-                  src={pdfEmbedSrc}
-                  title={`PDF ${constanciaSeleccionada.folio}`}
-                  style={{ width: '100%', height: '520px', border: 'none', display: 'block' }}
-                />
-              </div>
-            )}
-
-            {/* Membrete Oficial Municipal */}
-            <div style={{ textAlign: 'center', borderBottom: '2px solid var(--sky-700)', paddingBottom: '1rem', marginBottom: '1.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-                <Image
-                  src="/logo-san-miguel-light.png"
-                  alt="Municipalidad de San Miguel"
-                  width={140}
-                  height={42}
-                  style={{ objectFit: 'contain' }}
-                />
-              </div>
-              <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 800, letterSpacing: '0.5px', color: 'var(--text-main)' }}>
-                MUNICIPALIDAD DISTRITAL DE SAN MIGUEL
-              </h4>
-              <p style={{ margin: '0.15rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                GERENCIA DE ADMINISTRACIÓN TRIBUTARIA • SUBGERENCIA DE RECAUDACIÓN Y CONTROL
-              </p>
-            </div>
-
-            {/* Título de la Constancia */}
-            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.15rem', fontWeight: 900, color: 'var(--sky-800)', margin: 0, textTransform: 'uppercase' }}>
-                CONSTANCIA DE NO ADEUDO TRIBUTARIO
-              </h2>
-              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                N° {constanciaSeleccionada.folio}
-              </div>
-            </div>
-
-            {/* Cuerpo del Certificado */}
-            {constanciaSeleccionada.estadoTributario === 'SIN_DEUDA' ? (
-              <div style={{ fontSize: '0.85rem', lineHeight: '1.6', color: 'var(--text-main)', marginBottom: '1.5rem', textAlign: 'justify' }}>
-                <p>
-                  La <strong>Subgerencia de Recaudación y Control Tributario</strong> de la Municipalidad Distrital de San Miguel, en mérito al Texto Único Ordenado de la Ley de Tributación Municipal (D.S. N° 156-2004-EF) y a los registros obrantes en el Sistema Integrado de Administración Tributaria:
-                </p>
-
-                <p style={{ fontWeight: 800, textAlign: 'center', fontSize: '0.95rem', margin: '1rem 0', color: 'var(--text-main)' }}>
-                  CERTIFICA QUE:
-                </p>
-
-                <p>
-                  El(La) contribuyente <strong>{constanciaSeleccionada.contribuyenteNombre}</strong>, identificado(a) con <strong>{constanciaSeleccionada.documentoTipo} N° {constanciaSeleccionada.documentoNumero}</strong> y código tributario <strong>{constanciaSeleccionada.contribuyenteCodigo}</strong>, respecto al predio con Código Registral <strong>{constanciaSeleccionada.predioCodigo}</strong> ubicado en:
-                </p>
-
-                <div style={{ background: 'var(--bg-card-subtle)', padding: '0.75rem 1rem', borderRadius: '8px', margin: '0.75rem 0', border: '1px solid var(--border-color)', fontWeight: 600 }}>
-                  {constanciaSeleccionada.direccionPredio}
-                </div>
-
-                <p>
-                  A la fecha y hora de emisión del presente documento, <strong>NO REGISTRA DEUDA TRIBUTARIA PENDIENTE DE PAGO</strong> por concepto de <strong>IMPUESTO PREDIAL</strong> ni <strong>ARBITRIOS MUNICIPALES</strong> (Limpieza Pública, Parques y Jardines, y Seguridad Ciudadana) hasta el Ejercicio Fiscal 2026.
-                </p>
-
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
-                  * Se expide la presente a solicitud del interesado para los fines que estime conveniente. Validez legal de 30 días calendario contados a partir de su emisión.
-                </p>
-              </div>
-            ) : (
-              <div style={{ fontSize: '0.85rem', lineHeight: '1.6', color: 'var(--text-main)', marginBottom: '1.5rem', textAlign: 'justify' }}>
-                <div style={{ background: 'var(--amber-50)', border: '1px solid var(--amber-300)', padding: '1rem', borderRadius: '10px', color: 'var(--amber-900)', marginBottom: '1rem' }}>
-                  <strong style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <AlertTriangle size={16} /> DICTAMEN: NO PROCEDE EMISIÓN DE CONSTANCIA
-                  </strong>
-                  <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem' }}>
-                    El contribuyente registra un saldo deudor tributario pendiente de pago por el monto total de <strong>S/ {constanciaSeleccionada.deudaMonto.toLocaleString('es-PE', { minimumFractionDigits: 2 })}</strong> por concepto de Impuesto Predial y Arbitrios. Para subsanar y obtener la constancia, deberá cancelar la deuda o acogerse a un convenio de fraccionamiento tributario.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Recuadro Oficial de Firma Digital PAdES / RENIEC */}
-            {constanciaSeleccionada.firmadoDigitalmente && (
-              <div style={{
-                border: '1.5px dashed var(--green-600)',
-                background: 'var(--green-50)',
-                borderRadius: '10px',
-                padding: '1rem',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '1rem',
-                marginBottom: '1.5rem',
-              }}>
-                <div style={{ flex: 1, minWidth: '220px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
-                    <ShieldCheck size={18} color="var(--green-700)" />
-                    <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--green-900)' }}>
-                      DOCUMENTO FIRMADO DIGITALMENTE (LEY N° 27269)
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--green-950)' }}>
-                    {constanciaSeleccionada.firmanteNombre}
-                  </div>
-                  <div style={{ fontSize: '0.725rem', color: 'var(--green-800)' }}>
-                    {constanciaSeleccionada.firmanteCargo}
-                  </div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--green-700)', marginTop: '0.2rem' }}>
-                    Entidad: {constanciaSeleccionada.entidadCertificadora}
-                  </div>
-                  <div style={{ fontSize: '0.675rem', color: 'var(--green-800)', marginTop: '0.2rem', fontFamily: 'var(--font-mono)' }}>
-                    CVD: {constanciaSeleccionada.hashCVD}
-                  </div>
-                </div>
-
-                <div style={{ textAlign: 'center', background: 'white', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--green-300)' }}>
-                  <QrCode size={56} color="var(--green-800)" />
-                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--green-800)', marginTop: '0.2rem' }}>
-                    VALIDAR QR
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Botones de Acción */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-              <button
-                onClick={handleCerrarModalPdf}
-                className="btn btn-secondary"
-                style={{ fontSize: '0.85rem' }}
-              >
-                Cerrar
-              </button>
-
-              <button
-                onClick={() => window.print()}
-                className="btn btn-secondary"
-                style={{ fontSize: '0.85rem' }}
-              >
-                <Printer size={15} /> Imprimir
-              </button>
-
-              {constanciaSeleccionada.firmadoDigitalmente && (
-                <button
-                  onClick={handleDescargarPdfFirmado}
-                  className="btn btn-primary"
-                  style={{ fontSize: '0.85rem' }}
-                >
-                  <FileText size={15} /> Descargar PDF Firmado
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <ConstanciaPdfModal
+          constancia={constanciaSeleccionada}
+          pdfData={pdfData}
+          cargandoPdf={cargandoPdf}
+          onClose={handleCerrarModalPdf}
+        />
       )}
     </div>
   );

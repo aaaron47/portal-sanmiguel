@@ -81,7 +81,7 @@ export const DashboardListCard: React.FC<DashboardListCardProps> = ({
                 }}
               >
                 {dashboard.modeloUsado === 'LOCAL' ? <Cpu size={11} /> : <Cloud size={11} />}
-                {dashboard.modeloUsado === 'LOCAL' ? 'Modelo Local' : 'Modelo de API'}
+                {dashboard.nombreModeloDetalle || (dashboard.modeloUsado === 'LOCAL' ? 'San Miguel 1' : 'Claude Opus')}
               </span>
             )}
           </div>

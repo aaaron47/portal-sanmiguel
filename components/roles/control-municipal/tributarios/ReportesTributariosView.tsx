@@ -1,410 +1,770 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
-  Table,
+  FileSpreadsheet,
+  FileArchive,
   Download,
   Search,
-  Filter,
-  FilterX,
+  AlertTriangle,
+  AlertCircle,
+  RefreshCw,
+  Layers,
+  ShieldCheck,
   Eye,
   EyeOff,
-  Calendar,
-  Layers,
-  CheckCircle2,
-  AlertCircle,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  Database,
 } from 'lucide-react';
-import { CATALOGO_REPORTES_OFICIALES, ReporteItemInfo } from '@/types/reportes-tributarios.types';
-import { reportesController } from '@/controllers/reportes.controller';
-import { exportarCSV } from '@/utils/csv.utils';
+import {
+  CATALOGO_REPORTES_OFICIALES,
+  ReporteItemInfo,
+  TablaCertificadaBi,
+} from '@/types/reportes-tributarios.types';
+import { iaDashboardsController } from '@/controllers/ia-dashboards.controller';
+import { MOCK_ROWS_BY_REPORT } from '@/controllers/reportes.controller';
+import { descargarBlobArchivo, exportarCSV } from '@/utils/csv.utils';
+import { mensajeErrorApi } from '@/services/api-client.service';
 
 export const ReportesTributariosView: React.FC = () => {
-  const [reporteSeleccionadoCodigo, setReporteSeleccionadoCodigo] = useState<string>('R1');
-  const [tributoFiltro, setTributoFiltro] = useState<string>('TODOS');
-  const [periodoFiltro, setPeriodoFiltro] = useState<string>('2026');
+  // Datasets certificados devueltos por GET /api/v1/admin/bi/tablas
+  const [tablasBi, setTablasBi] = useState<TablaCertificadaBi[]>([]);
+  const [cargandoTablas, setCargandoTablas] = useState<boolean>(true);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+
+  // Dataset / reporte seleccionado (id numérico de Superset o código 'R1'-'R11')
+  const [seleccionadoKey, setSeleccionadoKey] = useState<string>('');
+
+  // Datos descargados de Superset en memoria (key -> { cabeceras, filas, incompleta })
+  const [datosSuperset, setDatosSuperset] = useState<
+    Record<string, { cabeceras: string[]; filas: string[][]; incompleta: boolean }>
+  >({});
+
+  // Filtros y paginación de la tabla
   const [busquedaTexto, setBusquedaTexto] = useState<string>('');
   const [enmascararPrivacidad, setEnmascararPrivacidad] = useState<boolean>(false);
+  const [paginaActual, setPaginaActual] = useState<number>(1);
+  const [registrosPorPagina, setRegistrosPorPagina] = useState<number>(10);
 
-  // Paginación y datos traídos desde el endpoint GET /reportes/tributarios/:codigo
-  const [paginaActual, setPaginaActual] = useState(1);
-  const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
-  const [filasPaginadas, setFilasPaginadas] = useState<string[][]>([]);
-  const [totalRegistros, setTotalRegistros] = useState<number>(0);
-  const [totalPaginasServidor, setTotalPaginasServidor] = useState<number>(1);
-  // Consulta que respondió por última vez; mientras no coincida con la actual, la tabla está cargando.
-  const [consultaCargada, setConsultaCargada] = useState<string | null>(null);
+  // Estados de descarga individual
+  const [descargandoFormato, setDescargandoFormato] = useState<'csv' | 'xlsx' | null>(null);
+  const [tablaIncompleta, setTablaIncompleta] = useState<boolean>(false);
 
-  // Reporte activo del catálogo oficial R1 a R11
-  const reporteActual: ReporteItemInfo = useMemo(() => {
-    return CATALOGO_REPORTES_OFICIALES.find((r) => r.codigo === reporteSeleccionadoCodigo)
-      || CATALOGO_REPORTES_OFICIALES[0];
-  }, [reporteSeleccionadoCodigo]);
+  // Estados de descarga masiva ZIP
+  const [trabajoZip, setTrabajoZip] = useState<{
+    id: string;
+    estado: string;
+    total: number;
+    hechas: number;
+    error: string | null;
+  } | null>(null);
+  const zipPollingRef = useRef<NodeJS.Timeout | null>(null);
 
-  const consultaActual = JSON.stringify([
-    reporteActual.codigo,
-    tributoFiltro,
-    periodoFiltro,
-    busquedaTexto,
-    paginaActual,
-    registrosPorPagina,
-    enmascararPrivacidad,
-  ]);
-  const cargando = consultaCargada !== consultaActual;
+  // 1. Carga inicial de datasets certificados desde Superset
+  const cargarTablasCertificadas = useCallback(async () => {
+    setCargandoTablas(true);
+    try {
+      const items = await iaDashboardsController.getTablas();
+      setTablasBi(items);
+      if (items.length > 0) {
+        setSeleccionadoKey((prev) => (prev ? prev : `bi-${items[0].id}`));
+      } else {
+        setSeleccionadoKey((prev) => (prev ? prev : 'cat-R1'));
+      }
+    } catch {
+      setSeleccionadoKey((prev) => (prev ? prev : 'cat-R1'));
+    } finally {
+      setCargandoTablas(false);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelado = false;
-
-    reportesController
-      .getReporteTributario({
-        codigo: reporteActual.codigo,
-        tributo: tributoFiltro,
-        periodo: periodoFiltro,
-        busqueda: busquedaTexto,
-        pagina: paginaActual,
-        tamano: registrosPorPagina,
-        enmascararPrivacidad,
-      })
-      .then((res) => {
+    iaDashboardsController
+      .getTablas()
+      .then((items) => {
         if (cancelado) return;
-        setConsultaCargada(consultaActual);
-        setFilasPaginadas(res.filas);
-        setTotalRegistros(res.totalRegistros);
-        setTotalPaginasServidor(Math.max(1, res.totalPaginas));
+        setTablasBi(items);
+        setCargandoTablas(false);
+        if (items.length > 0) {
+          setSeleccionadoKey((prev) => (prev ? prev : `bi-${items[0].id}`));
+        } else {
+          setSeleccionadoKey((prev) => (prev ? prev : 'cat-R1'));
+        }
       })
       .catch(() => {
         if (cancelado) return;
-        setConsultaCargada(consultaActual);
-        setFilasPaginadas([]);
-        setTotalRegistros(0);
-        setTotalPaginasServidor(1);
+        setSeleccionadoKey((prev) => (prev ? prev : 'cat-R1'));
+        setCargandoTablas(false);
+      });
+
+    return () => {
+      cancelado = true;
+      if (zipPollingRef.current) clearInterval(zipPollingRef.current);
+    };
+  }, []);
+
+  // Identificar el dataset certificado activo (si la key seleccionada inicia con 'bi-')
+  const tablaCertificadaActiva: TablaCertificadaBi | undefined = useMemo(() => {
+    if (!seleccionadoKey.startsWith('bi-')) return undefined;
+    const id = seleccionadoKey.replace('bi-', '');
+    return tablasBi.find((t) => String(t.id) === id);
+  }, [seleccionadoKey, tablasBi]);
+
+  // Identificar el reporte oficial del catálogo (si la key seleccionada inicia con 'cat-')
+  const reporteCatalogoActivo: ReporteItemInfo | undefined = useMemo(() => {
+    if (!seleccionadoKey.startsWith('cat-')) return undefined;
+    const cod = seleccionadoKey.replace('cat-', '');
+    return CATALOGO_REPORTES_OFICIALES.find((r) => r.codigo === cod);
+  }, [seleccionadoKey]);
+
+  const keyActiva = tablaCertificadaActiva ? `bi-${tablaCertificadaActiva.id}` : null;
+  const cargandoPrevisualizacion = Boolean(
+    tablaCertificadaActiva && keyActiva && !datosSuperset[keyActiva]
+  );
+
+  // 2. Descarga asíncrona bajo demanda para datasets reales de Superset
+  useEffect(() => {
+    if (!tablaCertificadaActiva) return;
+    const key = `bi-${tablaCertificadaActiva.id}`;
+    if (datosSuperset[key]) return;
+
+    let cancelado = false;
+
+    iaDashboardsController
+      .descargarTabla(tablaCertificadaActiva.id, 'csv')
+      .then((res) => {
+        if (cancelado) return;
+        const c = res.cabeceras.length > 0 ? res.cabeceras : ['Dato 1', 'Dato 2'];
+        const f = res.filas;
+        setDatosSuperset((prev) => ({
+          ...prev,
+          [key]: { cabeceras: c, filas: f, incompleta: res.tablaIncompleta },
+        }));
+      })
+      .catch(() => {
+        if (cancelado) return;
+        setDatosSuperset((prev) => ({
+          ...prev,
+          [key]: {
+            cabeceras: ['Código', 'Contribuyente', 'Tipo', 'Documento', 'Monto Deuda S/'],
+            filas: [],
+            incompleta: false,
+          },
+        }));
       });
 
     return () => {
       cancelado = true;
     };
-  }, [
-    consultaActual,
-    reporteActual.codigo,
-    tributoFiltro,
-    periodoFiltro,
-    busquedaTexto,
-    paginaActual,
-    registrosPorPagina,
-    enmascararPrivacidad,
-  ]);
+  }, [tablaCertificadaActiva, datosSuperset]);
 
-  // Cálculo de Paginación
-  const totalPaginas = Math.max(1, totalPaginasServidor);
-  const paginaAjustada = Math.min(paginaActual, totalPaginas);
-  const indiceInicio = totalRegistros === 0 ? 0 : (paginaAjustada - 1) * registrosPorPagina + 1;
-  const indiceFin = Math.min(paginaAjustada * registrosPorPagina, totalRegistros);
+  // Columnas derivadas de forma pura
+  const cabeceras = useMemo(() => {
+    if (tablaCertificadaActiva) {
+      return datosSuperset[`bi-${tablaCertificadaActiva.id}`]?.cabeceras || [];
+    }
+    if (reporteCatalogoActivo) {
+      return reporteCatalogoActivo.cabeceras;
+    }
+    return [];
+  }, [tablaCertificadaActiva, reporteCatalogoActivo, datosSuperset]);
 
+  // Filas derivadas de forma pura
+  const filas = useMemo(() => {
+    if (tablaCertificadaActiva) {
+      return datosSuperset[`bi-${tablaCertificadaActiva.id}`]?.filas || [];
+    }
+    if (reporteCatalogoActivo) {
+      return MOCK_ROWS_BY_REPORT[reporteCatalogoActivo.codigo] || [];
+    }
+    return [];
+  }, [tablaCertificadaActiva, reporteCatalogoActivo, datosSuperset]);
+
+  const esDataRealSuperset = Boolean(
+    tablaCertificadaActiva && datosSuperset[`bi-${tablaCertificadaActiva.id}`]
+  );
+
+  // Enmascaramiento de privacidad (DNI / RUC)
   const enmascararValor = (valor: string, colIdx: number) => {
     if (!enmascararPrivacidad) return valor;
-    const cabecera = (reporteActual.cabeceras[colIdx] || '').toLowerCase();
-    if (
-      cabecera.includes('contribuyente') ||
-      cabecera.includes('razon') ||
-      cabecera.includes('nombre') ||
-      cabecera.includes('titular')
-    ) {
-      return valor
-        .split(' ')
-        .map((p) => (p.length > 2 ? `${p[0]}${'*'.repeat(Math.min(4, p.length - 1))}` : p))
-        .join(' ');
-    }
-    if (
-      cabecera.includes('documento') ||
-      cabecera.includes('dni') ||
-      cabecera.includes('ruc')
-    ) {
-      return valor.length > 4 ? `${valor.slice(0, 2)}****${valor.slice(-2)}` : valor;
+    const colNombre = (cabeceras[colIdx] || '').toLowerCase();
+    const esIdentificador =
+      colNombre.includes('dni') ||
+      colNombre.includes('documento') ||
+      colNombre.includes('identidad') ||
+      colNombre.includes('ruc');
+
+    if (esIdentificador && valor.length >= 8) {
+      return `${valor.slice(0, 2)}****${valor.slice(-2)}`;
     }
     return valor;
   };
 
-  // Exportación a CSV con respeto al Modo Privacidad LPDP
-  const handleExportar = async () => {
+  // Filtrado de filas por texto de búsqueda
+  const filasFiltradas = useMemo(() => {
+    const q = busquedaTexto.trim().toLowerCase();
+    if (!q) return filas;
+    return filas.filter((fila) =>
+      fila.some((celda) => (celda || '').toLowerCase().includes(q))
+    );
+  }, [filas, busquedaTexto]);
+
+  // Paginación
+  const totalRegistros = filasFiltradas.length;
+  const totalPaginas = Math.max(1, Math.ceil(totalRegistros / registrosPorPagina));
+  const paginaAjustada = Math.min(paginaActual, totalPaginas);
+  const indiceInicio = totalRegistros === 0 ? 0 : (paginaAjustada - 1) * registrosPorPagina + 1;
+  const indiceFin = Math.min(paginaAjustada * registrosPorPagina, totalRegistros);
+  const filasPaginadas = useMemo(() => {
+    const inicio = (paginaAjustada - 1) * registrosPorPagina;
+    return filasFiltradas.slice(inicio, inicio + registrosPorPagina);
+  }, [filasFiltradas, paginaAjustada, registrosPorPagina]);
+
+  // Manejo de descargas individuales (CSV / Excel)
+  const handleDescargar = async (formato: 'csv' | 'xlsx') => {
+    setDescargandoFormato(formato);
+    setErrorCarga(null);
     try {
-      const resCompleta = await reportesController.getReporteTributario({
-        codigo: reporteActual.codigo,
-        tributo: tributoFiltro,
-        periodo: periodoFiltro,
-        busqueda: busquedaTexto,
-        pagina: 1,
-        tamano: 10000,
-        enmascararPrivacidad,
+      if (tablaCertificadaActiva) {
+        // Descarga directa oficial de Superset
+        const res = await iaDashboardsController.descargarTablaArchivo(
+          tablaCertificadaActiva.id,
+          formato
+        );
+        if (res.tablaIncompleta) setTablaIncompleta(true);
+      } else if (reporteCatalogoActivo) {
+        // Exporta la plantilla o estructura del catálogo oficial
+        const nombre = `Reporte_${reporteCatalogoActivo.codigo}_${reporteCatalogoActivo.nombre.replace(/\s+/g, '_')}`;
+        exportarCSV(nombre, cabeceras, filas);
+      }
+    } catch (err) {
+      setErrorCarga(mensajeErrorApi(err, 'No se pudo descargar el archivo solicitado.'));
+    } finally {
+      setDescargandoFormato(null);
+    }
+  };
+
+  // Manejo de descarga masiva ZIP
+  const handleDescargarTodasZip = async () => {
+    if (trabajoZip && (trabajoZip.estado === 'EN_COLA' || trabajoZip.estado === 'EJECUTANDO')) {
+      return;
+    }
+    setErrorCarga(null);
+    try {
+      const trabajoInicial = await iaDashboardsController.iniciarDescargaTodas('csv');
+      setTrabajoZip({
+        id: trabajoInicial.id,
+        estado: trabajoInicial.estado,
+        total: trabajoInicial.total,
+        hechas: trabajoInicial.hechas,
+        error: trabajoInicial.error,
       });
 
-      const filasBase = resCompleta.filas.length > 0 ? resCompleta.filas : filasPaginadas;
-      const filasAExportar = enmascararPrivacidad
-        ? filasBase.map((fila) =>
-            fila.map((celda, colIdx) => enmascararValor(celda, colIdx))
-          )
-        : filasBase;
+      if (zipPollingRef.current) clearInterval(zipPollingRef.current);
 
-      exportarCSV(
-        `Reporte_${reporteActual.codigo}_${reporteActual.nombre.replace(/\s+/g, '_')}_${periodoFiltro}`,
-        reporteActual.cabeceras,
-        filasAExportar
-      );
-    } catch {
-      const filasAExportar = enmascararPrivacidad
-        ? filasPaginadas.map((fila) =>
-            fila.map((celda, colIdx) => enmascararValor(celda, colIdx))
-          )
-        : filasPaginadas;
+      zipPollingRef.current = setInterval(async () => {
+        try {
+          const poll = await iaDashboardsController.consultarDescargaTodas(trabajoInicial.id);
+          setTrabajoZip({
+            id: poll.id,
+            estado: poll.estado,
+            total: poll.total,
+            hechas: poll.hechas,
+            error: poll.error,
+          });
 
-      exportarCSV(
-        `Reporte_${reporteActual.codigo}_${reporteActual.nombre.replace(/\s+/g, '_')}_${periodoFiltro}`,
-        reporteActual.cabeceras,
-        filasAExportar
+          if (poll.estado === 'COMPLETADO') {
+            if (zipPollingRef.current) clearInterval(zipPollingRef.current);
+            const blobZip = await iaDashboardsController.obtenerArchivoDescargaTodas(poll.id);
+            descargarBlobArchivo(blobZip, poll.nombreArchivo || 'reportes_tributarios_san_miguel.zip');
+            setTimeout(() => setTrabajoZip(null), 3500);
+          } else if (poll.estado === 'ERROR') {
+            if (zipPollingRef.current) clearInterval(zipPollingRef.current);
+            setErrorCarga(poll.error || 'Error al generar el archivo ZIP de las tablas.');
+          }
+        } catch (errPoll) {
+          if (zipPollingRef.current) clearInterval(zipPollingRef.current);
+          setErrorCarga(mensajeErrorApi(errPoll, 'Error al consultar el progreso del archivo ZIP.'));
+          setTrabajoZip(null);
+        }
+      }, 2500);
+    } catch (err) {
+      setErrorCarga(
+        mensajeErrorApi(err, 'No se pudo iniciar la generación del archivo ZIP con todas las tablas.')
       );
     }
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      {/* 1. Header con Filtros de Solicitud de Información Municipal */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ padding: '1.25rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+        {/* 1. Cabecera limpia */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '1rem',
+            flexWrap: 'wrap',
+            paddingBottom: '0.85rem',
+            borderBottom: '1px solid var(--border-color)',
+            marginBottom: '1rem',
+          }}
+        >
           <div>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Table size={22} color="var(--sky-600)" />
-              Reportes Tributarios
+            <h2
+              style={{
+                fontSize: '1.1rem',
+                fontWeight: 800,
+                color: 'var(--text-main)',
+                margin: '0 0 0.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <FileSpreadsheet size={20} color="var(--sky-600)" />
+              Reportes Tributarios y Datasets Oficiales
             </h2>
-            <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>
-              Base tabular de fiscalización municipal para Impuesto Predial y Arbitrios requerida por la Municipalidad.
+            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+              Previsualización tabular y descarga oficial de los datasets certificados de Apache Superset.
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <button
               type="button"
-              onClick={() => setEnmascararPrivacidad(!enmascararPrivacidad)}
-              className={`btn ${enmascararPrivacidad ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: '0.85rem' }}
-              title="Enmascarar nombres de personas según la Ley de Protección de Datos Personales"
+              onClick={cargarTablasCertificadas}
+              disabled={cargandoTablas}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.78rem', padding: '0.4rem 0.65rem' }}
+              title="Refrescar datasets de Superset"
             >
-              {enmascararPrivacidad ? <EyeOff size={15} /> : <Eye size={15} />}
-              {enmascararPrivacidad ? 'Nombres Enmascarados (LPDP)' : 'Modo Privacidad'}
+              <RefreshCw
+                size={13}
+                style={{ animation: cargandoTablas ? 'spin 1s linear infinite' : 'none' }}
+              />
+              <span>Actualizar</span>
             </button>
 
             <button
-              onClick={handleExportar}
-              className="btn btn-primary"
-              style={{ fontSize: '0.85rem' }}
+              type="button"
+              onClick={handleDescargarTodasZip}
+              disabled={
+                trabajoZip !== null &&
+                (trabajoZip.estado === 'EN_COLA' || trabajoZip.estado === 'EJECUTANDO')
+              }
+              className="btn btn-secondary"
+              style={{ fontSize: '0.78rem', padding: '0.4rem 0.75rem' }}
+              title="Descargar todos los datasets certificados en un archivo ZIP"
             >
-              <Download size={16} />
-              Exportar CSV
+              <FileArchive size={14} />
+              <span>Bajar todas (ZIP)</span>
             </button>
           </div>
         </div>
 
-        {/* Barra de Filtros */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-          gap: '1rem',
-        }}>
-          {/* Selector de Reporte R1 - R11 */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
-              <Layers size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-              Reporte Oficial Solicitado:
-            </label>
-            <select
-              value={reporteSeleccionadoCodigo}
-              onChange={(e) => setReporteSeleccionadoCodigo(e.target.value)}
-              style={{ width: '100%', padding: '0.45rem 0.65rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem', fontWeight: 600 }}
-            >
-              {CATALOGO_REPORTES_OFICIALES.map((rep) => (
-                <option key={rep.codigo} value={rep.codigo}>
-                  [{rep.codigo}] {rep.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Selector de Tributo */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
-              <Filter size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-              Tributo Municipal:
-            </label>
-            <select
-              value={tributoFiltro}
-              onChange={(e) => setTributoFiltro(e.target.value)}
-              style={{ width: '100%', padding: '0.45rem 0.65rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem' }}
-            >
-              <option value="TODOS">Predial y Arbitrios (Consolidado)</option>
-              <option value="PREDIAL">Solo Impuesto Predial</option>
-              <option value="ARBITRIOS">Solo Arbitrios Municipales</option>
-            </select>
-          </div>
-
-          {/* Selector de Periodo */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
-              <Calendar size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-              Periodo / Ejercicio Fiscal:
-            </label>
-            <select
-              value={periodoFiltro}
-              onChange={(e) => setPeriodoFiltro(e.target.value)}
-              style={{ width: '100%', padding: '0.45rem 0.65rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem' }}
-            >
-              <option value="2026">Ejercicio Fiscal 2026 (En Curso)</option>
-              <option value="2025">Ejercicio Fiscal 2025</option>
-              <option value="2022-2025">Cuatrienio 2022 - 2025</option>
-              <option value="HISTORICO">Histórico (1900 - 2025)</option>
-            </select>
-          </div>
-
-          {/* Búsqueda rápida por texto y Limpiar Filtros */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
-              <Search size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-              Buscar en la Tabla:
-            </label>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <input
-                type="text"
-                placeholder="DNI, RUC, Razón Social..."
-                value={busquedaTexto}
-                onChange={(e) => setBusquedaTexto(e.target.value)}
-                style={{ width: '100%', height: '38px', padding: '0.45rem 0.65rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem', boxSizing: 'border-box' }}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setBusquedaTexto('');
-                  setTributoFiltro('TODOS');
-                  setPeriodoFiltro('2026');
-                }}
-                disabled={!busquedaTexto.trim() && tributoFiltro === 'TODOS' && periodoFiltro === '2026'}
-                className="btn btn-secondary"
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  minWidth: '38px',
-                  padding: 0,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: '8px',
-                  opacity: (busquedaTexto.trim() || tributoFiltro !== 'TODOS' || periodoFiltro !== '2026') ? 1 : 0.45,
-                  cursor: (busquedaTexto.trim() || tributoFiltro !== 'TODOS' || periodoFiltro !== '2026') ? 'pointer' : 'default',
-                  boxSizing: 'border-box',
-                }}
-                title="Eliminar filtros del reporte"
-                aria-label="Eliminar filtros del reporte"
-              >
-                <FilterX size={16} />
-              </button>
+        {/* Alerta de progreso de ZIP masivo */}
+        {trabajoZip && (
+          <div
+            style={{
+              marginBottom: '1rem',
+              padding: '0.7rem 0.9rem',
+              borderRadius: '8px',
+              border: '1px solid var(--sky-300)',
+              background: 'var(--sky-50)',
+              color: 'var(--sky-900)',
+              fontSize: '0.8rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '0.5rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />
+              <span>
+                Generando archivo ZIP:{' '}
+                <strong>
+                  {trabajoZip.hechas} de {trabajoZip.total || '—'} tablas procesadas
+                </strong>{' '}
+                ({trabajoZip.estado === 'EN_COLA' ? 'En cola' : 'Comprimiendo'}...)
+              </span>
             </div>
+            {trabajoZip.estado === 'COMPLETADO' && (
+              <span className="badge badge-success">¡Descarga completada!</span>
+            )}
+          </div>
+        )}
+
+        {/* Alerta de tabla incompleta */}
+        {tablaIncompleta && (
+          <div
+            style={{
+              marginBottom: '1rem',
+              padding: '0.65rem 0.85rem',
+              borderRadius: '8px',
+              border: '1px solid var(--amber-300)',
+              background: 'var(--amber-50)',
+              color: 'var(--amber-900)',
+              fontSize: '0.78rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '0.5rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <AlertTriangle size={15} color="var(--amber-600)" />
+              <span>
+                <strong>Aviso:</strong> La tabla superó el tope de 100,000 filas del servidor; el archivo descargado puede estar incompleto.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTablaIncompleta(false)}
+              className="btn btn-secondary"
+              style={{ padding: '0.2rem 0.4rem', fontSize: '0.7rem' }}
+            >
+              Cerrar
+            </button>
+          </div>
+        )}
+
+        {/* Alerta de error */}
+        {errorCarga && (
+          <div
+            style={{
+              marginBottom: '1rem',
+              padding: '0.65rem 0.85rem',
+              borderRadius: '8px',
+              border: '1px solid var(--red-300)',
+              background: 'var(--red-50)',
+              color: 'var(--red-900)',
+              fontSize: '0.78rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '0.5rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <AlertCircle size={15} color="var(--red-600)" />
+              <span>{errorCarga}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setErrorCarga(null)}
+              className="btn btn-secondary"
+              style={{ padding: '0.2rem 0.4rem', fontSize: '0.7rem' }}
+            >
+              Cerrar
+            </button>
+          </div>
+        )}
+
+        {/* 2. Barra de Selección de Dataset y Controles de la Tabla */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
+            flexWrap: 'wrap',
+            background: 'var(--bg-card-subtle)',
+            padding: '0.85rem 1rem',
+            borderRadius: '10px',
+            border: '1px solid var(--border-color)',
+            marginBottom: '1rem',
+          }}
+        >
+          {/* Selector de Dataset */}
+          <div style={{ flex: '1 1 300px', minWidth: '240px' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                color: 'var(--text-muted)',
+                marginBottom: '0.35rem',
+              }}
+            >
+              <Database size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+              Seleccionar Dataset / Reporte a previsualizar:
+            </label>
+            <select
+              aria-label="Seleccionar Dataset o Reporte"
+              value={seleccionadoKey}
+              onChange={(e) => {
+                setSeleccionadoKey(e.target.value);
+                setPaginaActual(1);
+                setTablaIncompleta(false);
+              }}
+              style={{
+                width: '100%',
+                padding: '0.45rem 0.65rem',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                background: 'var(--bg-card)',
+                color: 'var(--text-main)',
+                cursor: 'pointer',
+              }}
+            >
+              {tablasBi.length > 0 && (
+                <optgroup label="Datasets Certificados en Superset (Data Real)">
+                  {tablasBi.map((t) => (
+                    <option key={`bi-${t.id}`} value={`bi-${t.id}`}>
+                      ⭐ {t.nombre} {t.descripcion ? `— ${t.descripcion}` : ''}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+
+              <optgroup label="Catálogo Normado de Reportes Municipales">
+                {CATALOGO_REPORTES_OFICIALES.map((r) => (
+                  <option key={`cat-${r.codigo}`} value={`cat-${r.codigo}`}>
+                    [{r.codigo}] {r.nombre}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+          </div>
+
+          {/* Buscador dentro de las filas de la tabla */}
+          <div style={{ flex: '1 1 220px', minWidth: '180px' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                color: 'var(--text-muted)',
+                marginBottom: '0.35rem',
+              }}
+            >
+              <Search size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+              Buscar en la previsualización:
+            </label>
+            <input
+              type="text"
+              placeholder="Filtrar registros..."
+              value={busquedaTexto}
+              onChange={(e) => {
+                setBusquedaTexto(e.target.value);
+                setPaginaActual(1);
+              }}
+              style={{
+                width: '100%',
+                padding: '0.42rem 0.6rem',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                fontSize: '0.8rem',
+                background: 'var(--bg-card)',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          {/* Acciones de Privacidad y Descargas del dataset actual */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => setEnmascararPrivacidad((prev) => !prev)}
+              className="btn btn-secondary"
+              style={{
+                fontSize: '0.78rem',
+                padding: '0.42rem 0.65rem',
+                borderColor: enmascararPrivacidad ? 'var(--sky-500)' : undefined,
+                background: enmascararPrivacidad ? 'var(--sky-50)' : undefined,
+              }}
+              title={
+                enmascararPrivacidad
+                  ? 'Desactivar enmascaramiento de datos personales'
+                  : 'Enmascarar DNI / RUC en pantalla (Ley 29733)'
+              }
+            >
+              {enmascararPrivacidad ? <EyeOff size={13} /> : <Eye size={13} />}
+              <span>{enmascararPrivacidad ? 'Enmascarado' : 'Enmascarar'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleDescargar('csv')}
+              disabled={descargandoFormato !== null}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.78rem', padding: '0.42rem 0.75rem' }}
+              title="Descargar este dataset completo en formato CSV"
+            >
+              <Download size={13} />
+              <span>{descargandoFormato === 'csv' ? 'Descargando...' : 'Descargar CSV'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleDescargar('xlsx')}
+              disabled={descargandoFormato !== null}
+              className="btn btn-primary"
+              style={{ fontSize: '0.78rem', padding: '0.42rem 0.75rem' }}
+              title="Descargar este dataset en formato Excel (.xlsx)"
+            >
+              <FileSpreadsheet size={13} />
+              <span>{descargandoFormato === 'xlsx' ? 'Descargando...' : 'Descargar Excel'}</span>
+            </button>
           </div>
         </div>
 
-        {/* Ficha descriptiva del reporte seleccionado */}
-        <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <span className="badge badge-primary" style={{ marginRight: '0.5rem', fontWeight: 700 }}>
-            {reporteActual.codigo}
-          </span>
-          <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>{reporteActual.nombre}</strong>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
-            — {reporteActual.descripcion}
-          </span>
-        </div>
-      </div>
+        {/* 3. Indicador de estado del dataset seleccionado */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
+            marginBottom: '0.75rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {esDataRealSuperset ? (
+              <span
+                className="badge badge-success"
+                style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+              >
+                <ShieldCheck size={13} />
+                Data Real de Apache Superset (Vistas BD)
+              </span>
+            ) : (
+              <span
+                className="badge badge-subtle"
+                style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+              >
+                <Layers size={13} />
+                Estructura Oficial Normada (Plantilla)
+              </span>
+            )}
 
-      {/* 2. Tabla de Datos Oficiales */}
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Eye size={18} color="var(--sky-600)" />
-            Vista Tabular de Datos Requerida por la Municipalidad
-          </h3>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-            Columnas según requerimiento tributario oficial de la Municipalidad de San Miguel
-          </span>
+            {tablaCertificadaActiva?.certificadoPor && (
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                Certificado por: <strong>{tablaCertificadaActiva.certificadoPor}</strong>
+              </span>
+            )}
+          </div>
+
+          <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+            {cargandoPrevisualizacion ? (
+              <span>Cargando registros...</span>
+            ) : (
+              <span>
+                Mostrando {totalRegistros === 0 ? 0 : `${indiceInicio} - ${indiceFin}`} de {totalRegistros}{' '}
+                registro{totalRegistros === 1 ? '' : 's'}
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className="table-container" style={{ overflowX: 'auto', maxHeight: '550px' }}>
-          <table className="data-table" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-            <thead>
-              <tr style={{ background: 'var(--bg-card-subtle)', position: 'sticky', top: 0, zIndex: 1 }}>
-                <th style={{ width: '40px' }}>#</th>
-                {reporteActual.cabeceras.map((cab, idx) => (
-                  <th key={idx} style={{ padding: '0.6rem 0.75rem', textAlign: 'left', fontWeight: 700 }}>
-                    {cab}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {cargando ? (
-                <tr>
-                  <td colSpan={reporteActual.cabeceras.length + 1} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-                    Cargando registros del reporte {reporteActual.codigo}...
-                  </td>
+        {/* 4. Tabla de Previsualización */}
+        <div
+          className="table-container"
+          style={{
+            overflowX: 'auto',
+            border: '1px solid var(--border-color)',
+            borderRadius: '10px',
+            minHeight: '220px',
+            background: 'var(--bg-app)',
+          }}
+        >
+          {cargandoPrevisualizacion ? (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '220px',
+                gap: '0.65rem',
+                color: 'var(--text-muted)',
+              }}
+            >
+              <RefreshCw size={22} style={{ animation: 'spin 1s linear infinite' }} color="var(--sky-600)" />
+              <span style={{ fontSize: '0.82rem' }}>Descargando y parseando registros del dataset...</span>
+            </div>
+          ) : filasPaginadas.length === 0 ? (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '200px',
+                padding: '2rem 1rem',
+                textAlign: 'center',
+                color: 'var(--text-muted)',
+              }}
+            >
+              <AlertCircle size={24} style={{ marginBottom: '0.4rem', color: 'var(--slate-400)' }} />
+              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                {busquedaTexto ? 'No hay registros que coincidan con la búsqueda' : 'Dataset sin filas disponibles'}
+              </div>
+              <span style={{ fontSize: '0.76rem', marginTop: '0.2rem' }}>
+                {busquedaTexto
+                  ? 'Intenta con otro término o limpia el buscador.'
+                  : 'Este dataset se encuentra registrado pero no contiene filas actualmente en la base de datos.'}
+              </span>
+            </div>
+          ) : (
+            <table className="data-table" style={{ fontSize: '0.78rem', width: '100%' }}>
+              <thead>
+                <tr style={{ background: 'var(--bg-card-subtle)' }}>
+                  <th style={{ width: '45px', textAlign: 'center', padding: '0.55rem 0.5rem' }}>#</th>
+                  {cabeceras.map((col, idx) => (
+                    <th key={idx} style={{ padding: '0.55rem 0.65rem', whiteSpace: 'nowrap' }}>
+                      {col}
+                    </th>
+                  ))}
                 </tr>
-              ) : filasPaginadas.length === 0 ? (
-                <tr>
-                  <td colSpan={reporteActual.cabeceras.length + 1} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-                    No se encontraron registros con los filtros seleccionados.
-                  </td>
-                </tr>
-              ) : (
-                filasPaginadas.map((fila, fIdx) => {
-                  const numeroFila = (paginaAjustada - 1) * registrosPorPagina + fIdx + 1;
+              </thead>
+              <tbody>
+                {filasPaginadas.map((fila, rIdx) => {
+                  const numFila = indiceInicio + rIdx;
                   return (
-                    <tr key={fIdx}>
-                      <td style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{numeroFila}</td>
-                      {fila.map((celdaRaw, cIdx) => {
-                        const celda = enmascararValor(celdaRaw, cIdx);
-                        const esMoneda = celdaRaw.includes('.') && !isNaN(Number(celdaRaw)) && Number(celdaRaw) > 0;
-                        const esPorcentaje = celdaRaw.endsWith('%');
-                        const esEstadoPositivo = celdaRaw === 'HABIDO' || celdaRaw === 'SI' || celdaRaw === 'OPORTUNO';
-                        const esEstadoNegativo = celdaRaw === 'NO' || celdaRaw.includes('ATRASO') || celdaRaw.includes('INCUMPLIDO');
-
-                        return (
-                          <td key={cIdx} style={{ padding: '0.55rem 0.75rem' }}>
-                            {esEstadoPositivo ? (
-                              <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
-                                <CheckCircle2 size={11} /> {celda}
-                              </span>
-                            ) : esEstadoNegativo ? (
-                              <span className="badge badge-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
-                                <AlertCircle size={11} /> {celda}
-                              </span>
-                            ) : esMoneda ? (
-                              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-main)' }}>
-                                S/ {Number(celdaRaw).toLocaleString('es-PE', { minimumFractionDigits: 2 })}
-                              </span>
-                            ) : esPorcentaje ? (
-                              <span style={{ fontWeight: 700, color: 'var(--sky-700)' }}>
-                                {celda}
-                              </span>
-                            ) : (
-                              <span>{celda}</span>
-                            )}
-                          </td>
-                        );
-                      })}
+                    <tr key={rIdx} style={{ transition: 'background-color 0.1s ease' }}>
+                      <td
+                        style={{
+                          textAlign: 'center',
+                          color: 'var(--text-muted)',
+                          fontSize: '0.72rem',
+                          fontFamily: 'var(--font-mono)',
+                          padding: '0.45rem 0.5rem',
+                        }}
+                      >
+                        {numFila}
+                      </td>
+                      {fila.map((celda, cIdx) => (
+                        <td
+                          key={cIdx}
+                          style={{
+                            padding: '0.45rem 0.65rem',
+                            whiteSpace: 'nowrap',
+                            color: 'var(--text-main)',
+                          }}
+                        >
+                          {enmascararValor(celda || '—', cIdx)}
+                        </td>
+                      ))}
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
 
-        {/* Barra de Paginación */}
+        {/* 5. Barra de Paginación */}
         {totalRegistros > 0 && (
           <div
             style={{
@@ -413,86 +773,80 @@ export const ReportesTributariosView: React.FC = () => {
               alignItems: 'center',
               flexWrap: 'wrap',
               gap: '0.75rem',
-              padding: '0.75rem 0.5rem 0.25rem',
-              fontSize: '0.75rem',
-              color: 'var(--text-muted)',
-              borderTop: '1px solid var(--border-color)',
-              marginTop: '0.5rem',
+              padding: '0.65rem 0.25rem 0.15rem',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-              <span>
-                Mostrando <strong>{indiceInicio}</strong> – <strong>{indiceFin}</strong> de <strong>{totalRegistros}</strong> registros
-              </span>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span>Por página:</span>
-                <select
-                  value={registrosPorPagina}
-                  onChange={(e) => {
-                    setRegistrosPorPagina(Number(e.target.value));
-                    setPaginaActual(1);
-                  }}
-                  style={{
-                    padding: '0.2rem 0.4rem',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border-color)',
-                    fontSize: '0.75rem',
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-main)',
-                  }}
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              <span>Registros por página:</span>
+              <select
+                aria-label="Registros por página"
+                value={registrosPorPagina}
+                onChange={(e) => {
+                  setRegistrosPorPagina(Number(e.target.value));
+                  setPaginaActual(1);
+                }}
+                style={{
+                  padding: '0.2rem 0.4rem',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  fontSize: '0.75rem',
+                  background: 'var(--bg-card)',
+                }}
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
               <button
+                type="button"
                 onClick={() => setPaginaActual(1)}
-                disabled={paginaAjustada === 1}
+                disabled={paginaAjustada <= 1}
                 className="btn btn-secondary"
-                style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem' }}
-                title="Primera Página"
+                style={{ padding: '0.25rem 0.45rem' }}
+                title="Primera página"
               >
-                <ChevronsLeft size={14} />
+                <ChevronsLeft size={13} />
               </button>
 
               <button
-                onClick={() => setPaginaActual((prev) => Math.max(1, prev - 1))}
-                disabled={paginaAjustada === 1}
+                type="button"
+                onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
+                disabled={paginaAjustada <= 1}
                 className="btn btn-secondary"
-                style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem' }}
-                title="Página Anterior"
+                style={{ padding: '0.25rem 0.45rem' }}
+                title="Página anterior"
               >
-                <ChevronLeft size={14} />
+                <ChevronLeft size={13} />
               </button>
 
-              <span style={{ margin: '0 0.5rem', fontWeight: 600, color: 'var(--text-main)' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0 0.4rem' }}>
                 Página {paginaAjustada} de {totalPaginas}
               </span>
 
               <button
-                onClick={() => setPaginaActual((prev) => Math.min(totalPaginas, prev + 1))}
-                disabled={paginaAjustada === totalPaginas}
+                type="button"
+                onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
+                disabled={paginaAjustada >= totalPaginas}
                 className="btn btn-secondary"
-                style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem' }}
-                title="Página Siguiente"
+                style={{ padding: '0.25rem 0.45rem' }}
+                title="Página siguiente"
               >
-                <ChevronRight size={14} />
+                <ChevronRight size={13} />
               </button>
 
               <button
+                type="button"
                 onClick={() => setPaginaActual(totalPaginas)}
-                disabled={paginaAjustada === totalPaginas}
+                disabled={paginaAjustada >= totalPaginas}
                 className="btn btn-secondary"
-                style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem' }}
-                title="Última Página"
+                style={{ padding: '0.25rem 0.45rem' }}
+                title="Última página"
               >
-                <ChevronsRight size={14} />
+                <ChevronsRight size={13} />
               </button>
             </div>
           </div>

@@ -4,6 +4,8 @@ import { Usuario, ROLE_LABELS } from '@/types/auth.types';
 import { NotifyFn } from '@/types/ui.types';
 import { exportarCSV } from '@/utils/csv.utils';
 import { mensajeErrorApi } from '@/services/api-client.service';
+import { iaDashboardsController } from '@/controllers/ia-dashboards.controller';
+import { NivelMcp } from '@/types/superset.types';
 
 export type NuevoUsuario = Omit<Usuario, 'id' | 'creadoEn' | 'activo'>;
 
@@ -108,6 +110,55 @@ export function useUsuarios(onNotify: NotifyFn) {
     onNotify('success', `Se exportaron ${filas.length} registros a CSV`);
   };
 
+  const cambiarAccesoMcp = async (usuarioId: string, nuevoNivel: NivelMcp | 'DESHABILITADO') => {
+    try {
+      if (nuevoNivel === 'DESHABILITADO') {
+        const resp = await iaDashboardsController.retirarMcpPersonal(usuarioId);
+        setUsuarios((prev) =>
+          prev.map((u) =>
+            u.id === usuarioId
+              ? {
+                  ...u,
+                  mcpHabilitado: false,
+                  mcpNivel: undefined,
+                  supersetUsuario: resp.supersetUsuario,
+                }
+              : u
+          )
+        );
+        onNotify('success', 'Acceso MCP retirado correctamente');
+      } else {
+        const resp = await iaDashboardsController.habilitarMcpPersonal(usuarioId, nuevoNivel);
+        setUsuarios((prev) =>
+          prev.map((u) =>
+            u.id === usuarioId
+              ? {
+                  ...u,
+                  mcpHabilitado: true,
+                  mcpNivel: resp.nivel,
+                  supersetUsuario: resp.supersetUsuario,
+                  rolesSuperset: resp.rolesSuperset,
+                }
+              : u
+          )
+        );
+        onNotify(
+          'success',
+          `Acceso MCP habilitado (${resp.nivel}) para ${resp.supersetUsuario || 'usuario'}`
+        );
+      }
+    } catch (err) {
+      onNotify(
+        'error',
+        mensajeErrorApi(err, 'No se pudo actualizar el acceso MCP del usuario.', {
+          mcp_sin_usuario_superset:
+            'El personal no tiene una cuenta de Superset asociada. Debe crearse primero en Superset.',
+          bi_no_es_dueno: 'Solo el administrador o dueño puede modificar este acceso.',
+        })
+      );
+    }
+  };
+
   const limpiarFiltros = () => {
     setSearchQuery('');
     setFiltroRol('todos');
@@ -137,5 +188,6 @@ export function useUsuarios(onNotify: NotifyFn) {
     credencialNueva,
     cerrarCredencialNueva: () => setCredencialNueva(null),
     descargarCSV,
+    cambiarAccesoMcp,
   };
 }

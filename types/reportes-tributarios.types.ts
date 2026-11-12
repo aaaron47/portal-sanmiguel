@@ -30,6 +30,39 @@ export interface ReporteTributarioResponse {
   totalPaginas: number;
 }
 
+export type FormatoDescargaTablaBi = 'csv' | 'xlsx';
+
+/** Tabla certificada en Apache Superset (`GET /api/v1/admin/bi/tablas`) */
+export interface TablaCertificadaBi {
+  id: number;
+  nombre: string;
+  descripcion: string;
+  certificadoPor: string;
+}
+
+/** Contenido y metadatos de una tabla descargada desde `GET /api/v1/admin/bi/tablas/{datasetId}/descarga` */
+export interface ResultadoDescargaTablaBi {
+  datasetId: number;
+  nombreArchivo: string;
+  tablaIncompleta: boolean;
+  tablaFilas: number;
+  cabeceras: string[];
+  filas: string[][];
+}
+
+export type EstadoTrabajoDescargaTodas = 'EN_COLA' | 'EJECUTANDO' | 'COMPLETADO' | 'ERROR';
+
+/** Estado del trabajo asíncrono de descarga masiva ZIP (`POST / GET /api/v1/admin/bi/tablas/descarga-todas`) */
+export interface TrabajoDescargaTodasBi {
+  id: string;
+  estado: EstadoTrabajoDescargaTodas;
+  total: number;
+  hechas: number;
+  avisos: string[];
+  error: string | null;
+  nombreArchivo: string | null;
+}
+
 /** Expediente de Constancia de No Adeudo Tributario */
 export interface ConstanciaItem {
   id: string;

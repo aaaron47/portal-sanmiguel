@@ -26,7 +26,7 @@ export function useIaDashboards(modulo: ModuloAnalitico, onNotify?: NotifyFn) {
   // Estado del panel flotante no invasivo del Chat de IA (cerrado por defecto para dar 100% de espacio al dashboard)
   const [chatAbierto, setChatAbierto] = useState<boolean>(false);
   const [modoChatInicial, setModoChatInicial] = useState<ModoConsultaIA>('CONSULTA_DATOS');
-  const [modeloChatInicial, setModeloChatInicial] = useState<ProveedorModeloIA>('LOCAL');
+  const [modeloChatInicial, setModeloChatInicial] = useState<ProveedorModeloIA>('API');
   const [dashboardContextoChatId, setDashboardContextoChatId] = useState<string>('TODOS');
   const [chatSessionKey, setChatSessionKey] = useState<number>(1);
 

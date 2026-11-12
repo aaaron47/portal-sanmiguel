@@ -1,19 +1,23 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import {
   Send,
-  Bot,
   User,
   RotateCcw,
   Sparkles,
   Layers,
   X,
   CheckCircle2,
+  AlertTriangle,
+  Clock,
 } from 'lucide-react';
 import {
+  EstadoIaBiResponse,
   ModoConsultaIA,
   ModuloAnalitico,
+  ProgresoChatIA,
   ProveedorModeloIA,
   SupersetChatMessage,
   SupersetDashboardInfo,
@@ -21,10 +25,12 @@ import {
 import {
   CONFIG_MODULOS_IA,
   DASHBOARDS_SUPERSET_CONTROL_MUNICIPAL,
+  ErrorTrabajoIa,
+  formatearErrorIaBackend,
   iaDashboardsController,
   obtenerOpcionesSelectorModelo,
 } from '@/controllers/ia-dashboards.controller';
-import { mensajeErrorApi } from '@/services/api-client.service';
+import { MarkdownRenderer } from '@/components/shared/ui/MarkdownRenderer';
 
 interface SupersetChatAssistantProps {
   modulo?: ModuloAnalitico;
@@ -48,7 +54,7 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
   modulo = 'CONTROL_MUNICIPAL',
   dashboardsDisponibles = DASHBOARDS_SUPERSET_CONTROL_MUNICIPAL,
   modoInicial = 'CONSULTA_DATOS',
-  modeloInicial = 'LOCAL',
+  modeloInicial = 'API',
   dashboardContextoInicialId,
   isFullscreen = false,
   onVisualizarDashboard,
@@ -60,6 +66,52 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [proveedorModelo, setProveedorModelo] = useState<ProveedorModeloIA>(modeloInicial);
   const [errorApiTexto, setErrorApiTexto] = useState<string | null>(null);
+  const [progresoLive, setProgresoLive] = useState<ProgresoChatIA | null>(null);
+  const [estadoIa, setEstadoIa] = useState<EstadoIaBiResponse | null>(null);
+  const [avisoCola, setAvisoCola] = useState<string | null>(null);
+
+  const consultarEstadoIa = useCallback(async () => {
+    try {
+      const estado = await iaDashboardsController.getEstadoIa();
+      setEstadoIa(estado);
+      const enCola =
+        proveedorModelo === 'LOCAL' ? estado.trabajosPendientes : estado.trabajosPendientesApi;
+      if (enCola > 0) {
+        setAvisoCola(`Hay ${enCola} pregunta${enCola > 1 ? 's' : ''} por delante en la cola.`);
+      } else {
+        setAvisoCola(null);
+      }
+    } catch {
+      // Si el endpoint de estado no responde (modo demo o sin backend)
+    }
+  }, [proveedorModelo]);
+
+  useEffect(() => {
+    let cancelado = false;
+    iaDashboardsController
+      .getEstadoIa()
+      .then((estado) => {
+        if (cancelado) return;
+        setEstadoIa(estado);
+        if (estado.api === 'NO_CONFIGURADO' && proveedorModelo === 'API' && estado.modelo === 'DISPONIBLE') {
+          setProveedorModelo('LOCAL');
+        }
+        const enCola =
+          proveedorModelo === 'LOCAL' ? estado.trabajosPendientes : estado.trabajosPendientesApi;
+        if (enCola > 0) {
+          setAvisoCola(`Hay ${enCola} pregunta${enCola > 1 ? 's' : ''} por delante en la cola.`);
+        } else {
+          setAvisoCola(null);
+        }
+      })
+      .catch(() => {
+        // Ignorar si endpoint de estado no está disponible
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [proveedorModelo]);
 
   const configModulo = CONFIG_MODULOS_IA[modulo] || CONFIG_MODULOS_IA.CONTROL_MUNICIPAL;
   const opcionesModelo = obtenerOpcionesSelectorModelo(modulo);
@@ -78,6 +130,7 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
           : 'CONSULTA_DATOS');
 
       setErrorApiTexto(null);
+      setProgresoLive(null);
 
       const userMsg: SupersetChatMessage = {
         id: generarIdMensaje('usr'),
@@ -107,6 +160,7 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
           dashboardContextoActivoId: dashboardContextoInicialId,
           dashboardContextoIds: dashboardsDisponibles.map((d) => d.id),
           historial: historialActual,
+          onProgreso: (p) => setProgresoLive(p),
         });
 
         if (resp.dashboardGenerado && onDashboardGenerado) {
@@ -126,15 +180,35 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
           dashboardGenerado: resp.dashboardGenerado,
           graficoTitulo: resp.graficoTitulo,
           metricas: resp.metricas,
+          pasos: resp.pasos,
+          creados: resp.creados,
+          segundos: resp.segundos,
         };
 
         setMensajes((prev) => [...prev, respuestaBot]);
       } catch (err) {
-        setErrorApiTexto(
-          mensajeErrorApi(err, 'No se pudo procesar la consulta en el asistente de IA. Inténtalo de nuevo.')
-        );
+        if (err instanceof ErrorTrabajoIa) {
+          const respuestaError: SupersetChatMessage = {
+            id: generarIdMensaje('bot-err'),
+            rol: 'assistant',
+            texto: `El asistente no pudo completar todo el proceso: ${err.message}`,
+            fecha: 'Ahora',
+            estado: 'error',
+            creados: err.creados,
+            pasos: err.pasos,
+            proveedorModelo,
+            nombreModelo: nombreModeloActivo,
+          };
+          setMensajes((prev) => [...prev, respuestaError]);
+        } else {
+          setErrorApiTexto(
+            formatearErrorIaBackend(err, 'No se pudo procesar la consulta en el asistente de IA. Inténtalo de nuevo.')
+          );
+        }
       } finally {
         setIsGenerating(false);
+        setProgresoLive(null);
+        consultarEstadoIa();
       }
     },
     [
@@ -147,6 +221,7 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
       dashboardsDisponibles,
       modulo,
       onDashboardGenerado,
+      consultarEstadoIa,
     ]
   );
 
@@ -154,6 +229,7 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
     setMensajes([]);
     setPrompt('');
     setErrorApiTexto(null);
+    setProgresoLive(null);
   };
 
   return (
@@ -183,7 +259,6 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-          <Sparkles size={16} color="var(--sky-600)" />
           <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>Asistente San Miguel</strong>
         </div>
 
@@ -221,6 +296,70 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
         </div>
       )}
 
+      {avisoCola && (
+        <div
+          style={{
+            marginBottom: '0.5rem',
+            padding: '0.4rem 0.65rem',
+            fontSize: '0.72rem',
+            borderRadius: '6px',
+            background: 'var(--amber-50)',
+            color: 'var(--amber-800)',
+            border: '1px solid var(--amber-200)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+          }}
+        >
+          <Clock size={13} />
+          <span>{avisoCola}</span>
+        </div>
+      )}
+
+      {proveedorModelo === 'LOCAL' && estadoIa?.modelo && estadoIa.modelo !== 'DISPONIBLE' && (
+        <div
+          style={{
+            marginBottom: '0.5rem',
+            padding: '0.4rem 0.65rem',
+            fontSize: '0.72rem',
+            borderRadius: '6px',
+            background: 'var(--amber-50)',
+            color: 'var(--amber-800)',
+            border: '1px solid var(--amber-200)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+          }}
+        >
+          <AlertTriangle size={13} />
+          <span>
+            {estadoIa.modelo === 'SIN_RESPUESTA'
+              ? 'El modelo local no responde actualmente. Puedes alternar al modelo API.'
+              : 'El modelo local no está configurado.'}
+          </span>
+        </div>
+      )}
+
+      {proveedorModelo === 'API' && estadoIa?.api === 'NO_CONFIGURADO' && (
+        <div
+          style={{
+            marginBottom: '0.5rem',
+            padding: '0.4rem 0.65rem',
+            fontSize: '0.72rem',
+            borderRadius: '6px',
+            background: 'var(--amber-50)',
+            color: 'var(--amber-800)',
+            border: '1px solid var(--amber-200)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+          }}
+        >
+          <AlertTriangle size={13} />
+          <span>La API de Claude no está configurada en el servidor. Puedes alternar al modelo local.</span>
+        </div>
+      )}
+
       {/* 2. Área de Mensajes y Zero State limpio (sin tarjetas grandes ni bloques verdes) */}
       <div
         style={{
@@ -243,10 +382,32 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
               textAlign: 'center',
               padding: '1.5rem 1rem',
               color: 'var(--text-muted)',
-              gap: '0.5rem',
+              gap: '0.65rem',
             }}
           >
-            <Bot size={28} style={{ opacity: 0.35 }} />
+            <div
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '50%',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-color)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '6px',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                overflow: 'hidden',
+              }}
+            >
+              <Image
+                src="/icon.png"
+                alt="Municipalidad de San Miguel"
+                width={34}
+                height={34}
+                style={{ objectFit: 'contain' }}
+              />
+            </div>
             <p style={{ fontSize: '0.8rem', margin: 0, maxWidth: '240px', lineHeight: 1.45 }}>
               Realiza consultas cruzadas sobre los dashboards o solicita generar un nuevo tablero.
             </p>
@@ -268,15 +429,23 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
                     width: '24px',
                     height: '24px',
                     borderRadius: '50%',
-                    background: 'var(--sky-100)',
-                    color: 'var(--sky-700)',
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-color)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
+                    overflow: 'hidden',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                   }}
                 >
-                  <Bot size={13} />
+                  <Image
+                    src="/icon.png"
+                    alt="San Miguel"
+                    width={18}
+                    height={18}
+                    style={{ objectFit: 'contain' }}
+                  />
                 </div>
               )}
 
@@ -290,7 +459,11 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
                   border: m.rol === 'user' ? 'none' : '1px solid var(--border-color)',
                 }}
               >
-                <div>{m.texto}</div>
+                {m.rol === 'user' ? (
+                  <div>{m.texto}</div>
+                ) : (
+                  <MarkdownRenderer content={m.texto} />
+                )}
 
                 {/* Fuentes cruzadas */}
                 {m.fuentesConsultadas && m.fuentesConsultadas.length > 0 && (
@@ -372,6 +545,80 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
                     )}
                   </div>
                 )}
+
+                {/* Si se alcanzaron a crear elementos en Superset (incluso ante error) */}
+                {m.creados && m.creados.length > 0 && (
+                  <div
+                    style={{
+                      marginTop: '0.45rem',
+                      padding: '0.45rem 0.6rem',
+                      borderRadius: '8px',
+                      background: 'var(--bg-card)',
+                      border: '1px solid var(--border-color)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        color: 'var(--text-main)',
+                        marginBottom: '0.25rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                      }}
+                    >
+                      <Layers size={12} color="var(--sky-600)" />
+                      <span>Elementos creados en Superset:</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                      {m.creados.map((item, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            fontSize: '0.7rem',
+                            padding: '0.2rem 0.4rem',
+                            borderRadius: '4px',
+                            background: 'var(--bg-card-subtle)',
+                            border: '1px solid var(--border-color)',
+                            color: 'var(--text-main)',
+                            fontFamily: 'var(--font-mono)',
+                          }}
+                        >
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Herramientas MCP y tiempo de respuesta del asistente */}
+                {((m.pasos && m.pasos.length > 0) || m.segundos !== undefined) && (
+                  <div
+                    style={{
+                      marginTop: '0.45rem',
+                      paddingTop: '0.35rem',
+                      borderTop: '1px solid var(--border-color)',
+                      fontSize: '0.67rem',
+                      color: 'var(--text-muted)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.2rem',
+                    }}
+                  >
+                    {m.pasos && m.pasos.length > 0 && (
+                      <div>
+                        <span style={{ fontWeight: 600 }}>Herramientas usadas: </span>
+                        <span>{m.pasos.join(', ')}</span>
+                      </div>
+                    )}
+                    {m.segundos !== undefined && (
+                      <div style={{ fontStyle: 'italic', fontSize: '0.63rem' }}>
+                        Listo en {m.segundos}s · {m.nombreModelo || (m.proveedorModelo === 'API' ? 'Claude Opus' : 'San Miguel 1')}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {m.rol === 'user' && (
@@ -396,9 +643,65 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
         )}
 
         {isGenerating && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--sky-600)', fontSize: '0.76rem' }}>
-            <Sparkles size={13} className="spin-anim" />
-            <span>Analizando...</span>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.35rem',
+              padding: '0.65rem 0.8rem',
+              background: 'var(--bg-card-subtle)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '10px',
+              maxWidth: '94%',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--sky-700)', fontWeight: 600, fontSize: '0.78rem' }}>
+                <Sparkles size={14} className="spin-anim" />
+                <span>
+                  {progresoLive?.estado
+                    ? `${progresoLive.estado}…`
+                    : `Procesando en ${nombreModeloActivo}…`}
+                </span>
+              </div>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>
+                {progresoLive?.segundos !== undefined ? `${progresoLive.segundos}s` : 'Iniciando…'}
+              </span>
+            </div>
+
+            {proveedorModelo === 'LOCAL' && (
+              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', lineHeight: 1.35 }}>
+                Inferencia privada en CPU (San Miguel 1): una respuesta suele tardar de decenas de segundos a minutos.
+              </div>
+            )}
+
+            {proveedorModelo === 'API' && (
+              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', lineHeight: 1.35 }}>
+                Inferencia vía API ({nombreModeloActivo}): respuesta rápida con herramientas MCP de Superset (~15–20s).
+              </div>
+            )}
+
+            {progresoLive?.pasos && progresoLive.pasos.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap', marginTop: '0.2rem' }}>
+                <span style={{ fontSize: '0.66rem', fontWeight: 600, color: 'var(--text-main)' }}>Herramientas:</span>
+                {progresoLive.pasos.map((p, idx) => (
+                  <span
+                    key={idx}
+                    style={{
+                      fontSize: '0.64rem',
+                      padding: '0.1rem 0.35rem',
+                      borderRadius: '4px',
+                      background: 'var(--bg-card)',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--sky-700)',
+                      fontFamily: 'monospace',
+                    }}
+                  >
+                    {p}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -450,11 +753,20 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
               flexShrink: 0,
             }}
           >
-            {opcionesModelo.map((opt) => (
-              <option key={opt.valor} value={opt.valor}>
-                {opt.etiqueta}
-              </option>
-            ))}
+            {opcionesModelo.map((opt) => {
+              let sufijo = '';
+              if (opt.valor === 'LOCAL' && estadoIa?.modelo && estadoIa.modelo !== 'DISPONIBLE') {
+                sufijo = estadoIa.modelo === 'SIN_RESPUESTA' ? ' (Sin respuesta)' : ' (No config.)';
+              } else if (opt.valor === 'API' && estadoIa?.api === 'NO_CONFIGURADO') {
+                sufijo = ' (No config.)';
+              }
+              return (
+                <option key={opt.valor} value={opt.valor}>
+                  {opt.etiqueta}
+                  {sufijo}
+                </option>
+              );
+            })}
           </select>
 
           <input

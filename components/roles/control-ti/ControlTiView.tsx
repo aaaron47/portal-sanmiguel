@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { RefreshCw, Activity, ShieldCheck, AlertCircle } from 'lucide-react';
+import { RefreshCw, AlertCircle } from 'lucide-react';
 import { RoleViewProps } from '@/types/ui.types';
 import { useControlTi } from './useControlTi';
 import { TelemetriaKpis } from './dashboard/parts/TelemetriaKpis';
@@ -26,28 +26,7 @@ export const ControlTiView: React.FC<RoleViewProps> = ({
   return (
     <div>
       {/* Cabecera de la sección según la opción elegida en el Sidebar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            {esOnboarding ? (
-              <>
-                <ShieldCheck size={22} color="var(--sky-600)" />
-                Privacidad y Onboarding Ciudadano
-              </>
-            ) : (
-              <>
-                <Activity size={22} color="var(--sky-600)" />
-                Dashboard de Telemetría y Rendimiento App
-              </>
-            )}
-          </h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>
-            {esOnboarding 
-              ? 'Trazabilidad de consentimiento vecinal (Ley N° 29733) y embudo de adopción.'
-              : 'Monitoreo de tráfico, versiones de clientes móviles y estabilidad en producción.'}
-          </p>
-        </div>
-
+      <div style={{ display: 'flex', justifyContent: 'end', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <button
           onClick={t.cargarTelemetria}
           disabled={t.isLoading}
