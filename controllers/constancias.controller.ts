@@ -47,9 +47,9 @@ const MOCK_SOLICITUDES: SolicitudConstancia[] = [
       cuotasPendientes: 3,
       cuotasVencidas: 1,
       detalle: [
-        { concepto: 'Impuesto predial', periodo: '2026-T3', monto: '154.62', vencimiento: '2026-08-31' },
-        { concepto: 'Arbitrios', periodo: '2026-T3', monto: '154.62', vencimiento: '2026-08-31' },
-        { concepto: 'Arbitrios', periodo: '2026-T4', monto: '154.62', vencimiento: '2026-11-30' },
+        { id: 'q1', concepto: 'Impuesto Predial', periodo: '2026 - 3er Trimestre', venceEl: '2026-08-31', total: '154.62', vencida: true },
+        { id: 'q2', concepto: 'Arbitrios Municipales', periodo: '2026 - 3er Trimestre', venceEl: '2026-08-31', total: '154.62', vencida: false },
+        { id: 'q3', concepto: 'Arbitrios Municipales', periodo: '2026 - 4to Trimestre', venceEl: '2026-11-30', total: '154.62', vencida: false },
       ],
     },
     accionesPermitidas: ['DESAPROBAR'],

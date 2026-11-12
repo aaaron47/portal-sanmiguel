@@ -55,12 +55,6 @@ const Dato: React.FC<{ nombre: string; children: React.ReactNode }> = ({ nombre,
   </div>
 );
 
-/** Nombre legible de una columna del detalle de cuotas (`fechaVencimiento` → "Fecha vencimiento"). */
-const nombreColumna = (c: string) => {
-  const t = c.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
-  return t.charAt(0).toUpperCase() + t.slice(1);
-};
-
 export const ConstanciaDetalleModal: React.FC<ConstanciaDetalleModalProps> = ({ solicitud, onClose, onCambio, onExito }) => {
   const [detalle, setDetalle] = useState<SolicitudConstancia | null>(null);
   const [errorDetalle, setErrorDetalle] = useState<string | null>(null);
@@ -92,8 +86,8 @@ export const ConstanciaDetalleModal: React.FC<ConstanciaDetalleModalProps> = ({ 
   const puedeAprobar = puedeConstancia(s, 'APROBAR');
   const puedeDesaprobar = puedeConstancia(s, 'DESAPROBAR');
   const noAprobable = motivoNoAprobable(s);
-  const cuotas = s.deuda?.detalle ?? [];
-  const columnasCuotas = Array.from(new Set(cuotas.flatMap((c) => Object.keys(c))));
+  // El servidor no las ordena: primero la que vence antes.
+  const cuotas = [...(s.deuda?.detalle ?? [])].sort((x, y) => (x.venceEl ?? '').localeCompare(y.venceEl ?? ''));
   const motivoFalta = modo === 'DESAPROBAR' && texto.trim().length === 0;
 
   const elegir = (m: Modo) => {
@@ -199,11 +193,23 @@ export const ConstanciaDetalleModal: React.FC<ConstanciaDetalleModalProps> = ({ 
               <div className="table-container">
                 <table className="data-table">
                   <thead>
-                    <tr>{columnasCuotas.map((c) => <th key={c}>{nombreColumna(c)}</th>)}</tr>
+                    <tr>
+                      <th>Concepto</th>
+                      <th>Periodo</th>
+                      <th>Vence el</th>
+                      <th style={{ textAlign: 'right' }}>Total</th>
+                      <th>Situación</th>
+                    </tr>
                   </thead>
                   <tbody>
                     {cuotas.map((c, i) => (
-                      <tr key={i}>{columnasCuotas.map((col) => <td key={col} style={{ fontSize: '0.8rem' }}>{c[col] ?? '—'}</td>)}</tr>
+                      <tr key={c.id ?? i} style={{ fontSize: '0.8rem' }}>
+                        <td>{c.concepto}</td>
+                        <td>{c.periodo}</td>
+                        <td>{c.venceEl ? fechaPeru(c.venceEl) : '—'}</td>
+                        <td style={{ textAlign: 'right' }}>{importe(c.total, s.moneda)}</td>
+                        <td style={{ fontWeight: c.vencida ? 700 : 400 }}>{c.vencida ? 'Vencida' : 'Por vencer'}</td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
