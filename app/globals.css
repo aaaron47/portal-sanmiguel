@@ -1117,6 +1117,18 @@ dialog.ia-chat-modal-dialog[open] {
   color: var(--sky-600);
 }
 
+/* Reglas globales de impresión */
+@media print {
+  .no-imprimir {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+}
+
 
 
 
