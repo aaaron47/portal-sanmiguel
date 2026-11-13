@@ -91,12 +91,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
               style={{ objectFit: 'contain', width: 'auto', maxHeight: '76px' }}
             />
           </div>
-          <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--slate-900)', letterSpacing: '-0.02em' }}>
-            Portal San Miguel
-          </h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--slate-500)', marginTop: '0.25rem' }}>
-            Portal Único de Atención, Supervisión y Telemetría
-          </p>
         </div>
 
         {/* Mensaje de Error (Heurística Nielsen 9) */}
@@ -298,11 +292,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
             </div>
           </>
         )}
-
-        <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.75rem', color: 'var(--slate-400)' }}>
-          <ShieldCheck size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
-          Acceso protegido con cifrado y validación de token JWT
-        </div>
       </div>
     </div>
   );
