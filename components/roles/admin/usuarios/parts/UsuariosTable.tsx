@@ -68,7 +68,7 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
               <th style={{ width: '180px', padding: '0.6rem 0.65rem' }}>Rol Asignado</th>
               <th style={{ width: '190px', padding: '0.6rem 0.65rem' }}>Área Municipal</th>
               <th style={{ width: '110px', padding: '0.6rem 0.65rem' }}>Estado</th>
-              <th style={{ width: '170px', padding: '0.6rem 0.65rem' }}>Acceso MCP</th>
+              <th style={{ width: '180px', padding: '0.6rem 0.65rem' }}>Acceso a Reportes</th>
             </tr>
           </thead>
           <tbody>
@@ -86,9 +86,11 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
                   <tr
                     key={u.id}
                     onClick={() => onToggle(u.id)}
+                    className={isSelected ? 'selected' : undefined}
+                    data-selected={isSelected}
                     style={{
                       cursor: 'pointer',
-                      background: isSelected ? 'var(--sky-50)' : undefined,
+                      background: isSelected ? 'var(--table-row-selected)' : undefined,
                       transition: 'background-color 0.15s ease',
                     }}
                   >
@@ -133,17 +135,8 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
                           const val = e.target.value as NivelMcp | 'DESHABILITADO';
                           onCambiarAccesoMcp?.(u.id, val);
                         }}
-                        style={{
-                          fontSize: '0.72rem',
-                          padding: '0.25rem 0.4rem',
-                          borderRadius: '6px',
-                          border: '1px solid var(--border-color)',
-                          background: u.mcpHabilitado ? 'var(--sky-50)' : 'var(--bg-card)',
-                          color: u.mcpHabilitado ? 'var(--sky-800)' : 'var(--text-muted)',
-                          fontWeight: u.mcpHabilitado ? 600 : 400,
-                          cursor: 'pointer',
-                        }}
-                        title="Nivel de acceso MCP a Superset (sección 6 de la guía)"
+                        className={`select-acceso-mcp ${u.mcpHabilitado ? 'habilitado' : ''}`}
+                        title="Nivel de acceso a reportes y tableros de analítica"
                       >
                         <option value="DESHABILITADO">Deshabilitado</option>
                         <option value="CONSULTA">Solo consulta</option>

@@ -126,7 +126,7 @@ export function useUsuarios(onNotify: NotifyFn) {
               : u
           )
         );
-        onNotify('success', 'Acceso MCP retirado correctamente');
+        onNotify('success', 'Acceso a reportes retirado correctamente');
       } else {
         const resp = await iaDashboardsController.habilitarMcpPersonal(usuarioId, nuevoNivel);
         setUsuarios((prev) =>
@@ -144,15 +144,15 @@ export function useUsuarios(onNotify: NotifyFn) {
         );
         onNotify(
           'success',
-          `Acceso MCP habilitado (${resp.nivel}) para ${resp.supersetUsuario || 'usuario'}`
+          `Acceso a reportes habilitado (${resp.nivel === 'CONSULTA' ? 'Solo consulta' : 'Consulta y construcción'}) para ${resp.supersetUsuario || 'usuario'}`
         );
       }
     } catch (err) {
       onNotify(
         'error',
-        mensajeErrorApi(err, 'No se pudo actualizar el acceso MCP del usuario.', {
+        mensajeErrorApi(err, 'No se pudo actualizar el acceso a reportes del usuario.', {
           mcp_sin_usuario_superset:
-            'El personal no tiene una cuenta de Superset asociada. Debe crearse primero en Superset.',
+            'El personal no tiene una cuenta de analítica asociada. Debe crearse primero en el sistema de reportes.',
           bi_no_es_dueno: 'Solo el administrador o dueño puede modificar este acceso.',
         })
       );

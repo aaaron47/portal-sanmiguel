@@ -86,6 +86,7 @@
   --bg-card-subtle: var(--slate-100);
   --border-color: var(--slate-200);
   --border-focus: var(--sky-400);
+  --table-row-selected: rgba(14, 165, 233, 0.08);
 
   /* Tipografía */
   --text-main: var(--slate-900);
@@ -139,6 +140,7 @@
   --bg-card-subtle: #1a2744;
   --border-color: #24324c;
   --border-focus: var(--sky-500);
+  --table-row-selected: rgba(14, 165, 233, 0.18);
 
   /* Tipografía */
   --text-main: #f8fafc;
@@ -237,6 +239,16 @@ input, select, textarea {
   color: var(--text-main);
   border: 1px solid var(--border-color);
   transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
+}
+
+select option {
+  background-color: var(--bg-card);
+  color: var(--text-main);
+}
+
+[data-theme='dark'] select option {
+  background-color: #131d31;
+  color: #f8fafc;
 }
 
 ::placeholder {
@@ -805,6 +817,46 @@ input:focus, select:focus, textarea:focus {
   background-color: var(--bg-card-subtle);
 }
 
+.data-table tr.selected,
+.data-table tr[data-selected="true"] {
+  background-color: var(--table-row-selected, rgba(14, 165, 233, 0.08)) !important;
+}
+
+.data-table tr.selected:hover,
+.data-table tr[data-selected="true"]:hover {
+  background-color: rgba(14, 165, 233, 0.14) !important;
+}
+
+/* Selector de Acceso MCP en Gestión de Usuarios */
+.select-acceso-mcp {
+  font-size: 0.72rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+  color: var(--text-muted);
+  font-weight: 400;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.select-acceso-mcp:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+.select-acceso-mcp.habilitado {
+  background-color: rgba(14, 165, 233, 0.1);
+  color: var(--sky-700);
+  border-color: var(--sky-200);
+  font-weight: 600;
+}
+
+.select-acceso-mcp option {
+  background-color: var(--bg-card);
+  color: var(--text-main);
+}
+
 /* Modo Oscuro: Mayor contraste y legibilidad para textos secundarios de tablas */
 [data-theme='dark'] .data-table {
   --text-muted: #cbd5e1;
@@ -812,6 +864,27 @@ input:focus, select:focus, textarea:focus {
   --slate-400: #cbd5e1;
   --slate-500: #cbd5e1;
   --slate-600: #e2e8f0;
+}
+
+[data-theme='dark'] .data-table tr.selected,
+[data-theme='dark'] .data-table tr[data-selected="true"] {
+  background-color: rgba(14, 165, 233, 0.18) !important;
+}
+
+[data-theme='dark'] .data-table tr.selected:hover,
+[data-theme='dark'] .data-table tr[data-selected="true"]:hover {
+  background-color: rgba(14, 165, 233, 0.25) !important;
+}
+
+[data-theme='dark'] .select-acceso-mcp.habilitado {
+  background-color: rgba(14, 165, 233, 0.2);
+  color: var(--sky-300);
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+[data-theme='dark'] .select-acceso-mcp option {
+  background-color: #131d31;
+  color: #f8fafc;
 }
 
 [data-theme='dark'] .data-table th {
