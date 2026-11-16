@@ -546,6 +546,7 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
             key={`${dashboardActual.id}-${iframeRefreshKey}`}
             dashboardId={uuidEmbebido}
             height={isFullscreen ? 'calc(100vh - 130px)' : '620px'}
+            autoHeight={!isFullscreen}
             hideTitle
             hideTab={false}
             hideChartControls={false}

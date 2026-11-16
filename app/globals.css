@@ -1202,6 +1202,16 @@ dialog.ia-chat-modal-dialog[open] {
   color: var(--sky-600);
 }
 
+/* Iframe del SDK de Superset: ocupa todo su contenedor desde que se crea
+   (sin esto se ve con el tamaño por defecto del navegador, 300x150, hasta que termina de cargar) */
+.superset-embed-mount iframe {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  border: 0;
+  border-radius: 8px;
+}
+
 /* Reglas globales de impresión */
 @media print {
   .no-imprimir {

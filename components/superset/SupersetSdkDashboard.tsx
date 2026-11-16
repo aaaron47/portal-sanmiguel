@@ -10,7 +10,16 @@ import { mensajeErrorApi } from '@/services/api-client.service';
 export interface SupersetSdkDashboardProps {
   /** UUID del dashboard obtenido en Superset mediante "Embed dashboard" */
   dashboardId?: string;
+  /**
+   * Altura inicial (mientras carga) y altura fija cuando `autoHeight` es false.
+   * En pantallas bajas se limita al 85% del alto de la ventana.
+   */
   height?: string;
+  /**
+   * Ajusta la altura del contenedor al contenido real del dashboard (getScrollSize del SDK),
+   * para evitar el doble scroll (iframe + página) y el espacio vacío debajo del tablero.
+   */
+  autoHeight?: boolean;
   hideTitle?: boolean;
   hideTab?: boolean;
   hideChartControls?: boolean;
@@ -21,9 +30,14 @@ export interface SupersetSdkDashboardProps {
   style?: React.CSSProperties;
 }
 
+/** Límites para la altura automática (evita un contenedor diminuto o un crecimiento sin fin). */
+const ALTURA_MINIMA_PX = 320;
+const ALTURA_MAXIMA_PX = 6000;
+
 export const SupersetSdkDashboard: React.FC<SupersetSdkDashboardProps> = ({
   dashboardId,
   height = '750px',
+  autoHeight = true,
   hideTitle = true,
   hideTab = false,
   hideChartControls = false,
@@ -41,6 +55,13 @@ export const SupersetSdkDashboard: React.FC<SupersetSdkDashboardProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState<boolean>(Boolean(dashboardId));
   const [recargaKey, setRecargaKey] = useState<number>(0);
+  const [alturaContenido, setAlturaContenido] = useState<number | null>(null);
+  const autoHeightRef = useRef(autoHeight);
+
+  // Con autoHeight en false la altura medida se ignora en el estilo, no hace falta limpiarla
+  useEffect(() => {
+    autoHeightRef.current = autoHeight;
+  }, [autoHeight]);
 
   const reintentar = useCallback(() => {
     setRecargaKey((k) => k + 1);
@@ -57,9 +78,11 @@ export const SupersetSdkDashboard: React.FC<SupersetSdkDashboardProps> = ({
     if (!el || !dashboardId) return;
 
     let cancelado = false;
+    let intervaloAltura: ReturnType<typeof setInterval> | null = null;
     el.innerHTML = '';
     setError(null);
     setCargando(true);
+    setAlturaContenido(null);
 
     let supersetDomain = (process.env.NEXT_PUBLIC_SUPERSET_URL || '').replace(/\/$/, '');
     const temaInicial = temaActivoRef.current;
@@ -158,14 +181,30 @@ export const SupersetSdkDashboard: React.FC<SupersetSdkDashboardProps> = ({
         }
 
         setCargando(false);
+        // El tamaño del iframe lo da la clase .superset-embed-mount (globals.css) desde que se crea,
+        // así no aparece con el tamaño por defecto del navegador (300x150) mientras carga.
         const iframe = el.querySelector('iframe');
         if (iframe) {
-          iframe.style.width = '100%';
-          iframe.style.height = '100%';
-          iframe.style.border = 'none';
-          iframe.style.borderRadius = '8px';
           iframe.style.colorScheme = temaInicial;
         }
+
+        // Ajustar la altura al contenido real: el dashboard cambia de alto al cargar los gráficos,
+        // al abrir filtros o al cambiar de pestaña, por eso se consulta periódicamente.
+        const medirAltura = async () => {
+          if (cancelado || !autoHeightRef.current) return;
+          try {
+            const { height: alto } = await embeddedDashboard.getScrollSize();
+            if (cancelado || !autoHeightRef.current || !alto) return;
+            const altoAcotado = Math.min(Math.max(Math.ceil(alto), ALTURA_MINIMA_PX), ALTURA_MAXIMA_PX);
+            setAlturaContenido((prev) =>
+              prev !== null && Math.abs(prev - altoAcotado) < 4 ? prev : altoAcotado
+            );
+          } catch {
+            // El iframe aún no responde; se reintenta en el siguiente ciclo
+          }
+        };
+        medirAltura();
+        intervaloAltura = setInterval(medirAltura, 1000);
       } catch (e: unknown) {
         if (cancelado) return;
         setCargando(false);
@@ -177,6 +216,7 @@ export const SupersetSdkDashboard: React.FC<SupersetSdkDashboardProps> = ({
 
     return () => {
       cancelado = true;
+      if (intervaloAltura) clearInterval(intervaloAltura);
       if (dashboardInstanceRef.current) {
         try {
           dashboardInstanceRef.current.unmount();
@@ -214,7 +254,11 @@ export const SupersetSdkDashboard: React.FC<SupersetSdkDashboardProps> = ({
       className={className}
       style={{
         width: '100%',
-        height,
+        height: !autoHeight
+          ? height
+          : alturaContenido !== null
+            ? `${alturaContenido}px`
+            : `min(${height}, 85vh)`,
         borderRadius: '12px',
         overflow: 'hidden',
         position: 'relative',
@@ -334,7 +378,11 @@ export const SupersetSdkDashboard: React.FC<SupersetSdkDashboardProps> = ({
       )}
 
       {/* Contenedor donde el SDK inyecta el iframe */}
-      <div ref={containerRef} style={{ width: '100%', height: '100%', flex: 1 }} />
+      <div
+        ref={containerRef}
+        className="superset-embed-mount"
+        style={{ width: '100%', height: '100%', flex: 1, minHeight: 0 }}
+      />
     </div>
   );
 };
