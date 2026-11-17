@@ -1,4 +1,4 @@
-import { apiClient, usarDatosDemo } from '@/services/api-client.service';
+import { apiClient, ApiError, usarDatosDemo } from '@/services/api-client.service';
 import {
   CATALOGO_REPORTES_OFICIALES,
   ConstanciaItem,
@@ -216,6 +216,10 @@ export const MOCK_CONSTANCIAS: ConstanciaItem[] = [
   },
 ];
 
+// PDF base64 de demostración para visualización local de constancia firmada
+const DEMO_CONSTANCIA_PDF_BASE64 =
+  'JVBERi0xLjQKMSAwIG9iaiA8PC9UeXBlIC9DYXRhbG9nIC9QYWdlcyAyIDAgUj4+IGVuZG9iagoyIDAgb2JqIDw8L1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDE+PiBlbmRvYmoKMyAwIG9iaiA8PC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL1Jlc291cmNlcyA0IDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvQ29udGVudHMgNSAwIFI+PiBlbmRvYmoKNCAwIG9iaiA8PC9Gb250IDw8L0YxIDw8L1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhLUJvbGQ+PiwgL0YyIDw8L1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhPj4+Pj4+IGVuZG9iago1IDAgb2JqIDw8L0xlbmd0aCA2MzM+PiBzdHJlYW0KQlQKL0YxIDE2IFRmCjUwIDc4MCBUZAooTVVOSUNJUEFMSURBRCBESVNUUklUQUwgREUgU0FOIE1JR1VFTCkgVGoKL0YyIDEwIFRmCjAgLTIwIFRkCihHRVJFTkNJQSBERSBBRE1JTklTVFJBQ0lPTiBUUklCVVRBUklBIC0gU1VCR0VSRU5DSUEgREUgUkVDQVVEQUNJT04pIFRqCjAgLTQwIFRkCi9GMSAxNCBUZgooQ09OU1RBTkNJQSBERSBOTyBBREVVRE8gVFJJQlVUQVJJTykgVGoKL0YyIDExIFRmCjAgLTMwIFRkCihQb3IgbWVkaW8gZGVsIHByZXNlbnRlIGRvY3VtZW50bywgbGEgTXVuaWNpcGFsaWRhZCBEaXN0cml0YWwgZGUgU2FuIE1pZ3VlbCkgVGoKMCAtMTggVGQKKENFUlRJRklDQSBxdWUgZWwgY29udHJpYnV5ZW50ZSBOTyBSRUdJU1RSQSBERVVEQSBUUklCVVRBUklBIHBlbmRpZW50ZSkgVGoKMCAtMTggVGQKKGRlIHBhZ28gcG9yIGNvbmNlcHRvIGRlIEltcHVlc3RvIFByZWRpYWwgbmkgQXJiaXRyaW9zIE11bmljaXBhbGVzLikgVGoKMCAtMzUgVGQKKERvY3VtZW50byBvZmljaWFsIGZpcm1hZG8gZGlnaXRhbG1lbnRlIGNvbmZvcm1lIGEgbGEgTGV5IE4gMjcyNjkuKSBUagowIC0yNSBUZAovRjEgMTAgVGYKKEZpcm1hIERpZ2l0YWw6IFBBZEVTIC8gUkVOSUVDIC0gRXN0YWRvIFBlcnVhbm8pIFRqCkVUCmVuZHN0cmVhbQplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDA5IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAKMDAwMDAwMDExNSAwMDAwMCBuIAowMDAwMDAwMjE2IDAwMDAwIG4gCjAwMDAwMDAzMzEgMDAwMDAgbiAKdHJhaWxlciA8PC9TaXplIDYgL1Jvb3QgMSAwIFI+PgpzdGFydHhyZWYKMTA2MwolJUVPRg==';
+
 export class ReportesController {
   /** `periodo`: "2026-10" (mes) o "2026-T3" (trimestre). Los datos simulados no cambian por período. */
   async getKpis(periodo: string): Promise<KpisReporte> {
@@ -267,7 +271,8 @@ export class ReportesController {
         }
       );
     } catch (err) {
-      if (!usarDatosDemo(err)) throw err;
+      const es404 = err instanceof ApiError && err.status === 404;
+      if (!usarDatosDemo(err) && !es404) throw err;
       const info =
         CATALOGO_REPORTES_OFICIALES.find((r) => r.codigo === codigo) ||
         CATALOGO_REPORTES_OFICIALES[0];
@@ -322,7 +327,8 @@ export class ReportesController {
         },
       });
     } catch (err) {
-      if (!usarDatosDemo(err)) throw err;
+      const es404 = err instanceof ApiError && err.status === 404;
+      if (!usarDatosDemo(err) && !es404) throw err;
       const q = busqueda.toLowerCase();
       const filtradas = MOCK_CONSTANCIAS.filter((item) => {
         const matchEstado =
@@ -357,7 +363,8 @@ export class ReportesController {
         `/reportes/constancias/${encodeURIComponent(constanciaId)}/pdf`
       );
     } catch (err) {
-      if (!usarDatosDemo(err)) throw err;
+      const es404 = err instanceof ApiError && err.status === 404;
+      if (!usarDatosDemo(err) && !es404) throw err;
       const detalle =
         MOCK_CONSTANCIAS.find((c) => c.id === constanciaId || c.folio === constanciaId) ||
         MOCK_CONSTANCIAS[0];
@@ -366,7 +373,7 @@ export class ReportesController {
         constanciaId: detalle.id,
         folio: detalle.folio,
         pdfUrl: undefined,
-        pdfBase64: undefined,
+        pdfBase64: detalle.firmadoDigitalmente ? DEMO_CONSTANCIA_PDF_BASE64 : undefined,
         mimeType: 'application/pdf',
         nombreArchivo: `${detalle.folio}.pdf`,
         firmadoDigitalmente: detalle.firmadoDigitalmente,

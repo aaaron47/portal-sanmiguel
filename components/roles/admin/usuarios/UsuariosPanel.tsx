@@ -47,6 +47,7 @@ export const UsuariosPanel: React.FC<{ onNotify: NotifyFn }> = ({ onNotify }) =>
         todosSeleccionados={u.todosSeleccionados}
         onToggle={u.toggleSeleccion}
         onToggleTodos={u.toggleTodos}
+        onCambiarAccesoMcp={u.cambiarAccesoMcp}
       />
     </div>
   );

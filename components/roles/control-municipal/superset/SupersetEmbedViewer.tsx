@@ -8,6 +8,9 @@ import {
   RefreshCw,
   Download,
   FileSpreadsheet,
+  Globe,
+  Lock,
+  Share2,
 } from 'lucide-react';
 import {
   ModuloAnalitico,
@@ -17,11 +20,30 @@ import {
 import { CATALOGO_REPORTES_OFICIALES, ReporteItemInfo } from '@/types/reportes-tributarios.types';
 import {
   DASHBOARDS_SUPERSET_CONTROL_MUNICIPAL,
+  formatearErrorIaBackend,
   iaDashboardsController,
 } from '@/controllers/ia-dashboards.controller';
 import { exportarCSV } from '@/utils/csv.utils';
+import { SupersetSdkDashboard } from '@/components/superset/SupersetSdkDashboard';
+import { useTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 
 export const DASHBOARDS_PREDEFINIDOS: SupersetDashboardInfo[] = DASHBOARDS_SUPERSET_CONTROL_MUNICIPAL;
+
+function inyectarParametrosTemaUrl(url: string, tema: 'light' | 'dark'): string {
+  if (!url) return url;
+  try {
+    const modo = tema === 'dark' ? 'dark' : 'default';
+    const parsed = new URL(url, typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+    parsed.searchParams.set('themeMode', modo);
+    parsed.searchParams.set('theme', tema);
+    return parsed.toString();
+  } catch {
+    const modo = tema === 'dark' ? 'dark' : 'default';
+    const separador = url.includes('?') ? '&' : '?';
+    return `${url}${separador}themeMode=${modo}&theme=${tema}`;
+  }
+}
 
 interface SupersetEmbedViewerProps {
   modulo?: ModuloAnalitico;
@@ -41,6 +63,8 @@ interface SupersetEmbedViewerProps {
   isFullscreen?: boolean;
   /** Callback para alternar pantalla completa desde el contenedor padre */
   onToggleFullscreen?: () => void;
+  /** Callback opcional cuando se sube a oficial o se devuelve a borrador */
+  onPublicarDashboard?: (dashboardId: string | number, publicar: boolean) => Promise<void>;
 }
 
 export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
@@ -55,7 +79,9 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
   controlDerechoCabecera,
   isFullscreen: externalFullscreen,
   onToggleFullscreen,
+  onPublicarDashboard,
 }) => {
+  const { theme } = useTheme();
   const [internalId, setInternalId] = useState(dashboardSeleccionadoId);
   const [internalFullscreen, setInternalFullscreen] = useState(false);
   const [recargando, setRecargando] = useState(false);
@@ -90,13 +116,109 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
     dashboardsDisponibles.find((d) => d.id === activeId) ||
     DASHBOARDS_PREDEFINIDOS[0];
 
+  const { rol } = useAuth();
+  const esAdmin = rol === 'ADMIN';
+
+  const [uuidManual, setUuidManual] = useState<Record<string, string | null>>({});
+  const [publicadoManual, setPublicadoManual] = useState<Record<string, boolean>>({});
+  const [habilitandoEmbebido, setHabilitandoEmbebido] = useState(false);
+  const [mensajeEmbebido, setMensajeEmbebido] = useState<string | null>(null);
+  const [errorEmbebido, setErrorEmbebido] = useState<string | null>(null);
+  const [publicando, setPublicando] = useState(false);
+
+  const sidNumerico =
+    dashboardActual.supersetId ??
+    (Number.isInteger(Number(dashboardActual.id)) ? Number(dashboardActual.id) : null);
+
+  const uuidEmbebido =
+    uuidManual[dashboardActual.id] !== undefined
+      ? uuidManual[dashboardActual.id] || undefined
+      : dashboardActual.embedUuid ||
+        (dashboardActual.embedKey && dashboardActual.embedKey.length > 20 ? dashboardActual.embedKey : undefined);
+
+  const estadoPublicado =
+    publicadoManual[dashboardActual.id] !== undefined
+      ? publicadoManual[dashboardActual.id]
+      : dashboardActual.publicado;
+
+  const handleHabilitarEmbebido = async () => {
+    if (!sidNumerico) return;
+    setHabilitandoEmbebido(true);
+    setErrorEmbebido(null);
+    setMensajeEmbebido('Solicitando habilitar embebido...');
+    try {
+      const res = await iaDashboardsController.habilitarEmbebidoConReintentos(
+        sidNumerico,
+        (intento: number) => {
+          setMensajeEmbebido(
+            `Preparando gráficos en Superset (intento ${intento})... reintentando en unos segundos`
+          );
+        }
+      );
+      setUuidManual((prev) => ({ ...prev, [dashboardActual.id]: res.uuid }));
+      dashboardActual.embedUuid = res.uuid;
+      setMensajeEmbebido(null);
+    } catch (err) {
+      setErrorEmbebido(
+        formatearErrorIaBackend(
+          err,
+          'No se pudo habilitar el embebido. Asegúrate de ser dueño del dashboard en Superset.'
+        )
+      );
+    } finally {
+      setHabilitandoEmbebido(false);
+    }
+  };
+
+  const handleAlternarPublicacion = async () => {
+    const idDashboard = sidNumerico ?? dashboardActual.id;
+    if (!idDashboard) return;
+    setPublicando(true);
+    try {
+      const nuevo = !estadoPublicado;
+      if (onPublicarDashboard) {
+        await onPublicarDashboard(idDashboard, nuevo);
+      } else if (sidNumerico) {
+        const res = await iaDashboardsController.publicarDashboard(sidNumerico, nuevo);
+        dashboardActual.publicado = res.publicado;
+      }
+      setPublicadoManual((prev) => ({ ...prev, [dashboardActual.id]: nuevo }));
+      dashboardActual.publicado = nuevo;
+    } catch (err) {
+      alert(
+        formatearErrorIaBackend(
+          err,
+          'No se pudo actualizar el estado de publicación del dashboard.'
+        )
+      );
+    } finally {
+      setPublicando(false);
+    }
+  };
+
+  const handleRetirarEmbebido = async () => {
+    if (!sidNumerico) return;
+    if (!confirm('¿Deseas retirar el embebido de este dashboard en Apache Superset?')) return;
+    setHabilitandoEmbebido(true);
+    try {
+      await iaDashboardsController.retirarEmbebido(sidNumerico);
+      setUuidManual((prev) => ({ ...prev, [dashboardActual.id]: null }));
+      dashboardActual.embedUuid = null;
+    } catch (err) {
+      alert(formatearErrorIaBackend(err, 'No se pudo retirar el embebido del dashboard.'));
+    } finally {
+      setHabilitandoEmbebido(false);
+    }
+  };
+
   const cargarEmbedToken = useCallback(
     async (idDashboard: string, mostrarSpinner = false) => {
       if (mostrarSpinner) setRecargando(true);
       try {
         const cfg = await iaDashboardsController.getSupersetEmbedToken(
           idDashboard,
-          dashboardActual.modulo || modulo
+          dashboardActual.modulo || modulo,
+          theme
         );
         setEmbedConfig(cfg);
       } catch {
@@ -105,14 +227,15 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
         if (mostrarSpinner) setRecargando(false);
       }
     },
-    [dashboardActual.modulo, modulo]
+    [dashboardActual.modulo, modulo, theme]
   );
 
   // Carga inicial del token al cambiar de tablero (sin spinner). "Recargar" usa cargarEmbedToken.
   useEffect(() => {
     let cancelado = false;
+    if (uuidEmbebido) return;
     iaDashboardsController
-      .getSupersetEmbedToken(dashboardActual.id, dashboardActual.modulo || modulo)
+      .getSupersetEmbedToken(dashboardActual.id, dashboardActual.modulo || modulo, theme)
       .then((cfg) => {
         if (!cancelado) setEmbedConfig(cfg);
       })
@@ -122,7 +245,7 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
     return () => {
       cancelado = true;
     };
-  }, [dashboardActual.id, dashboardActual.modulo, modulo]);
+  }, [dashboardActual.id, dashboardActual.modulo, modulo, theme, uuidEmbebido]);
 
   const handleSelect = (id: string) => {
     setInternalId(id);
@@ -131,7 +254,9 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
 
   const handleRecargar = () => {
     setIframeRefreshKey((prev) => prev + 1);
-    cargarEmbedToken(dashboardActual.id, true);
+    if (!uuidEmbebido) {
+      cargarEmbedToken(dashboardActual.id, true);
+    }
   };
 
   const handleDescargarPlantilla = (rep: ReporteItemInfo) => {
@@ -191,7 +316,7 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
                   <strong
                     style={{
                       fontSize: '0.8rem',
-                      color: 'var(--sky-700)',
+                      color: theme === 'dark' ? 'var(--sky-400)' : 'var(--sky-700)',
                       display: 'block',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
@@ -232,6 +357,98 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
         {/* Acciones del visor */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           {controlDerechoCabecera}
+
+          {/* Acciones de gestión y publicación: Subir a oficial / Devolver a borrador */}
+          {(sidNumerico !== null || onPublicarDashboard) && (
+            estadoPublicado ? (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span
+                  className="badge badge-success"
+                  style={{
+                    fontSize: '0.72rem',
+                    padding: '0.35rem 0.55rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                  }}
+                  title="Dashboard oficial publicado y visible para todos los usuarios"
+                >
+                  <Globe size={12} />
+                  Oficial
+                </span>
+
+                <button
+                  type="button"
+                  onClick={handleAlternarPublicacion}
+                  disabled={publicando}
+                  className="btn btn-secondary"
+                  style={{
+                    fontSize: '0.78rem',
+                    padding: '0.4rem 0.65rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                  }}
+                  title="Devolver este dashboard a borrador privado"
+                >
+                  <Lock size={13} />
+                  <span>{publicando ? 'Guardando...' : 'Devolver a borrador'}</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleAlternarPublicacion}
+                disabled={publicando}
+                className="btn btn-primary"
+                style={{
+                  fontSize: '0.78rem',
+                  padding: '0.4rem 0.65rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                }}
+                title="Subir borrador a oficial (visible para todos los usuarios de Control Municipal)"
+              >
+                <Globe size={13} />
+                <span>{publicando ? 'Subiendo...' : 'Subir a oficial'}</span>
+              </button>
+            )
+          )}
+
+          {!uuidEmbebido && sidNumerico !== null && (
+            <button
+              type="button"
+              onClick={handleHabilitarEmbebido}
+              disabled={habilitandoEmbebido}
+              className="btn btn-primary"
+              style={{
+                fontSize: '0.78rem',
+                padding: '0.4rem 0.65rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+              }}
+              title="Habilitar embebido en Superset para este dashboard"
+            >
+              <Share2 size={13} />
+              <span>{habilitandoEmbebido ? 'Preparando...' : 'Habilitar embebido'}</span>
+            </button>
+          )}
+
+          {uuidEmbebido && sidNumerico !== null && esAdmin && (
+            <button
+              type="button"
+              onClick={handleRetirarEmbebido}
+              disabled={habilitandoEmbebido}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.78rem', padding: '0.4rem 0.55rem' }}
+              title="Retirar embebido de Apache Superset"
+            >
+              <Share2 size={13} style={{ opacity: 0.7 }} />
+            </button>
+          )}
+
           <button
             onClick={handleRecargar}
             disabled={recargando}
@@ -265,9 +482,13 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
                 padding: '0.45rem 0.85rem',
                 borderRadius: '8px',
                 border: '1px solid',
-                borderColor: activeId === d.id ? 'var(--sky-600)' : 'var(--border-color)',
-                background: activeId === d.id ? 'var(--sky-50)' : 'var(--bg-card-subtle)',
-                color: activeId === d.id ? 'var(--sky-700)' : 'var(--text-muted)',
+                borderColor: activeId === d.id ? 'var(--sky-500)' : 'var(--border-color)',
+                background: activeId === d.id
+                  ? theme === 'dark' ? 'rgba(14, 165, 233, 0.18)' : 'var(--sky-50)'
+                  : 'var(--bg-card-subtle)',
+                color: activeId === d.id
+                  ? theme === 'dark' ? 'var(--sky-300)' : 'var(--sky-700)'
+                  : 'var(--text-muted)',
                 fontSize: '0.8rem',
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -319,11 +540,22 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
               </div>
             </div>
           </div>
-        ) : embedConfig?.embedUrl ? (
-          /* Embebido real de Apache Superset mediante Key (embedKey) y Dominio Permitido (Allowed Domains) */
-          <iframe
+        ) : uuidEmbebido ? (
+          /* Embebido oficial mediante Apache Superset SDK con Guest Token y seguridad RLS */
+          <SupersetSdkDashboard
             key={`${dashboardActual.id}-${iframeRefreshKey}`}
-            src={embedConfig.embedUrl}
+            dashboardId={uuidEmbebido}
+            height={isFullscreen ? 'calc(100vh - 130px)' : '620px'}
+            hideTitle
+            hideTab={false}
+            hideChartControls={false}
+            theme={theme}
+          />
+        ) : embedConfig?.embedUrl ? (
+          /* Fallback con URL directa si existiese */
+          <iframe
+            key={`${dashboardActual.id}-${iframeRefreshKey}-${theme}`}
+            src={inyectarParametrosTemaUrl(embedConfig.embedUrl, theme)}
             title={dashboardActual.titulo}
             allow="fullscreen"
             referrerPolicy="strict-origin-when-cross-origin"
@@ -332,10 +564,55 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
               height: isFullscreen ? 'calc(100vh - 130px)' : '620px',
               border: 'none',
               display: 'block',
+              colorScheme: theme,
+              background: 'var(--bg-card)',
             }}
           />
         ) : (
           <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+            {/* Aviso si el dashboard de Superset no tiene el embebido habilitado (sección 3.1) */}
+            {sidNumerico !== null && (
+              <div
+                style={{
+                  padding: '1rem 1.25rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                  flexWrap: 'wrap',
+                  background: 'var(--bg-card)',
+                  borderRadius: '10px',
+                  border: '1px dashed var(--border-color)',
+                }}
+              >
+                <div>
+                  <strong style={{ fontSize: '0.85rem', color: 'var(--text-main)', display: 'block' }}>
+                    Embebido no habilitado en Superset
+                  </strong>
+                  <span
+                    style={{
+                      fontSize: '0.76rem',
+                      color: errorEmbebido ? 'var(--red-600)' : 'var(--text-muted)',
+                    }}
+                  >
+                    {mensajeEmbebido ||
+                      errorEmbebido ||
+                      'El dashboard existe en Superset pero su identificador de embebido no está activo (embedUuid: null).'}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleHabilitarEmbebido}
+                  disabled={habilitandoEmbebido}
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.78rem', padding: '0.38rem 0.85rem' }}
+                >
+                  {habilitandoEmbebido ? 'Preparando embebido...' : 'Habilitar embebido'}
+                </button>
+              </div>
+            )}
 
             {/* Métricas Resumen del Dashboard */}
             {dashboardActual.metricasResumen && dashboardActual.metricasResumen.length > 0 && (
@@ -357,7 +634,10 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
                       style={{
                         fontSize: '1.35rem',
                         fontWeight: 800,
-                        color: m.positivo === false ? 'var(--amber-700)' : 'var(--sky-700)',
+                        color:
+                          m.positivo === false
+                            ? theme === 'dark' ? 'var(--amber-400)' : 'var(--amber-700)'
+                            : theme === 'dark' ? 'var(--sky-400)' : 'var(--sky-700)',
                       }}
                     >
                       {m.valor}
@@ -408,10 +688,10 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
                                     fontWeight: 800,
                                     color:
                                       item.tono === 'positivo'
-                                        ? 'var(--green-600)'
+                                        ? theme === 'dark' ? 'var(--green-400)' : 'var(--green-600)'
                                         : item.tono === 'negativo'
-                                          ? 'var(--red-600)'
-                                          : 'var(--amber-700)',
+                                          ? theme === 'dark' ? 'var(--red-400)' : 'var(--red-600)'
+                                          : theme === 'dark' ? 'var(--amber-400)' : 'var(--amber-700)',
                                   }}
                                 >
                                   {item.valor}
@@ -443,10 +723,10 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
                                     height: '100%',
                                     background:
                                       item.tono === 'positivo'
-                                        ? 'var(--green-600)'
+                                        ? theme === 'dark' ? 'var(--green-500)' : 'var(--green-600)'
                                         : item.tono === 'negativo'
-                                          ? 'var(--red-600)'
-                                          : 'var(--sky-600)',
+                                          ? theme === 'dark' ? 'var(--red-500)' : 'var(--red-600)'
+                                          : theme === 'dark' ? 'var(--sky-500)' : 'var(--sky-600)',
                                   }}
                                 />
                               </div>
@@ -474,11 +754,11 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
                                 style={{
                                   color:
                                     item.tono === 'positivo'
-                                      ? 'var(--green-600)'
+                                      ? theme === 'dark' ? 'var(--green-400)' : 'var(--green-600)'
                                       : item.tono === 'negativo'
-                                        ? 'var(--red-600)'
+                                        ? theme === 'dark' ? 'var(--red-400)' : 'var(--red-600)'
                                         : item.tono === 'alerta'
-                                          ? 'var(--amber-700)'
+                                          ? theme === 'dark' ? 'var(--amber-400)' : 'var(--amber-700)'
                                           : 'var(--text-main)',
                                 }}
                               >
@@ -509,12 +789,12 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', height: '120px' }}>
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--amber-700)' }}>S/ 14.8M</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 800, color: theme === 'dark' ? 'var(--amber-400)' : 'var(--amber-700)' }}>S/ 14.8M</div>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Deuda Sin Beneficio</span>
                     </div>
                     <div style={{ width: '1px', height: '50px', background: 'var(--border-color)' }} />
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--green-600)' }}>S/ 11.2M</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 800, color: theme === 'dark' ? 'var(--green-400)' : 'var(--green-600)' }}>S/ 11.2M</div>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Deuda Con Beneficio</span>
                     </div>
                   </div>
@@ -527,15 +807,15 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
                       <span>PRICOS al Día (2026)</span>
-                      <strong style={{ color: 'var(--green-600)' }}>342 contribuyentes (68%)</strong>
+                      <strong style={{ color: theme === 'dark' ? 'var(--green-400)' : 'var(--green-600)' }}>342 contribuyentes (68%)</strong>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
                       <span>PRICOS con Deuda Anterior</span>
-                      <strong style={{ color: 'var(--red-600)' }}>161 contribuyentes (32%)</strong>
+                      <strong style={{ color: theme === 'dark' ? 'var(--red-400)' : 'var(--red-600)' }}>161 contribuyentes (32%)</strong>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
                       <span>R2. Cero Pagos (2022-2025)</span>
-                      <strong style={{ color: 'var(--amber-700)' }}>89 contribuyentes</strong>
+                      <strong style={{ color: theme === 'dark' ? 'var(--amber-400)' : 'var(--amber-700)' }}>89 contribuyentes</strong>
                     </div>
                   </div>
                 </div>
@@ -555,7 +835,7 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
                         <strong>78.4%</strong>
                       </div>
                       <div style={{ height: '8px', background: 'var(--bg-card-subtle)', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div style={{ width: '78.4%', height: '100%', background: 'var(--green-600)' }} />
+                        <div style={{ width: '78.4%', height: '100%', background: theme === 'dark' ? 'var(--green-500)' : 'var(--green-600)' }} />
                       </div>
                     </div>
                     <div>
@@ -564,7 +844,7 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
                         <strong>21.6%</strong>
                       </div>
                       <div style={{ height: '8px', background: 'var(--bg-card-subtle)', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div style={{ width: '21.6%', height: '100%', background: 'var(--red-600)' }} />
+                        <div style={{ width: '21.6%', height: '100%', background: theme === 'dark' ? 'var(--red-500)' : 'var(--red-600)' }} />
                       </div>
                     </div>
                   </div>
@@ -576,12 +856,12 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', height: '120px' }}>
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--sky-700)' }}>4,820</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 800, color: theme === 'dark' ? 'var(--sky-400)' : 'var(--sky-700)' }}>4,820</div>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Valores Emitidos</span>
                     </div>
                     <div style={{ width: '1px', height: '50px', background: 'var(--border-color)' }} />
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--green-600)' }}>S/ 3.4M</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 800, color: theme === 'dark' ? 'var(--green-400)' : 'var(--green-600)' }}>S/ 3.4M</div>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Recaudado por Coactiva</span>
                     </div>
                   </div>

@@ -11,6 +11,7 @@ import {
   XCircle
 } from 'lucide-react';
 import { Usuario, ROLE_LABELS } from '@/types/auth.types';
+import { NivelMcp } from '@/types/superset.types';
 
 interface UsuariosTableProps {
   usuarios: Usuario[];
@@ -18,6 +19,7 @@ interface UsuariosTableProps {
   todosSeleccionados: boolean;
   onToggle: (id: string) => void;
   onToggleTodos: () => void;
+  onCambiarAccesoMcp?: (id: string, nivel: NivelMcp | 'DESHABILITADO') => void;
 }
 
 export const UsuariosTable: React.FC<UsuariosTableProps> = ({
@@ -26,6 +28,7 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
   todosSeleccionados,
   onToggle,
   onToggleTodos,
+  onCambiarAccesoMcp,
 }) => {
   const [paginaActual, setPaginaActual] = useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
@@ -65,12 +68,13 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
               <th style={{ width: '180px', padding: '0.6rem 0.65rem' }}>Rol Asignado</th>
               <th style={{ width: '190px', padding: '0.6rem 0.65rem' }}>Área Municipal</th>
               <th style={{ width: '110px', padding: '0.6rem 0.65rem' }}>Estado</th>
+              <th style={{ width: '180px', padding: '0.6rem 0.65rem' }}>Acceso a Reportes</th>
             </tr>
           </thead>
           <tbody>
             {usuarios.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--text-muted)' }}>
+                <td colSpan={7} style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--text-muted)' }}>
                   <AlertCircle size={22} style={{ margin: '0 auto 0.5rem', display: 'block', color: 'var(--slate-400)' }} />
                   No se encontraron usuarios coincidentes con los filtros aplicados.
                 </td>
@@ -82,9 +86,11 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
                   <tr
                     key={u.id}
                     onClick={() => onToggle(u.id)}
+                    className={isSelected ? 'selected' : undefined}
+                    data-selected={isSelected}
                     style={{
                       cursor: 'pointer',
-                      background: isSelected ? 'var(--sky-50)' : undefined,
+                      background: isSelected ? 'var(--table-row-selected)' : undefined,
                       transition: 'background-color 0.15s ease',
                     }}
                   >
@@ -120,6 +126,26 @@ export const UsuariosTable: React.FC<UsuariosTableProps> = ({
                         <span className="badge badge-neutral" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.725rem', color: 'var(--text-dim)' }}>
                           <XCircle size={12} /> Inactivo
                         </span>
+                      )}
+                    </td>
+                    <td onClick={(e) => e.stopPropagation()} style={{ padding: '0.5rem 0.65rem' }}>
+                      <select
+                        value={u.mcpHabilitado ? (u.mcpNivel || 'CONSULTA') : 'DESHABILITADO'}
+                        onChange={(e) => {
+                          const val = e.target.value as NivelMcp | 'DESHABILITADO';
+                          onCambiarAccesoMcp?.(u.id, val);
+                        }}
+                        className={`select-acceso-mcp ${u.mcpHabilitado ? 'habilitado' : ''}`}
+                        title="Nivel de acceso a reportes y tableros de analítica"
+                      >
+                        <option value="DESHABILITADO">Deshabilitado</option>
+                        <option value="CONSULTA">Solo consulta</option>
+                        <option value="CONSTRUCCION">Consulta y construcción</option>
+                      </select>
+                      {u.supersetUsuario && (
+                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                          Superset: {u.supersetUsuario}
+                        </div>
                       )}
                     </td>
                   </tr>
