@@ -169,7 +169,7 @@ export const ReportesTributariosView: React.FC = () => {
     return datosSuperset[tablaActiva.id]?.filas || [];
   }, [tablaActiva, datosSuperset]);
 
-  // Enmascaramiento de privacidad de DNI / RUC según la Ley 29733
+  // Enmascaramiento de privacidad de DNI / RUC y Nombres según la Ley 29733
   const enmascararValor = (valor: string, colIdx: number) => {
     if (!enmascararPrivacidad) return valor;
     const colNombre = (cabeceras[colIdx] || '').toLowerCase();
@@ -182,6 +182,19 @@ export const ReportesTributariosView: React.FC = () => {
     if (esIdentificador && valor.length >= 8) {
       return `${valor.slice(0, 2)}****${valor.slice(-2)}`;
     }
+
+    const esNombre =
+      colNombre.includes('nombre') ||
+      colNombre.includes('contribuyente') ||
+      colNombre.includes('razon') ||
+      colNombre.includes('titular');
+    if (esNombre && valor) {
+      const palabras = valor.split(' ');
+      return palabras
+        .map((p) => (p.length > 2 ? `${p[0]}${'*'.repeat(Math.min(4, p.length - 1))}` : p))
+        .join(' ');
+    }
+
     return valor;
   };
 
@@ -444,188 +457,121 @@ export const ReportesTributariosView: React.FC = () => {
         <div
           style={{
             display: 'flex',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
+            justifyContent: 'space-between',
             alignItems: 'flex-end',
+            flexWrap: 'wrap',
+            gap: '1rem',
             marginBottom: '1.25rem',
           }}
         >
-          {/* Selector de Reporte Certificado */}
-          <FilterSelectWrapper label="Reporte Oficial Certificado" width="320px">
-            <select
-              aria-label="Seleccionar reporte certificado"
-              value={selectedTablaId ?? ''}
-              onChange={(e) => {
-                setSelectedTablaId(Number(e.target.value));
-                setPaginaActual(1);
-                setTablaIncompleta(false);
-              }}
-              disabled={tablasBi.length === 0}
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', flex: 1, alignItems: 'flex-end' }}>
+            {/* Selector de Reporte Certificado */}
+            <FilterSelectWrapper label="Reporte Oficial Certificado" width="320px">
+              <select
+                aria-label="Seleccionar reporte certificado"
+                value={selectedTablaId ?? ''}
+                onChange={(e) => {
+                  setSelectedTablaId(Number(e.target.value));
+                  setPaginaActual(1);
+                  setTablaIncompleta(false);
+                }}
+                disabled={tablasBi.length === 0}
+                style={{
+                  ...ESTILO_SELECT_FILTRO,
+                  width: '100%',
+                  fontWeight: 600,
+                  cursor: tablasBi.length > 0 ? 'pointer' : 'not-allowed',
+                }}
+              >
+                {tablasBi.length === 0 ? (
+                  <option value="">(Sin reportes certificados disponibles)</option>
+                ) : (
+                  tablasBi.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.nombre} {t.descripcion ? `— ${t.descripcion}` : ''}
+                    </option>
+                  ))
+                )}
+              </select>
+            </FilterSelectWrapper>
+
+            {/* Buscador dentro de los registros */}
+            <div
               style={{
-                ...ESTILO_SELECT_FILTRO,
-                width: '100%',
-                fontWeight: 600,
-                cursor: tablasBi.length > 0 ? 'pointer' : 'not-allowed',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.25rem',
+                flex: 1,
+                minWidth: '220px',
+                maxWidth: '380px',
               }}
             >
-              {tablasBi.length === 0 ? (
-                <option value="">(Sin reportes certificados disponibles)</option>
-              ) : (
-                tablasBi.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.nombre} {t.descripcion ? `— ${t.descripcion}` : ''}
-                  </option>
-                ))
-              )}
-            </select>
-          </FilterSelectWrapper>
+              <label style={ESTILO_LABEL_FILTRO}>Buscar en la tabla</label>
+              <SearchInput
+                value={busquedaTexto}
+                onChange={(val) => {
+                  setBusquedaTexto(val);
+                  setPaginaActual(1);
+                }}
+                placeholder="Filtrar por contribuyente, DNI, detalle..."
+              />
+            </div>
 
-          {/* Buscador dentro de los registros */}
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.25rem',
-              flex: 1,
-              minWidth: '220px',
-              maxWidth: '380px',
-            }}
-          >
-            <label style={ESTILO_LABEL_FILTRO}>Buscar en la tabla</label>
-            <SearchInput
-              value={busquedaTexto}
-              onChange={(val) => {
-                setBusquedaTexto(val);
+            {/* Botón para limpiar filtro de búsqueda */}
+            <FilterResetButton
+              onReset={() => {
+                setBusquedaTexto('');
                 setPaginaActual(1);
               }}
-              placeholder="Filtrar por contribuyente, DNI, detalle..."
+              activo={Boolean(busquedaTexto.trim())}
+              title="Limpiar búsqueda"
             />
           </div>
 
-          {/* Botón para limpiar filtro de búsqueda */}
-          <FilterResetButton
-            onReset={() => {
-              setBusquedaTexto('');
-              setPaginaActual(1);
-            }}
-            activo={Boolean(busquedaTexto.trim())}
-            title="Limpiar búsqueda"
-          />
-
-          {/* Botones de acción: Privacidad (ojo) + Descargas CSV / Excel */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'flex-end',
-              gap: '0.5rem',
-              marginLeft: 'auto',
-              flexWrap: 'wrap',
-            }}
-          >
-            {/* Botón de ojo (solo icono) para privacidad */}
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.25rem',
-                justifyContent: 'flex-end',
-              }}
+          {/* Botones de acción: Privacidad (ojo) + Descargas CSV / Excel alineados con el panel de constancias */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', paddingBottom: '0.1rem' }}>
+            <button
+              type="button"
+              onClick={() => setEnmascararPrivacidad((prev) => !prev)}
+              className={`btn ${enmascararPrivacidad ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ fontSize: '0.85rem' }}
+              aria-label={
+                enmascararPrivacidad
+                  ? 'Mostrar datos sensibles completos'
+                  : 'Ocultar / enmascarar datos personales (DNI / RUC / Nombres)'
+              }
+              title={
+                enmascararPrivacidad
+                  ? 'Mostrar datos sensibles completos'
+                  : 'Ocultar / enmascarar datos personales (DNI / RUC / Nombres)'
+              }
             >
-              <span style={{ ...ESTILO_LABEL_FILTRO, visibility: 'hidden' }}>&nbsp;</span>
-              <button
-                type="button"
-                onClick={() => setEnmascararPrivacidad((prev) => !prev)}
-                className="btn btn-secondary"
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  minWidth: '38px',
-                  padding: 0,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: '8px',
-                  borderColor: enmascararPrivacidad ? 'var(--sky-500)' : undefined,
-                  background: enmascararPrivacidad ? 'var(--sky-50)' : undefined,
-                  color: enmascararPrivacidad ? 'var(--sky-700)' : 'var(--text-main)',
-                  boxSizing: 'border-box',
-                }}
-                aria-label={
-                  enmascararPrivacidad
-                    ? 'Mostrar datos sensibles completos'
-                    : 'Ocultar datos sensibles (DNI / RUC)'
-                }
-                title={
-                  enmascararPrivacidad
-                    ? 'Mostrar datos sensibles completos'
-                    : 'Ocultar / enmascarar datos personales (DNI / RUC)'
-                }
-              >
-                {enmascararPrivacidad ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
+              {enmascararPrivacidad ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
 
-            {/* Descargar CSV */}
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.25rem',
-                justifyContent: 'flex-end',
-              }}
+            <button
+              type="button"
+              onClick={() => handleDescargar('csv')}
+              disabled={!tablaActiva || descargandoFormato !== null}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.85rem' }}
+              title="Descargar este reporte completo en formato CSV"
             >
-              <span style={{ ...ESTILO_LABEL_FILTRO, visibility: 'hidden' }}>&nbsp;</span>
-              <button
-                type="button"
-                onClick={() => handleDescargar('csv')}
-                disabled={!tablaActiva || descargandoFormato !== null}
-                className="btn btn-secondary"
-                style={{
-                  height: '38px',
-                  padding: '0 0.85rem',
-                  fontSize: '0.8rem',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  boxSizing: 'border-box',
-                }}
-                title="Descargar este reporte completo en formato CSV"
-              >
-                <Download size={14} />
-                <span>{descargandoFormato === 'csv' ? 'Descargando...' : 'Descargar CSV'}</span>
-              </button>
-            </div>
+              <Download size={15} />
+              <span>{descargandoFormato === 'csv' ? 'Descargando...' : 'Descargar CSV'}</span>
+            </button>
 
-            {/* Descargar Excel */}
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.25rem',
-                justifyContent: 'flex-end',
-              }}
+            <button
+              type="button"
+              onClick={() => handleDescargar('xlsx')}
+              disabled={!tablaActiva || descargandoFormato !== null}
+              className="btn btn-primary"
+              style={{ fontSize: '0.85rem' }}
+              title="Descargar este reporte en formato Excel (.xlsx)"
             >
-              <span style={{ ...ESTILO_LABEL_FILTRO, visibility: 'hidden' }}>&nbsp;</span>
-              <button
-                type="button"
-                onClick={() => handleDescargar('xlsx')}
-                disabled={!tablaActiva || descargandoFormato !== null}
-                className="btn btn-primary"
-                style={{
-                  height: '38px',
-                  padding: '0 0.85rem',
-                  fontSize: '0.8rem',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  boxSizing: 'border-box',
-                }}
-                title="Descargar este reporte en formato Excel (.xlsx)"
-              >
-                <FileSpreadsheet size={14} />
-                <span>{descargandoFormato === 'xlsx' ? 'Descargando...' : 'Descargar Excel'}</span>
-              </button>
-            </div>
+              <FileSpreadsheet size={15} />
+              <span>{descargandoFormato === 'xlsx' ? 'Descargando...' : 'Descargar Excel'}</span>
+            </button>
           </div>
         </div>
 

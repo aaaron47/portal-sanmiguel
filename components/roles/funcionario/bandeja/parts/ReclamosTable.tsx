@@ -55,8 +55,8 @@ export const ReclamosTable: React.FC<ReclamosTableProps> = ({ tickets, onSelectT
               <td>
                 <button
                   onClick={() => onSelectTicket(ticket)}
-                  className="btn btn-secondary"
-                  style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
+                  className="btn btn-primary"
+                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', whiteSpace: 'nowrap' }}
                 >
                   <ExternalLink size={14} /> {tieneAccionesPendientes(ticket) ? 'Atender' : 'Ver'}
                 </button>

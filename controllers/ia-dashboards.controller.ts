@@ -62,12 +62,12 @@ export function obtenerOpcionesSelectorModelo(
   return [
     {
       valor: 'API',
-      etiqueta: `${cfg.modeloApiNombre} (API)`,
+      etiqueta: cfg.modeloApiNombre,
       descripcion: cfg.modeloApiDescripcion,
     },
     {
       valor: 'LOCAL',
-      etiqueta: `${cfg.modeloLocalNombre} (Local)`,
+      etiqueta: cfg.modeloLocalNombre,
       descripcion: cfg.modeloLocalDescripcion,
     },
   ];
@@ -605,7 +605,7 @@ function construirRespuestaDemoChat(solicitud: SolicitudChatIA): RespuestaChatIA
     };
 
     return {
-      texto: `He generado el nuevo dashboard "${nuevoDashboard.titulo}" utilizando ${etiquetaModelo} a partir de los datos disponibles en ${fuentes.join(', ')}. Ya se encuentra disponible en la sección "Borradores".`,
+      texto: `He creado el dashboard **${nuevoDashboard.titulo}**. Ya está disponible en la sección **Borradores**.`,
       modo: 'GENERAR_DASHBOARD',
       proveedorModelo: solicitud.proveedorModelo,
       nombreModelo: etiquetaModelo,
@@ -682,7 +682,7 @@ function construirRespuestaDemoChat(solicitud: SolicitudChatIA): RespuestaChatIA
   }
 
   return {
-    texto: `${resumenTexto} (Procesado con ${etiquetaModelo}).`,
+    texto: resumenTexto,
     modo: 'CONSULTA_DATOS',
     proveedorModelo: solicitud.proveedorModelo,
     nombreModelo: etiquetaModelo,

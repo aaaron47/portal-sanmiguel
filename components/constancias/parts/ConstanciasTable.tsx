@@ -3,6 +3,7 @@ import { AlertCircle, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-rea
 import { ListadoSolicitudesConstancia, SolicitudConstancia } from '@/types/constancia.types';
 import { fechaHoraPeru } from '@/utils/fecha-peru.utils';
 import { importe, tieneDeuda } from '../constancia.utils';
+import { ConstanciaStatusBadge } from './ConstanciaStatusBadge';
 
 interface ConstanciasTableProps {
   listado: ListadoSolicitudesConstancia | null;
@@ -105,14 +106,13 @@ export const ConstanciasTable: React.FC<ConstanciasTableProps> = ({
                       )}
                     </td>
                     <td>
-                      {/* Requisito 2: el estado va solo en texto, sin color. */}
-                      <span style={{ fontSize: '0.825rem', fontWeight: 500, color: 'var(--text-main)' }}>{s.estadoEtiqueta}</span>
+                      <ConstanciaStatusBadge estado={s.estado} etiqueta={s.estadoEtiqueta} />
                     </td>
                     <td>
                       <button
                         type="button"
                         onClick={() => onAbrir(s)}
-                        className={`btn ${evaluar ? 'btn-primary' : 'btn-secondary'}`}
+                        className="btn btn-primary"
                         style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem', whiteSpace: 'nowrap' }}
                       >
                         <ExternalLink size={14} /> {evaluar ? 'Evaluar' : 'Ver detalle'}
