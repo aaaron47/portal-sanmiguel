@@ -120,10 +120,10 @@ export const ExpedienteAdjuntos: React.FC<ExpedienteAdjuntosProps> = ({ ticketId
     });
 
   return (
-    <div style={{ marginBottom: '1.5rem' }} data-seccion="adjuntos">
-      <h4 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '0.03em', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-        <Paperclip size={14} /> Adjuntos y evidencias{adjuntos && adjuntos.length > 0 ? ` (${adjuntos.length})` : ''}
-      </h4>
+    <section className="expediente-seccion" data-seccion="adjuntos">
+      <h3 className="expediente-titulo">
+        <Paperclip size={14} aria-hidden="true" /> Adjuntos y evidencias{adjuntos && adjuntos.length > 0 ? ` (${adjuntos.length})` : ''}
+      </h3>
 
       {adjuntos === null && <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)' }}>Cargando archivos…</p>}
 
@@ -204,6 +204,6 @@ export const ExpedienteAdjuntos: React.FC<ExpedienteAdjuntosProps> = ({ ticketId
           {errorArchivo}
         </p>
       )}
-    </div>
+    </section>
   );
 };

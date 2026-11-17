@@ -31,10 +31,9 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({
 
   return (
     <div
+      className="notification-toast"
+      role={type === 'error' ? 'alert' : 'status'}
       style={{
-        position: 'fixed',
-        bottom: '24px',
-        right: '24px',
         background: styles.bg,
         border: `1px solid ${styles.border}`,
         color: styles.text,
