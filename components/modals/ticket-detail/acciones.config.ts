@@ -91,14 +91,16 @@ export const esRolDeAtencion = (rol: UserRole) => rol === 'FUNCIONARIO' || rol =
 export function situacionReclamo(t: Ticket): string {
   if (t.estado === 'improcedente') return 'Reclamo concluido: se declaró improcedente y se avisó al ciudadano.';
   if (estaConcluido(t)) return 'Reclamo concluido: la respuesta final ya se envió al ciudadano.';
-  if (t.observacion) {
-    const plazo = t.plazoSubsanacion ? ` (plazo: ${fechaLegible(t.plazoSubsanacion)})` : '';
-    return `Esperando que el ciudadano complete la información pedida${plazo}.`;
-  }
+  // La respuesta por aprobar va antes que la información pedida: el backend deja seguir con la atención
+  // aunque el ciudadano no haya completado lo pedido, y entonces lo que falta es la aprobación.
   if (t.respuestaPorAprobar) {
     return puede(t, 'APROBAR_RESPUESTA')
       ? 'Te toca: revisa la respuesta del funcionario y apruébala o devuélvela con tus observaciones.'
       : 'La respuesta está esperando la aprobación del supervisor.';
+  }
+  if (t.observacion) {
+    const plazo = t.plazoSubsanacion ? ` (plazo: ${fechaLegible(t.plazoSubsanacion)})` : '';
+    return `Esperando que el ciudadano complete la información pedida${plazo}.`;
   }
   switch (t.estado) {
     case 'registrado':

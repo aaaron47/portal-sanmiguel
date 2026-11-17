@@ -84,6 +84,22 @@ export const ETIQUETAS_RESULTADO: Record<ResultadoReclamo, string> = {
   INFUNDADO: 'Infundado',
 };
 
+const ETIQUETAS_CANAL: Record<string, string> = {
+  APP_MOVIL: 'App móvil',
+};
+
+/**
+ * Canal del inconveniente en palabras: el backend manda un código (`APP_MOVIL`). Un código que el portal no
+ * conoce se muestra sin guiones bajos ("PORTAL_WEB" → "Portal web"); un texto ya escrito se deja igual.
+ */
+export function nombreCanal(canal?: string | null): string | undefined {
+  if (!canal) return undefined;
+  if (ETIQUETAS_CANAL[canal]) return ETIQUETAS_CANAL[canal];
+  if (!/^[A-Z0-9_]+$/.test(canal)) return canal;
+  const texto = canal.replace(/_/g, ' ').toLowerCase();
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
 /** Funcionario al que se le puede asignar un reclamo. */
 export interface FuncionarioOpcion {
   id: string;

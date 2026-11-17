@@ -36,7 +36,9 @@ function pasosDe(t: Ticket): Paso[] {
     if (concluido) return { nombre: p.nombre, situacion: 'hecho', ...(i === actual ? { detalle: 'Enviada · concluido', cierre: 'respondido' } : {}) };
     if (i < actual) return { nombre: p.nombre, situacion: 'hecho' };
     if (i > actual) return { nombre: p.nombre, situacion: 'pendiente' };
-    const detalle = t.observacion ? 'Esperando al ciudadano' : t.respuestaPorAprobar ? 'Respuesta por aprobar' : 'En curso';
+    // Con el backend real se puede seguir atendiendo aunque el ciudadano no haya completado lo pedido:
+    // si ya hay una respuesta por aprobar, eso es lo que falta.
+    const detalle = t.respuestaPorAprobar ? 'Respuesta por aprobar' : t.observacion ? 'Esperando al ciudadano' : 'En curso';
     return { nombre: p.nombre, situacion: 'actual', detalle };
   });
 }

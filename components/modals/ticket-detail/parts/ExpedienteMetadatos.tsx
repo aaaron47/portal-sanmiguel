@@ -2,7 +2,7 @@ import React from 'react';
 import { ClipboardCheck, FileText, User } from 'lucide-react';
 import { Ticket } from '@/types/ticket.types';
 import { fechaLegible } from '@/utils/fecha-peru.utils';
-import { ETIQUETAS_CATEGORIA, ETIQUETAS_RESULTADO } from '@/utils/ticket.utils';
+import { ETIQUETAS_CATEGORIA, ETIQUETAS_RESULTADO, nombreCanal } from '@/utils/ticket.utils';
 
 interface ExpedienteMetadatosProps {
   ticket: Ticket;
@@ -40,7 +40,7 @@ export const ExpedienteMetadatos: React.FC<ExpedienteMetadatosProps> = ({ ticket
         <h3 id="grupo-reclamo"><FileText size={14} aria-hidden="true" /> Reclamo</h3>
         <dl>
           <Dato nombre="Ingreso" valor={fechaLegible(ticket.fechaCreacion)} />
-          <Dato nombre="Canal del inconveniente" valor={ticket.canalIncidente} siFalta="No indicado" />
+          <Dato nombre="Canal del inconveniente" valor={nombreCanal(ticket.canalIncidente)} siFalta="No indicado" />
           <Dato nombre="Tipo de reclamo" valor={ticket.tipoReclamo} />
           <Dato nombre="Categoría" valor={categoria} />
         </dl>
