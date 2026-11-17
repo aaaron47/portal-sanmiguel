@@ -9,7 +9,6 @@ import {
   Lock,
   User,
   ArrowRight,
-  ShieldCheck,
   Sparkles,
   AlertCircle
 } from 'lucide-react';
