@@ -192,7 +192,6 @@ const RUTAS_ACCION: Record<AccionCodigo, string> = {
   ELABORAR_RESPUESTA: 'respuesta',
   APROBAR_RESPUESTA: 'respuesta/aprobar',
   OBSERVAR_RESPUESTA: 'respuesta/observar',
-  CERRAR: 'cerrar',
   DECLARAR_IMPROCEDENTE: 'improcedente',
   NOTA: 'nota',
   ADJUNTAR_EVIDENCIA: 'adjuntos',

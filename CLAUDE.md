@@ -9,7 +9,15 @@ convenciones y lo que falta. Mantenerla al día cuando cambie algo importante.
 > tablas reales) queda como referencia en `docs/Conexion_Portal_Oracle.md`, `docs/Conexion_BD.md`
 > y `docs/datos_faltantes.md`, y en la historia de git.
 
-## ▶ Para retomar (05/11/2026)
+## ▶ Para retomar (16/11/2026)
+
+Rama `feature/modal-reclamo` **unida a `main` (PR #3, 16/11/2026, a pedido de Aaron; sin revisión de Braulio)** y
+desplegada en Vercel: rediseño del expediente del reclamo, pedido de Braulio (botones según el modelo Z, el reclamo
+concluye con la respuesta final, heurísticas de Nielsen, pestañas internas). Detalle en la sección 5, "Expediente del
+reclamo". Falta: que Braulio lo revise ya en `main` y avisar al backend que el portal ya no usa
+`POST /tickets/{id}/cerrar`.
+
+Lo anterior (05/11/2026):
 
 La rama `feature/supervisor-funcionario` ya está en `main` (PR #4, aprobado por Braulio el 02/11).
 Encima, Ulises subió `4cbbef9` directo a `main`: paginación en tablas, Modo Privacidad (Ley 29733), pantallas
@@ -33,6 +41,9 @@ Notas para las pruebas en el navegador:
   Playwright; en el script se oculta `nextjs-portal`.
 - En Windows, al detener una tarea en segundo plano, `next dev` y `next start` pueden seguir ocupando el puerto
   y hay que cerrarlos a mano.
+- Next.js 16.4.3 avisa de una vulnerabilidad conocida: el primer `next dev` o `next build` de una tanda se detiene
+  con código 1 tras mostrar el aviso; al lanzarlo otra vez arranca normal. Actualizar Next.js es una decisión
+  del equipo.
 - Solo un `next dev` a la vez: antes de levantar otro escenario (demo, simulado, real) hay que cerrar el anterior, o las
   pruebas corren contra el servidor equivocado.
 - Para probar en local contra el backend real: `BACKEND_URL=http://32.200.209.224 NEXT_PUBLIC_API_URL=/api/v1/portal`.
@@ -108,7 +119,9 @@ components/
 ├── auth/       LoginForm
 ├── layout/     Sidebar (menú por rol), CambiarContrasenaModal, NotificationToast, ConfirmModal, RoleBadge
 ├── constancias/ ConstanciasPanel (funcionario y supervisor), useConstancias, parts (conteos, filtros, tabla, detalle con aprobar y desaprobar)
-├── modals/     TicketDetailModal + ticket-detail/parts (cabecera, metadatos, adjuntos, línea de tiempo, AccionesForm), FaqModal
+├── modals/     TicketDetailModal (armazón, foco y teclado) + ticket-detail/: acciones.config (botones, zonas del pie, textos),
+│               useAccionReclamo (estado de la acción abierta) y parts (cabecera, FlujoPasos, ExpedienteTabs, datos, adjuntos,
+│               flujo, historial, AccionesForm con los campos y AccionesPie con los botones); FaqModal
 ├── roles/      una carpeta por rol: <Rol>View.tsx, use<Rol>*.ts (estado y llamadas), y subcarpetas por pestaña con parts/
 │   ├── funcionario/   bandeja (las constancias usan components/constancias)
 │   └── supervisor/    supervision (panorama y por aprobar), reasignacion (carga por funcionario)
@@ -128,15 +141,40 @@ docs/           Cambios_rama_supervisor_funcionario.md (todo lo de la rama), Pla
 registrado ─recibir/validar─> pendiente de validación ─validar (categoría)─> pendiente de asignación
 pendiente de asignación ─asignar (Supervisor: área, funcionario, prioridad)─> en evaluación
 en evaluación: evaluar → elaborar respuesta → (prioridad ALTA o tipo con revisión) por aprobar → Supervisor aprueba u observa
-respuesta enviada → respondido ─cerrar─> cerrado
+respuesta enviada → respondido (fin)
 pendiente de validación / en evaluación ─declarar improcedente─> improcedente
 ```
+
+- **El reclamo concluye al enviar la respuesta final** (pedido de Braulio, 16/11/2026): el portal no ofrece "Cerrar caso".
+  El backend todavía manda `CERRAR` en `accionesPermitidas` de los respondidos; el portal lo ignora (`AccionSinUso` en
+  `types/ticket.types.ts`) y no llama a `/tickets/{id}/cerrar`. Un reclamo `cerrado` se muestra igual que uno `respondido`.
 
 - **Los botones salen de `accionesPermitidas`** del backend (`puede(t, accion)` en `utils/ticket.utils.ts`); el front no
   decide reglas por estado. Todas las acciones pasan por `ticketsController.ejecutarAccion` y envían la `version`.
 - "por aprobar" no es un estado: es `respuestaPorAprobar` (filtro y marca en el estado).
 - El Admin no ve reclamos (acuerdo del grupo). Control Municipal solo lee.
 - En modo demo (sin backend) los reclamos se ven pero las acciones no se simulan.
+
+### Expediente del reclamo (`TicketDetailModal`, desde el 16/11/2026)
+
+- **Modelo Z.** Arriba a la izquierda, qué reclamo es (folio, estado, prioridad, asunto); arriba a la derecha, cerrar.
+  Debajo, los pasos del flujo y una frase con la situación ("Te toca: …" o a quién se espera), siempre visibles.
+  Abajo, el pie fijo: acciones complementarias a la izquierda (más de dos van al menú "Más acciones"; la que no se
+  puede deshacer, al final y en rojo) y, al final a la derecha, el paso que hace avanzar el reclamo (un solo botón relleno).
+- **Pestañas:** "Datos generales" (ciudadano, reclamo, atención, descripción, pedido, adjuntos) y "Flujo del reclamo"
+  (formulario de la acción abierta, información pedida, respuesta, evaluaciones, historial). Las dos quedan montadas:
+  cambiar de pestaña no borra lo escrito. Abre en Datos; si llega con `initialAction`, abre en Flujo con el formulario.
+- **Con una acción abierta** el pie dice qué pasará al confirmar (o el error del último intento), "Cancelar" y el
+  botón de confirmar, que envía el formulario por su `id` (`form="expediente-accion"`). Si hay algo escrito, antes de
+  cancelar o cerrar se pregunta. Esc retrocede un nivel: menú, pregunta de descarte, acción, expediente.
+- El alto del modal es fijo (el pie no se mueve al cambiar de pestaña) y solo se desplaza el contenido de la pestaña.
+- Cada modo del pie lleva su `key` y el botón de confirmar ignora el segundo clic de un doble clic: aparece donde estaba
+  el botón que abrió la acción y, sin eso, un doble clic en "Aprobar respuesta" la aprobaba.
+- Con el backend real, `observacion` (información pedida al ciudadano) puede seguir puesta mientras el reclamo avanza:
+  la respuesta por aprobar manda sobre "Esperando al ciudadano" en los pasos y en la frase de situación.
+- El canal del inconveniente llega como código (`APP_MOVIL`) y se muestra con `nombreCanal` (`utils/ticket.utils.ts`).
+- Con el expediente abierto, el aviso flotante (`NotificationToast`) sale arriba al centro para no tapar los botones.
+- Los estilos están en `app/globals.css`, bloque "Expediente del reclamo" (clases `expediente-*` y `flujo-*`).
 
 ### Endpoints que usa el front (para el grupo de backend)
 
@@ -152,8 +190,9 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
 - **Colores:** solo variables del tema (`var(--text-main)`, `var(--bg-card)`, `var(--border-color)`...),
   nunca `--slate-*` fijos en componentes nuevos: no se leen en modo oscuro.
 - **Acciones nuevas sobre reclamos:** la regla vive en el backend (`AtencionReclamos`). En el front: el código en
-  `AccionCodigo` (`types/ticket.types.ts`), su ruta en `RUTAS_ACCION` (`tickets.controller.ts`), el botón y el formulario
-  en `AccionesForm` y el aviso en `mensajeExitoAccion`.
+  `AccionCodigo` (`types/ticket.types.ts`), su ruta en `RUTAS_ACCION` (`tickets.controller.ts`), el botón, su zona del pie
+  y lo que pasa al confirmar en `ticket-detail/acciones.config.ts`, los campos en `AccionesForm` y el aviso en
+  `mensajeExitoAccion`.
 - **React:** cumplir las reglas de lint `react-hooks` (`set-state-in-effect`, `immutability`). Para reiniciar
   un formulario se usa `key` (ver `TicketDetailModal`), no un `useEffect`.
 - **Pestañas por rol:** la pestaña activa la manda `app/page.tsx` (`initialTab`); si la vista tiene
@@ -188,6 +227,7 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
 | 11/11/2026 (noche, 2) | Respuestas del backend: telemetría sin dudas abiertas (se quitan la tarjeta y la columna de notificaciones y la IP del CSV; nombre para `ACCION`). **Evidencia probada contra el backend real** en `REC-2026-000001` con `supervisor.demo` (autorizado por Adrian): `PRUEBA_portal_evidencia.pdf` subida (201), lista, nota en la línea de tiempo, Ver y Descargar con los mismos bytes; 10/10. Constancias: el backend las tiene listas para el próximo despliegue (contrato en `docs/Constancias_contrato.md` del repo del backend). |
 | 11/11/2026 (noche, 3) | PR #2 unido a `main` (`0d1d5e4`). **Constancias de no adeudo (Req 2)** con el backend: bandeja nueva `components/constancias/` en Funcionario y en Supervisor (pestaña nueva), detalle con cuotas, Aprobar (comentario opcional) y Desaprobar (motivo obligatorio) según `accionesPermitidas`, mensajes para `invalid_state`, `fee_required` y `outstanding_debts`, CSV de todas las páginas. Se quitó la marca `tieneConstancia` del reclamo (columna, filtro, tarjeta y dato del expediente). Navegador: simulado 40/40, real 9/9 (solo lectura), demo 3/3. `tsc`, `lint` y `build` OK. |
 | 11/11/2026 (noche, 4) | **Constancias probadas contra el backend real** con las solicitudes de prueba del backend: `funcionario.demo` aprobó `SOL-2026-001044` y `supervisor.demo` desaprobó `SOL-2026-001045`; 409 `outstanding_debts` al forzar el aprobar, 409 `invalid_state` al repetir, 403 para Control Municipal (21/21). La tabla de cuotas usa el formato real (`concepto`, `periodo`, `venceEl`, `total`, `vencida`), ordenada por vencimiento y sin el `id`; las cuotas solo llegan en el detalle. Simulado 40/40. |
+| 16/11/2026 | Pedido de Braulio. Rama `feature/modal-reclamo` (PR #3, unido a `main`; antes se unió `main` en `a9941d1` y se volvió a probar: mismo resultado): expediente del reclamo rediseñado. Botones según el modelo Z en un pie fijo, pestañas "Datos generales" y "Flujo del reclamo", pasos del flujo siempre visibles, el reclamo concluye con la respuesta final (sin "Cerrar caso"; `CERRAR` del backend se ignora) y heurísticas de Nielsen (estado visible, qué pasará al confirmar, pregunta antes de descartar, error junto al botón, Esc y Tab dentro del diálogo, foco de vuelta a la tabla). Navegador con backend simulado 61/61 y modo demo 6/6; `tsc`, `lint` y `build` OK. **Backend real, solo lectura** (`funcionario.demo` y `supervisor.demo`, sin enviar ninguna acción): 71/71; salieron dos defectos que el simulado no mostraba y se corrigieron (canal como código `APP_MOVIL`; "Esperando al ciudadano" en un reclamo con respuesta por aprobar). **Backend real, flujo completo** en `REC-2026-001022` (autorizado por Aaron): recibir, validar, asignar, evaluar y responder desde el expediente, todo con 200; el reclamo quedó en `respondido` sin llamar a `/cerrar` (el backend ofrece `CERRAR` y el portal lo ignora); 32 comprobaciones OK. No pasó por aprobación (prioridad MEDIA). Sin probar contra el real: aprobar u observar la respuesta, pedir información, reasignar, devolver, improcedente y nota. |
 | 11/11/2026 (tarde) | El backend publicó `/telemetria/*` con un formato distinto al propuesto (filtros `fechaDesde`/`fechaHasta`/`canal`, códigos como `DEUDAS` o `ANDROID`, `sesiones` y `consultas` en la raíz). Se adaptó el portal: tipos, controlador, `utils/telemetria.utils.ts`, filtro de canal, tabla de eventos con resultado, Control de Acceso por secciones (guarda la telemetría aunque falten las políticas, envía solo lo que cambió y no duplica la auditoría). Navegador: demo 48/48, simulado 108/108, **backend real 92/92** (incluye pausar y reanudar la telemetría; quedó activa). Detalle en `docs/Pruebas_telemetria.md`, sección 7. Nuevo: `docs/Solicitud_backend_adjuntos.md`. |
 
 ## 9. Pendientes
@@ -196,6 +236,9 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
 - [ ] Colores de los estados (punto 8 del plan): `globals.css` dice "sin colores", pero hay tokens `--status-*` sin usar.
 - [ ] Que el grupo de backend revise la tabla de endpoints y resuelva con el responsable de la BD las columnas que faltan en `reclamos`.
 - [ ] Qué significa "clicks de los usuarios" (admins en el portal o ciudadanos en la app).
+- [ ] Avisar al backend que el portal ya no cierra casos (16/11/2026): que `respondido` quede como estado final o que el
+      reclamo pase a `cerrado` solo al enviar la respuesta, y que deje de mandar `CERRAR`. Hoy los reclamos atendidos
+      desde el portal se quedan en `respondido`.
 
 **Técnicos**
 - [x] Pipeline pasado de Maven a Node 22 (`npm ci`, `tsc --noEmit`, `npm run lint`, `npm run build`).
@@ -208,6 +251,11 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
 - [x] Adjuntos y evidencias del reclamo (Req 1). Los adjuntos que el ciudadano subió desde la app no se pueden descargar hasta que la app use el backend único.
 - [x] Subir una evidencia contra el backend real (`REC-2026-000001`, `PRUEBA_portal_evidencia.pdf`; no se puede borrar y quedan 3 cupos).
 - [ ] Probar contra el backend real guardar políticas y cambiar contraseña: solo se probaron en el simulado.
+- [x] Flujo completo del expediente rediseñado contra el backend real en `REC-2026-001022` (16/11/2026): recibir, validar,
+      asignar, evaluar y responder.
+- [ ] Probar contra el backend real lo que ese flujo no tocó: aprobar u observar la respuesta (hace falta un reclamo de
+      prioridad ALTA o de un tipo con revisión), pedir información, reasignar, devolver, improcedente y nota. La lectura ya
+      se probó el 16/11/2026 con `funcionario.demo` y `supervisor.demo`: 71/71.
 - [x] Constancias (Req 2) conectadas al backend y probadas contra el real: aprobar (`SOL-2026-001044`) y desaprobar (`SOL-2026-001045`).
 - [ ] Integrar con el backend cuando esté listo y quitar los datos simulados.
 - [ ] Pruebas automáticas en el repositorio (hoy solo hay scripts de Playwright fuera del repo).
