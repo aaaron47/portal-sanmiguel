@@ -1,25 +1,7 @@
 import React from 'react';
 import { Ticket } from '@/types/ticket.types';
-import { ETIQUETAS_CATEGORIA, ETIQUETAS_RESULTADO } from '@/utils/ticket.utils';
-
-const estiloTitulo: React.CSSProperties = {
-  fontSize: '0.85rem',
-  color: 'var(--text-muted)',
-  textTransform: 'uppercase',
-  marginBottom: '0.5rem',
-  letterSpacing: '0.03em',
-};
-
-const estiloCaja: React.CSSProperties = {
-  background: 'var(--bg-card-subtle)',
-  border: '1px solid var(--border-color)',
-  borderRadius: '8px',
-  padding: '0.75rem 1rem',
-  fontSize: '0.825rem',
-  color: 'var(--text-main)',
-  lineHeight: 1.45,
-  marginBottom: '0.5rem',
-};
+import { fechaLegible } from '@/utils/fecha-peru.utils';
+import { ETIQUETAS_RESULTADO } from '@/utils/ticket.utils';
 
 const ESTADO_RESPUESTA: Record<string, string> = {
   BORRADOR: 'Borrador',
@@ -28,89 +10,46 @@ const ESTADO_RESPUESTA: Record<string, string> = {
   APROBADA: 'Aprobada',
 };
 
-const Dato: React.FC<{ etiqueta: string; valor?: string | null }> = ({ etiqueta, valor }) =>
-  valor ? (
-    <div>
-      <div style={{ color: 'var(--text-muted)' }}>{etiqueta}</div>
-      <div style={{ fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>{valor}</div>
-    </div>
-  ) : null;
-
-/** Datos del flujo de atención: clasificación, pedido, observación pendiente, evaluaciones y respuestas. */
+/** Lo que ya se hizo en el reclamo: información pedida, respuesta final, versiones de la respuesta y evaluaciones. */
 export const ExpedienteFlujo: React.FC<{ ticket: Ticket }> = ({ ticket }) => {
-  const categoria = ticket.categoria
-    ? ETIQUETAS_CATEGORIA[ticket.categoria as keyof typeof ETIQUETAS_CATEGORIA] ?? ticket.categoria
-    : undefined;
-  const resultado = ticket.resultado ? ETIQUETAS_RESULTADO[ticket.resultado] ?? ticket.resultado : undefined;
   const evaluaciones = ticket.evaluaciones ?? [];
   const respuestas = ticket.respuestas ?? [];
+  const resultado = ticket.resultado ? ETIQUETAS_RESULTADO[ticket.resultado] ?? ticket.resultado : undefined;
 
   return (
     <>
-      {(ticket.tipoReclamo || categoria || ticket.funcionarioAsignadoNombre || ticket.fechaLimite || resultado) && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: '0.75rem',
-            fontSize: '0.825rem',
-            marginBottom: '1.25rem',
-          }}
-        >
-          <Dato etiqueta="Tipo de reclamo" valor={ticket.tipoReclamo} />
-          <Dato etiqueta="Categoría" valor={categoria} />
-          <Dato etiqueta="Funcionario" valor={ticket.funcionarioAsignadoNombre} />
-          <Dato etiqueta="Fecha límite" valor={ticket.fechaLimite} />
-          <Dato etiqueta="Resultado" valor={resultado} />
-          <Dato etiqueta="N.º de resolución" valor={ticket.numeroResolucion} />
-        </div>
-      )}
-
-      {ticket.pedido && ticket.pedido !== ticket.asunto && (
-        <div style={{ marginBottom: '1.25rem' }}>
-          <h4 style={estiloTitulo}>Pedido del ciudadano</h4>
-          <div style={estiloCaja}>{ticket.pedido}</div>
-        </div>
-      )}
-
       {ticket.observacion && (
-        <div role="status" style={{ ...estiloCaja, borderLeft: '4px solid var(--amber-700)', marginBottom: '1.25rem' }}>
-          <strong>Información pedida al ciudadano</strong>
-          {ticket.plazoSubsanacion ? ` (plazo: ${ticket.plazoSubsanacion})` : ''}: {ticket.observacion}
-        </div>
+        <section className="expediente-seccion">
+          <h3 className="expediente-titulo">
+            Información pedida al ciudadano
+            {ticket.plazoSubsanacion ? ` · plazo: ${fechaLegible(ticket.plazoSubsanacion)}` : ''}
+          </h3>
+          <div className="expediente-caja expediente-caja-espera">{ticket.observacion}</div>
+        </section>
       )}
 
       {ticket.respuestaFinal && (
-        <div style={{ marginBottom: '1.25rem' }}>
-          <h4 style={estiloTitulo}>Respuesta enviada al ciudadano</h4>
-          <div style={{ ...estiloCaja, borderLeft: '4px solid var(--green-600)' }}>{ticket.respuestaFinal}</div>
-        </div>
-      )}
-
-      {evaluaciones.length > 0 && (
-        <div style={{ marginBottom: '1.25rem' }}>
-          <h4 style={estiloTitulo}>Evaluación del área</h4>
-          {evaluaciones.map((e) => (
-            <div key={e.id} style={estiloCaja}>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
-                {e.evaluadoPor} · {e.fecha}
-              </div>
-              <p><strong>Antecedentes:</strong> {e.antecedentes}</p>
-              <p><strong>Hallazgos:</strong> {e.hallazgos}</p>
-              {e.conclusion && <p><strong>Conclusión:</strong> {e.conclusion}</p>}
-            </div>
-          ))}
-        </div>
+        <section className="expediente-seccion">
+          <h3 className="expediente-titulo">Respuesta enviada al ciudadano</h3>
+          <div className="expediente-caja expediente-caja-final">
+            {(resultado || ticket.numeroResolucion) && (
+              <p className="expediente-caja-pie">
+                {[resultado, ticket.numeroResolucion && `Resolución ${ticket.numeroResolucion}`].filter(Boolean).join(' · ')}
+              </p>
+            )}
+            <p>{ticket.respuestaFinal}</p>
+          </div>
+        </section>
       )}
 
       {respuestas.length > 0 && !ticket.respuestaFinal && (
-        <div style={{ marginBottom: '1.25rem' }}>
-          <h4 style={estiloTitulo}>Versiones de la respuesta</h4>
+        <section className="expediente-seccion">
+          <h3 className="expediente-titulo">Versiones de la respuesta</h3>
           {respuestas.map((r) => (
-            <div key={r.id} style={estiloCaja}>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
-                Versión {r.numeroVersion} · {ESTADO_RESPUESTA[r.estado] ?? r.estado} · {r.elaboradoPor} · {r.fecha}
-              </div>
+            <div key={r.id} className="expediente-caja">
+              <p className="expediente-caja-pie">
+                Versión {r.numeroVersion} · {ESTADO_RESPUESTA[r.estado] ?? r.estado} · {r.elaboradoPor} · {fechaLegible(r.fecha)}
+              </p>
               <p>{r.respuesta}</p>
               {r.comentarioRevision && (
                 <p style={{ marginTop: '0.25rem' }}>
@@ -119,7 +58,23 @@ export const ExpedienteFlujo: React.FC<{ ticket: Ticket }> = ({ ticket }) => {
               )}
             </div>
           ))}
-        </div>
+        </section>
+      )}
+
+      {evaluaciones.length > 0 && (
+        <section className="expediente-seccion">
+          <h3 className="expediente-titulo">Evaluación del área</h3>
+          {evaluaciones.map((e) => (
+            <div key={e.id} className="expediente-caja">
+              <p className="expediente-caja-pie">
+                {e.evaluadoPor} · {fechaLegible(e.fecha)}
+              </p>
+              <p><strong>Antecedentes:</strong> {e.antecedentes}</p>
+              <p><strong>Hallazgos:</strong> {e.hallazgos}</p>
+              {e.conclusion && <p><strong>Conclusión:</strong> {e.conclusion}</p>}
+            </div>
+          ))}
+        </section>
       )}
     </>
   );

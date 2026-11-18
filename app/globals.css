@@ -94,19 +94,36 @@
   --text-dim: var(--slate-400);
   --text-inverse: var(--white);
 
-  /* Estados Semánticos (Heurística Nielsen 1 & 4) */
-  --status-pending-bg: var(--amber-100);
-  --status-pending-text: var(--amber-800);
-  --status-eval-bg: var(--sky-100);
-  --status-eval-text: var(--sky-800);
-  --status-deriv-bg: var(--purple-100);
-  --status-deriv-text: var(--purple-800);
-  --status-approval-bg: var(--orange-100);
-  --status-approval-text: var(--orange-800);
+  /* Estados Semánticos Accesibles (Celeste Neutro Institucional San Miguel) */
+  --status-neutral-celeste-bg: var(--sky-100);
+  --status-neutral-celeste-text: var(--sky-900);
+  --status-neutral-celeste-border: var(--sky-300);
+
+  --status-pending-bg: var(--status-neutral-celeste-bg);
+  --status-pending-text: var(--status-neutral-celeste-text);
+  --status-pending-border: var(--status-neutral-celeste-border);
+  --status-eval-bg: var(--status-neutral-celeste-bg);
+  --status-eval-text: var(--status-neutral-celeste-text);
+  --status-eval-border: var(--status-neutral-celeste-border);
+  --status-deriv-bg: var(--status-neutral-celeste-bg);
+  --status-deriv-text: var(--status-neutral-celeste-text);
+  --status-deriv-border: var(--status-neutral-celeste-border);
+  --status-approval-bg: var(--status-neutral-celeste-bg);
+  --status-approval-text: var(--status-neutral-celeste-text);
+  --status-approval-border: var(--status-neutral-celeste-border);
+  --status-archived-bg: var(--status-neutral-celeste-bg);
+  --status-archived-text: var(--status-neutral-celeste-text);
+  --status-archived-border: var(--status-neutral-celeste-border);
+
+  /* Finalizados favorables: Verde */
   --status-resolved-bg: var(--green-100);
-  --status-resolved-text: var(--green-800);
-  --status-archived-bg: var(--slate-100);
-  --status-archived-text: var(--slate-600);
+  --status-resolved-text: var(--green-900);
+  --status-resolved-border: var(--green-300);
+
+  /* Improcedente / Rechazado: Rojo */
+  --status-danger-bg: var(--red-50);
+  --status-danger-text: var(--red-700);
+  --status-danger-border: var(--red-300);
 
   /* Sidebar Variables (Modo Claro) */
   --sidebar-bg: var(--white);
@@ -170,19 +187,32 @@
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
   --shadow-glow: 0 0 25px -3px rgba(14, 165, 233, 0.35);
 
-  /* Estados de Reclamos en Modo Oscuro */
-  --status-pending-bg: rgba(245, 158, 11, 0.15);
-  --status-pending-text: #fcd34d;
-  --status-eval-bg: rgba(14, 165, 233, 0.15);
-  --status-eval-text: #7dd3fc;
-  --status-deriv-bg: rgba(168, 85, 247, 0.15);
-  --status-deriv-text: #d8b4fe;
-  --status-approval-bg: rgba(249, 115, 22, 0.15);
-  --status-approval-text: #fdba74;
-  --status-resolved-bg: rgba(34, 197, 94, 0.15);
+  /* Estados de Reclamos y Constancias en Modo Oscuro (Identidad San Miguel) */
+  --status-neutral-celeste-bg: rgba(14, 165, 233, 0.22);
+  --status-neutral-celeste-text: #ffffff;
+  --status-neutral-celeste-border: rgba(56, 189, 248, 0.45);
+
+  --status-pending-bg: var(--status-neutral-celeste-bg);
+  --status-pending-text: var(--status-neutral-celeste-text);
+  --status-pending-border: var(--status-neutral-celeste-border);
+  --status-eval-bg: var(--status-neutral-celeste-bg);
+  --status-eval-text: var(--status-neutral-celeste-text);
+  --status-eval-border: var(--status-neutral-celeste-border);
+  --status-deriv-bg: var(--status-neutral-celeste-bg);
+  --status-deriv-text: var(--status-neutral-celeste-text);
+  --status-deriv-border: var(--status-neutral-celeste-border);
+  --status-approval-bg: var(--status-neutral-celeste-bg);
+  --status-approval-text: var(--status-neutral-celeste-text);
+  --status-approval-border: var(--status-neutral-celeste-border);
+  --status-archived-bg: var(--status-neutral-celeste-bg);
+  --status-archived-text: var(--status-neutral-celeste-text);
+  --status-archived-border: var(--status-neutral-celeste-border);
+  --status-resolved-bg: rgba(34, 197, 94, 0.16);
   --status-resolved-text: #86efac;
-  --status-archived-bg: rgba(148, 163, 184, 0.15);
-  --status-archived-text: #cbd5e1;
+  --status-resolved-border: rgba(34, 197, 94, 0.4);
+  --status-danger-bg: rgba(239, 68, 68, 0.16);
+  --status-danger-text: #fca5a5;
+  --status-danger-border: rgba(239, 68, 68, 0.4);
 }
 
 /* El login se ve siempre claro, también con el modo oscuro activo: se reponen los tokens que cambia [data-theme='dark'] */
@@ -768,18 +798,170 @@ input:focus, select:focus, textarea:focus {
   border: 1px solid var(--fuchsia-200);
 }
 
-/* Badges de Estados de Reclamos (Neutro, sin colores) */
+/* Badges generales accesibles (WCAG AA/AAA) */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  transition: all var(--transition-fast);
+}
+
+.badge-success {
+  background: var(--status-resolved-bg);
+  color: var(--status-resolved-text);
+  border-color: var(--status-resolved-border);
+}
+
+.badge-warning {
+  background: var(--amber-100);
+  color: var(--amber-900);
+  border-color: var(--amber-300);
+}
+
+.badge-danger {
+  background: var(--status-danger-bg);
+  color: var(--status-danger-text);
+  border-color: var(--status-danger-border);
+}
+
+.badge-primary,
+.badge-info {
+  background: var(--status-eval-bg);
+  color: var(--status-eval-text);
+  border-color: var(--status-eval-border);
+}
+
+.badge-neutral {
+  background: var(--status-neutral-celeste-bg);
+  color: var(--status-neutral-celeste-text);
+  border-color: var(--status-neutral-celeste-border);
+}
+
+/* Badges de Estados Semánticos Accesibles (WCAG AA/AAA) */
 .badge-status {
   display: inline-flex;
   align-items: center;
-  padding: 0.2rem 0.55rem;
-  border-radius: 6px;
+  justify-content: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
   font-size: 0.775rem;
-  font-weight: 500;
+  font-weight: 600;
   text-transform: capitalize;
-  background: var(--bg-card-subtle);
-  color: var(--text-main);
-  border: 1px solid var(--border-color);
+  white-space: nowrap;
+  line-height: 1.25;
+  background: var(--status-neutral-celeste-bg);
+  color: var(--status-neutral-celeste-text);
+  border: 1px solid var(--status-neutral-celeste-border);
+  transition: all var(--transition-fast);
+}
+
+/* Reclamos: Estados Semánticos (Celeste Neutro para estados activos/en proceso) */
+.badge-status.status-registrado,
+.badge-status.status-pendiente-validacion,
+.badge-status.status-pendiente-asignacion,
+.badge-status.status-en-evaluacion,
+.badge-status.status-por-aprobar {
+  background: var(--status-neutral-celeste-bg);
+  color: var(--status-neutral-celeste-text);
+  border-color: var(--status-neutral-celeste-border);
+}
+
+.badge-status.status-respondido,
+.badge-status.status-cerrado {
+  background: var(--status-resolved-bg);
+  color: var(--status-resolved-text);
+  border-color: var(--status-resolved-border);
+}
+
+.badge-status.status-improcedente {
+  background: var(--status-danger-bg);
+  color: var(--status-danger-text);
+  border-color: var(--status-danger-border);
+}
+
+/* Constancias: Estados Semánticos */
+.badge-status.status-en-verificacion,
+.badge-status.EN_VERIFICACION,
+.badge-status.status-pendiente-pago,
+.badge-status.PENDIENTE_PAGO {
+  background: var(--status-neutral-celeste-bg);
+  color: var(--status-neutral-celeste-text);
+  border-color: var(--status-neutral-celeste-border);
+}
+
+.badge-status.status-emitida,
+.badge-status.status-vigente,
+.badge-status.EMITIDA,
+.badge-status.VIGENTE {
+  background: var(--status-resolved-bg);
+  color: var(--status-resolved-text);
+  border-color: var(--status-resolved-border);
+}
+
+.badge-status.status-rechazada,
+.badge-status.RECHAZADA {
+  background: var(--status-danger-bg);
+  color: var(--status-danger-text);
+  border-color: var(--status-danger-border);
+}
+
+/* Modo oscuro: texto blanco (#ffffff) garantizado en estados neutros celestes */
+[data-theme='dark'] .badge-status.status-registrado,
+[data-theme='dark'] .badge-status.status-pendiente-validacion,
+[data-theme='dark'] .badge-status.status-pendiente-asignacion,
+[data-theme='dark'] .badge-status.status-en-evaluacion,
+[data-theme='dark'] .badge-status.status-por-aprobar,
+[data-theme='dark'] .badge-status.status-en-verificacion,
+[data-theme='dark'] .badge-status.EN_VERIFICACION,
+[data-theme='dark'] .badge-status.status-pendiente-pago,
+[data-theme='dark'] .badge-status.PENDIENTE_PAGO {
+  background: rgba(14, 165, 233, 0.22);
+  color: #ffffff;
+  border-color: rgba(56, 189, 248, 0.45);
+}
+
+[data-theme='dark'] .badge-warning {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+/* Ajustes de Roles en Modo Oscuro */
+[data-theme='dark'] .badge-role.ADMIN {
+  background: rgba(109, 40, 217, 0.2);
+  color: #ddd6fe;
+  border-color: rgba(109, 40, 217, 0.4);
+}
+
+[data-theme='dark'] .badge-role.FUNCIONARIO {
+  background: rgba(14, 165, 233, 0.2);
+  color: #bae6fd;
+  border-color: rgba(14, 165, 233, 0.4);
+}
+
+[data-theme='dark'] .badge-role.SUPERVISOR {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fde68a;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+[data-theme='dark'] .badge-role.CONTROL_MUNICIPAL {
+  background: rgba(34, 197, 94, 0.2);
+  color: #bbf7d0;
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+[data-theme='dark'] .badge-role.CONTROL_TI {
+  background: rgba(217, 70, 239, 0.2);
+  color: #f5d0fe;
+  border-color: rgba(217, 70, 239, 0.4);
 }
 
 /* Tablas Modernas */
@@ -938,14 +1120,29 @@ input:focus, select:focus, textarea:focus {
 }
 
 .btn-secondary {
-  background: var(--bg-card);
-  color: var(--text-main);
-  border-color: var(--border-color);
+  background: #f1f5f9;
+  color: var(--slate-800);
+  border: 1px solid var(--slate-300);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .btn-secondary:hover {
-  background: var(--bg-card-subtle);
+  background: #e2e8f0;
   border-color: var(--slate-400);
+  color: var(--slate-900);
+}
+
+[data-theme='dark'] .btn-secondary {
+  background: #1e293b;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='dark'] .btn-secondary:hover {
+  background: #2a3a54;
+  border-color: var(--sky-500);
+  color: #ffffff;
 }
 
 .btn-success {
@@ -1118,6 +1315,661 @@ input:focus, select:focus, textarea:focus {
   from { opacity: 0; transform: scale(0.98); }
   to { opacity: 1; transform: scale(1); }
 }
+
+/* Aviso flotante. Con el expediente abierto va arriba al centro: abajo a la derecha taparía el botón
+   principal y arriba a la derecha, el de cerrar. */
+.notification-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+}
+
+body:has(.expediente-modal) .notification-toast {
+  top: 12px;
+  bottom: auto;
+  left: 0;
+  right: 0;
+  width: fit-content;
+  margin-inline: auto;
+}
+
+/* Texto solo para lectores de pantalla */
+.solo-lectores {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ==== Expediente del reclamo (components/modals/TicketDetailModal.tsx) ====
+   Modelo Z: cabecera (qué reclamo es / salir), pasos del flujo, pestañas y, fijo abajo, el pie con las
+   acciones (complementarias a la izquierda, la principal al final a la derecha). */
+.expediente-modal {
+  --exp-acento: var(--sky-700);
+  --exp-acento-suave: var(--sky-100);
+  --exp-final: var(--green-700);
+  --exp-aviso: var(--amber-600);
+  --exp-error: var(--red-600);
+}
+
+[data-theme='dark'] .expediente-modal {
+  --exp-acento: var(--sky-400);
+  --exp-acento-suave: rgba(56, 189, 248, 0.18);
+  --exp-final: var(--green-300);
+  --exp-aviso: var(--amber-500);
+  --exp-error: var(--red-300);
+}
+
+/* Alto fijo: al cambiar de pestaña el pie no se mueve. Solo se desplaza el contenido de la pestaña. */
+.modal-content.expediente-modal {
+  max-width: 900px;
+  height: min(90vh, 860px);
+  overflow: hidden;
+}
+
+.expediente-modal:focus {
+  outline: none;
+}
+
+.expediente-modal :is(button, [role='tabpanel']):focus-visible {
+  outline: 2px solid var(--exp-acento);
+  outline-offset: 2px;
+}
+
+.expediente-cabecera {
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 1.5rem 0.85rem;
+}
+
+.expediente-cabecera-datos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.3rem;
+}
+
+.expediente-folio {
+  font-family: var(--font-mono);
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: var(--exp-acento);
+}
+
+.expediente-prioridad {
+  font-size: 0.775rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.expediente-asunto {
+  font-size: 1.15rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.expediente-cerrar {
+  display: flex;
+  flex-shrink: 0;
+  padding: 0.4rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-card-subtle);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.expediente-cerrar:hover {
+  color: var(--text-main);
+}
+
+/* Pasos del flujo y situación: el estado del reclamo siempre a la vista */
+.expediente-estado {
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-card-subtle);
+}
+
+.flujo-pasos {
+  list-style: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.flujo-paso {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.flujo-paso:last-child {
+  flex: 0 0 auto;
+}
+
+.flujo-paso:not(:last-child)::after {
+  content: '';
+  flex: 1;
+  min-width: 0.75rem;
+  height: 2px;
+  margin-top: 0.65rem;
+  border-radius: 1px;
+  background: var(--border-color);
+}
+
+.flujo-paso-hecho:not(:last-child)::after {
+  background: var(--exp-acento);
+}
+
+.flujo-paso-marca {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.4rem;
+  height: 1.4rem;
+  border: 2px solid var(--text-dim);
+  border-radius: 50%;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.flujo-paso-hecho .flujo-paso-marca {
+  border-color: var(--exp-acento);
+  background: var(--exp-acento);
+  color: var(--bg-card);
+}
+
+.flujo-paso-actual .flujo-paso-marca {
+  border-color: var(--exp-acento);
+  color: var(--exp-acento);
+  box-shadow: 0 0 0 3px var(--exp-acento-suave);
+}
+
+.flujo-paso-respondido .flujo-paso-marca {
+  border-color: var(--exp-final);
+  background: var(--exp-final);
+}
+
+.flujo-paso-improcedente .flujo-paso-marca {
+  border-color: var(--text-muted);
+  background: var(--text-muted);
+}
+
+.flujo-paso-texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+  padding-top: 0.15rem;
+}
+
+.flujo-paso-nombre {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.flujo-paso-hecho .flujo-paso-nombre,
+.flujo-paso-actual .flujo-paso-nombre {
+  color: var(--text-main);
+}
+
+.flujo-paso-actual .flujo-paso-nombre {
+  font-weight: 800;
+}
+
+.flujo-paso-detalle {
+  margin-top: 0.1rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--exp-acento);
+  white-space: nowrap;
+}
+
+.flujo-paso-respondido .flujo-paso-detalle {
+  color: var(--exp-final);
+}
+
+.flujo-paso-improcedente .flujo-paso-detalle {
+  color: var(--text-muted);
+}
+
+.expediente-situacion {
+  margin-top: 0.55rem;
+  font-size: 0.825rem;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+/* Pestañas: subrayadas, para no competir con el botón principal del pie */
+.expediente-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.expediente-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: -1px;
+  padding: 0.7rem 0.85rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.expediente-tab:hover {
+  color: var(--text-main);
+}
+
+.expediente-tab[aria-selected='true'] {
+  border-bottom-color: var(--exp-acento);
+  color: var(--exp-acento);
+}
+
+.expediente-tab-marca {
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--exp-acento-suave);
+  color: var(--exp-acento);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.expediente-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem;
+}
+
+.expediente-panel[hidden] {
+  display: none;
+}
+
+.expediente-modal .expediente-panel:focus-visible {
+  outline-offset: -2px;
+}
+
+/* Contenido de las pestañas */
+.expediente-seccion {
+  margin-bottom: 1.25rem;
+}
+
+.expediente-seccion:last-child {
+  margin-bottom: 0;
+}
+
+.expediente-titulo,
+.expediente-grupo h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.expediente-caja {
+  margin-bottom: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-card-subtle);
+  color: var(--text-main);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.expediente-caja-texto {
+  font-size: 0.9rem;
+  white-space: pre-line;
+}
+
+.expediente-caja-espera {
+  border-left: 4px solid var(--exp-aviso);
+}
+
+.expediente-caja-final {
+  border-left: 4px solid var(--exp-final);
+}
+
+.expediente-caja-pie {
+  margin-bottom: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.expediente-grupos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.expediente-grupo {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-card-subtle);
+}
+
+.expediente-dato {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.18rem 0;
+  font-size: 0.825rem;
+}
+
+.expediente-dato dt {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.expediente-dato dd {
+  color: var(--text-main);
+  font-weight: 600;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.expediente-dato dd.expediente-dato-vacio {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.expediente-historial {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.expediente-historial li {
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--exp-acento);
+  border-radius: 8px;
+  background: var(--bg-card-subtle);
+  color: var(--text-main);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.expediente-historial-cabecera {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.2rem;
+}
+
+.expediente-historial-cabecera time {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.expediente-historial-rol {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* Formulario de la acción abierta */
+.expediente-form {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.15rem 0.3rem;
+  border: 1px solid var(--exp-acento);
+  border-radius: 10px;
+  box-shadow: 0 0 0 3px var(--exp-acento-suave);
+}
+
+.expediente-form-titulo {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+  font-size: 0.95rem;
+}
+
+.expediente-form fieldset {
+  min-width: 0;
+  border: 0;
+}
+
+.expediente-campo {
+  margin-bottom: 0.85rem;
+}
+
+.expediente-campo label {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: var(--text-main);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.expediente-campo :is(select, textarea, input) {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.expediente-campo textarea {
+  display: block;
+  min-height: 70px;
+  max-height: 220px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.expediente-campo :is(select, textarea, input):focus {
+  border-color: var(--exp-acento);
+  box-shadow: 0 0 0 3px var(--exp-acento-suave);
+}
+
+.expediente-ayuda {
+  margin-top: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.expediente-ayuda-fila {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.expediente-ayuda-fila span:last-child {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.expediente-error,
+.expediente-pie-nota.expediente-error {
+  color: var(--exp-error);
+}
+
+.expediente-aviso,
+.expediente-cita {
+  margin-bottom: 0.85rem;
+  padding: 0.7rem 0.9rem;
+  border-left: 4px solid var(--exp-aviso);
+  border-radius: 8px;
+  background: var(--bg-card-subtle);
+  color: var(--text-main);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.expediente-cita {
+  border-left-color: var(--exp-acento);
+}
+
+.expediente-cita-pie {
+  margin-bottom: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+/* Pie: nota o acciones complementarias a la izquierda; la acción principal al final, a la derecha */
+.modal-footer.expediente-pie {
+  position: relative;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.expediente-pie-grupo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.expediente-pie-final {
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.expediente-pie .btn {
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.expediente-pie .btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.expediente-btn-peligro,
+.expediente-menu-item.expediente-menu-item-peligro {
+  color: var(--exp-error);
+}
+
+.expediente-btn-peligro:hover {
+  border-color: var(--exp-error);
+}
+
+.expediente-pie-nota {
+  display: flex;
+  flex: 1 1 280px;
+  align-items: flex-start;
+  gap: 0.45rem;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.expediente-pie-nota svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.expediente-pie-nota-firme {
+  color: var(--text-main);
+}
+
+.expediente-pie-nota-firme svg {
+  color: var(--exp-aviso);
+}
+
+.expediente-menu {
+  position: relative;
+}
+
+.expediente-menu-lista {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 250px;
+  padding: 0.35rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-lg);
+}
+
+.expediente-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-main);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.expediente-menu-item:hover,
+.expediente-menu-item:focus-visible {
+  background: var(--bg-card-subtle);
+}
+
+.expediente-menu-separador {
+  height: 1px;
+  margin: 0.3rem 0;
+  background: var(--border-color);
+}
+
+@media (max-width: 640px) {
+  .expediente-cabecera,
+  .expediente-estado,
+  .expediente-panel,
+  .modal-footer.expediente-pie {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .expediente-tabs {
+    padding: 0 0.5rem;
+  }
+
+  /* En pantallas angostas solo se nombran el paso actual y el último; los demás quedan como marcas. */
+  .flujo-paso:not(.flujo-paso-actual):not(:last-child) .flujo-paso-texto {
+    display: none;
+  }
+
+  .flujo-paso-actual {
+    flex: 0 0 auto;
+  }
+
+}
+/* ==== Fin del expediente del reclamo ==== */
 
 /* Diálogo nativo <dialog> para el Chat de IA */
 dialog:modal {

@@ -341,10 +341,8 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
               ) : (
                 constanciasPaginadas.map((c) => (
                   <tr key={c.id}>
-                    <td>
-                      <span className="badge badge-neutral" style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                        {c.folio}
-                      </span>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--primary-500)' }}>
+                      {c.folio}
                     </td>
                     <td>
                       <strong style={{ color: 'var(--text-main)', fontSize: '0.85rem' }}>
@@ -357,10 +355,8 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
                         {c.documentoTipo}: {enmascararPrivacidad ? `${c.documentoNumero.slice(0, 2)}****${c.documentoNumero.slice(-2)}` : c.documentoNumero}
                       </span>
                     </td>
-                    <td>
-                      <span className="badge badge-neutral" style={{ fontFamily: 'var(--font-mono)' }}>
-                        {c.predioCodigo}
-                      </span>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--primary-500)' }}>
+                      {c.predioCodigo}
                     </td>
                     <td style={{ fontSize: '0.75rem', maxWidth: '200px', color: 'var(--text-muted)' }} title={c.direccionPredio}>
                       {c.direccionPredio}
@@ -376,14 +372,14 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
                         </span>
                       )}
                     </td>
-                    <td>
+                    <td style={{ fontSize: '0.8rem' }}>
                       {c.firmadoDigitalmente ? (
-                        <span className="badge badge-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <FileCheck size={12} /> PAdES RENIEC
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-main)' }}>
+                          <FileCheck size={14} style={{ color: 'var(--primary-600)' }} /> PAdES RENIEC
                         </span>
                       ) : (
-                        <span className="badge badge-neutral" style={{ color: 'var(--text-muted)' }}>
-                          No Emitida
+                        <span style={{ color: 'var(--text-muted)' }}>
+                          No emitida
                         </span>
                       )}
                     </td>
@@ -393,8 +389,8 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
                     <td style={{ textAlign: 'center' }}>
                       <button
                         onClick={() => handleVerConstancia(c)}
-                        className="btn btn-secondary"
-                        style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
+                        className="btn btn-primary"
+                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', whiteSpace: 'nowrap' }}
                         title="Ver constancia oficial (PDF)"
                       >
                         <ExternalLink size={14} /> Ver

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { AlertCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ExternalLink } from 'lucide-react';
 import { AccionTicket, Ticket } from '@/types/ticket.types';
 import { StatusBadge, PriorityLabel } from '@/components/shared/ui/TicketLabels';
 import { puedeAprobar, puedeReasignar } from '@/utils/ticket.utils';
@@ -12,7 +12,14 @@ interface SupervisorTableProps {
   mensajeVacio?: string;
 }
 
-const estiloBoton: React.CSSProperties = { padding: '0.3rem 0.6rem', fontSize: '0.75rem' };
+const estiloBoton: React.CSSProperties = {
+  padding: '0.35rem 0.65rem',
+  fontSize: '0.75rem',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '0.35rem',
+  whiteSpace: 'nowrap',
+};
 
 export const SupervisorTable: React.FC<SupervisorTableProps> = ({
   tickets,
@@ -41,7 +48,7 @@ export const SupervisorTable: React.FC<SupervisorTableProps> = ({
               <th>Asunto</th>
               <th>Estado</th>
               <th>Prioridad</th>
-              <th>Acción de Supervisor</th>
+              <th>Acción</th>
             </tr>
           </thead>
           <tbody>
@@ -79,12 +86,12 @@ export const SupervisorTable: React.FC<SupervisorTableProps> = ({
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: '0.35rem' }}>
-                      <button onClick={() => onSelectTicket(ticket)} className="btn btn-secondary" style={estiloBoton}>
-                        Examinar Caso
+                      <button onClick={() => onSelectTicket(ticket)} className="btn btn-primary" style={estiloBoton}>
+                        <ExternalLink size={14} /> Examinar
                       </button>
                       {modoReasignacion
                         ? puedeReasignar(ticket) && (
-                            <button onClick={() => onSelectTicket(ticket, 'REASIGNAR')} className="btn btn-primary" style={estiloBoton}>
+                            <button onClick={() => onSelectTicket(ticket, 'REASIGNAR')} className="btn btn-secondary" style={estiloBoton}>
                               Reasignar
                             </button>
                           )

@@ -63,7 +63,7 @@ export interface Ticket {
   numeroResolucion?: string;
   respuestaFinal?: string;
   /** Lo que puede hacer quien consulta, según su rol y el estado. El front solo muestra estos botones. */
-  accionesPermitidas?: AccionCodigo[];
+  accionesPermitidas?: (AccionCodigo | AccionSinUso)[];
   /** Solo en el detalle. */
   evaluaciones?: TicketEvaluacion[];
   /** Solo en el detalle; la más reciente primero. */
@@ -127,7 +127,7 @@ export interface TicketFiltros {
   soloAsignadosAMi?: boolean;
 }
 
-/** Acciones del flujo (las mismas de `accionesPermitidas` del backend). */
+/** Acciones del flujo que usa el portal (vienen en `accionesPermitidas` del backend). */
 export type AccionCodigo =
   | 'RECIBIR'
   | 'VALIDAR'
@@ -139,10 +139,15 @@ export type AccionCodigo =
   | 'ELABORAR_RESPUESTA'
   | 'APROBAR_RESPUESTA'
   | 'OBSERVAR_RESPUESTA'
-  | 'CERRAR'
   | 'DECLARAR_IMPROCEDENTE'
   | 'NOTA'
   | 'ADJUNTAR_EVIDENCIA';
+
+/**
+ * Acciones que el backend todavía puede mandar y el portal no ofrece. El reclamo concluye cuando se envía la
+ * respuesta final al ciudadano: no hay un paso aparte de "cerrar el caso".
+ */
+export type AccionSinUso = 'CERRAR';
 
 /** Acción abierta en el detalle de un reclamo. */
 export type AccionTicket = 'ninguna' | AccionCodigo;

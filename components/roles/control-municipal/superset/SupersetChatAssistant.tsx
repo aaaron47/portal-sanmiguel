@@ -4,20 +4,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import {
   Send,
-  User,
   RotateCcw,
   Sparkles,
   Layers,
   X,
-  CheckCircle2,
-  AlertTriangle,
-  Clock,
 } from 'lucide-react';
 import {
-  EstadoIaBiResponse,
   ModoConsultaIA,
   ModuloAnalitico,
-  ProgresoChatIA,
   ProveedorModeloIA,
   SupersetChatMessage,
   SupersetDashboardInfo,
@@ -50,6 +44,22 @@ function generarIdMensaje(prefijo: string): string {
   return `${prefijo}-${contadorMensajes}`;
 }
 
+const SECUENCIA_PUNTOS = ['.', '..', '...', '..', '.', ''] as const;
+
+function limpiarTextoRespuesta(texto: string): string {
+  return texto
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<think>[\s\S]*$/gi, '')
+    .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, '')
+    .replace(/^\s*(?:\*\*|__)?Herramientas usadas:(?:\*\*|__)?[^\n]*/gim, '')
+    .replace(
+      /^\s*(?:\*\*|__)?Elementos creados en Superset:(?:\*\*|__)?[^\n]*(?:\n(?![ \t]*\n)[^\n]+)*/gim,
+      ''
+    )
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
   modulo = 'CONTROL_MUNICIPAL',
   dashboardsDisponibles = DASHBOARDS_SUPERSET_CONTROL_MUNICIPAL,
@@ -64,27 +74,17 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
   const [mensajes, setMensajes] = useState<SupersetChatMessage[]>([]);
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [pasoPuntos, setPasoPuntos] = useState(0);
   const [proveedorModelo, setProveedorModelo] = useState<ProveedorModeloIA>(modeloInicial);
   const [errorApiTexto, setErrorApiTexto] = useState<string | null>(null);
-  const [progresoLive, setProgresoLive] = useState<ProgresoChatIA | null>(null);
-  const [estadoIa, setEstadoIa] = useState<EstadoIaBiResponse | null>(null);
-  const [avisoCola, setAvisoCola] = useState<string | null>(null);
 
-  const consultarEstadoIa = useCallback(async () => {
-    try {
-      const estado = await iaDashboardsController.getEstadoIa();
-      setEstadoIa(estado);
-      const enCola =
-        proveedorModelo === 'LOCAL' ? estado.trabajosPendientes : estado.trabajosPendientesApi;
-      if (enCola > 0) {
-        setAvisoCola(`Hay ${enCola} pregunta${enCola > 1 ? 's' : ''} por delante en la cola.`);
-      } else {
-        setAvisoCola(null);
-      }
-    } catch {
-      // Si el endpoint de estado no responde (modo demo o sin backend)
-    }
-  }, [proveedorModelo]);
+  useEffect(() => {
+    if (!isGenerating) return;
+    const id = window.setInterval(() => {
+      setPasoPuntos((prev) => (prev + 1) % SECUENCIA_PUNTOS.length);
+    }, 350);
+    return () => window.clearInterval(id);
+  }, [isGenerating]);
 
   useEffect(() => {
     let cancelado = false;
@@ -92,16 +92,8 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
       .getEstadoIa()
       .then((estado) => {
         if (cancelado) return;
-        setEstadoIa(estado);
         if (estado.api === 'NO_CONFIGURADO' && proveedorModelo === 'API' && estado.modelo === 'DISPONIBLE') {
           setProveedorModelo('LOCAL');
-        }
-        const enCola =
-          proveedorModelo === 'LOCAL' ? estado.trabajosPendientes : estado.trabajosPendientesApi;
-        if (enCola > 0) {
-          setAvisoCola(`Hay ${enCola} pregunta${enCola > 1 ? 's' : ''} por delante en la cola.`);
-        } else {
-          setAvisoCola(null);
         }
       })
       .catch(() => {
@@ -130,7 +122,6 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
           : 'CONSULTA_DATOS');
 
       setErrorApiTexto(null);
-      setProgresoLive(null);
 
       const userMsg: SupersetChatMessage = {
         id: generarIdMensaje('usr'),
@@ -149,6 +140,7 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
 
       setMensajes((prev) => [...prev, userMsg]);
       setPrompt('');
+      setPasoPuntos(0);
       setIsGenerating(true);
 
       try {
@@ -160,7 +152,6 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
           dashboardContextoActivoId: dashboardContextoInicialId,
           dashboardContextoIds: dashboardsDisponibles.map((d) => d.id),
           historial: historialActual,
-          onProgreso: (p) => setProgresoLive(p),
         });
 
         if (resp.dashboardGenerado && onDashboardGenerado) {
@@ -175,14 +166,8 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
           modo: resp.modo,
           proveedorModelo: resp.proveedorModelo,
           nombreModelo: resp.nombreModelo,
-          fuentesConsultadas: resp.fuentesConsultadas,
           dashboardSugeridoId: resp.dashboardSugeridoId,
           dashboardGenerado: resp.dashboardGenerado,
-          graficoTitulo: resp.graficoTitulo,
-          metricas: resp.metricas,
-          pasos: resp.pasos,
-          creados: resp.creados,
-          segundos: resp.segundos,
         };
 
         setMensajes((prev) => [...prev, respuestaBot]);
@@ -194,8 +179,6 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
             texto: `El asistente no pudo completar todo el proceso: ${err.message}`,
             fecha: 'Ahora',
             estado: 'error',
-            creados: err.creados,
-            pasos: err.pasos,
             proveedorModelo,
             nombreModelo: nombreModeloActivo,
           };
@@ -207,8 +190,6 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
         }
       } finally {
         setIsGenerating(false);
-        setProgresoLive(null);
-        consultarEstadoIa();
       }
     },
     [
@@ -221,7 +202,6 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
       dashboardsDisponibles,
       modulo,
       onDashboardGenerado,
-      consultarEstadoIa,
     ]
   );
 
@@ -229,7 +209,6 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
     setMensajes([]);
     setPrompt('');
     setErrorApiTexto(null);
-    setProgresoLive(null);
   };
 
   return (
@@ -293,70 +272,6 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
       {errorApiTexto && (
         <div className="alert-warning-box" style={{ marginBottom: '0.6rem', padding: '0.5rem 0.75rem', fontSize: '0.75rem' }}>
           <span>{errorApiTexto}</span>
-        </div>
-      )}
-
-      {avisoCola && (
-        <div
-          style={{
-            marginBottom: '0.5rem',
-            padding: '0.4rem 0.65rem',
-            fontSize: '0.72rem',
-            borderRadius: '6px',
-            background: 'var(--amber-50)',
-            color: 'var(--amber-800)',
-            border: '1px solid var(--amber-200)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-          }}
-        >
-          <Clock size={13} />
-          <span>{avisoCola}</span>
-        </div>
-      )}
-
-      {proveedorModelo === 'LOCAL' && estadoIa?.modelo && estadoIa.modelo !== 'DISPONIBLE' && (
-        <div
-          style={{
-            marginBottom: '0.5rem',
-            padding: '0.4rem 0.65rem',
-            fontSize: '0.72rem',
-            borderRadius: '6px',
-            background: 'var(--amber-50)',
-            color: 'var(--amber-800)',
-            border: '1px solid var(--amber-200)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-          }}
-        >
-          <AlertTriangle size={13} />
-          <span>
-            {estadoIa.modelo === 'SIN_RESPUESTA'
-              ? 'El modelo local no responde actualmente. Puedes alternar al modelo API.'
-              : 'El modelo local no está configurado.'}
-          </span>
-        </div>
-      )}
-
-      {proveedorModelo === 'API' && estadoIa?.api === 'NO_CONFIGURADO' && (
-        <div
-          style={{
-            marginBottom: '0.5rem',
-            padding: '0.4rem 0.65rem',
-            fontSize: '0.72rem',
-            borderRadius: '6px',
-            background: 'var(--amber-50)',
-            color: 'var(--amber-800)',
-            border: '1px solid var(--amber-200)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-          }}
-        >
-          <AlertTriangle size={13} />
-          <span>La API de Claude no está configurada en el servidor. Puedes alternar al modelo local.</span>
         </div>
       )}
 
@@ -462,182 +377,28 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
                 {m.rol === 'user' ? (
                   <div>{m.texto}</div>
                 ) : (
-                  <MarkdownRenderer content={m.texto} />
+                  <MarkdownRenderer content={limpiarTextoRespuesta(m.texto)} />
                 )}
 
-                {/* Fuentes cruzadas */}
-                {m.fuentesConsultadas && m.fuentesConsultadas.length > 0 && (
-                  <div style={{ marginTop: '0.4rem', display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                    {m.fuentesConsultadas.map((f, idx) => (
-                      <span
-                        key={idx}
-                        style={{
-                          fontSize: '0.64rem',
-                          padding: '0.1rem 0.38rem',
-                          borderRadius: '4px',
-                          background: 'var(--bg-card)',
-                          border: '1px solid var(--border-color)',
-                          color: 'var(--sky-700)',
-                          fontWeight: 600,
-                        }}
-                      >
-                        {f}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Métricas inline */}
-                {m.metricas && m.metricas.length > 0 && (
-                  <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                    {m.metricas.map((item, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          background: 'var(--bg-card)',
-                          padding: '0.3rem 0.5rem',
-                          borderRadius: '6px',
-                          border: '1px solid var(--border-color)',
-                        }}
-                      >
-                        <span style={{ fontSize: '0.64rem', color: 'var(--text-muted)', display: 'block' }}>
-                          {item.label}
-                        </span>
-                        <strong
-                          style={{
-                            fontSize: '0.78rem',
-                            color: item.positivo === false ? 'var(--red-600)' : 'var(--green-600)',
-                          }}
-                        >
-                          {item.valor}
-                        </strong>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Si se creó un nuevo dashboard */}
-                {m.dashboardGenerado && (
-                  <div
+                {m.dashboardGenerado && onVisualizarDashboard && (
+                  <button
+                    type="button"
+                    onClick={() => onVisualizarDashboard(m.dashboardGenerado!.id, m.dashboardGenerado)}
+                    className="btn btn-primary"
                     style={{
                       marginTop: '0.55rem',
-                      padding: '0.55rem',
-                      borderRadius: '8px',
-                      background: 'var(--bg-card)',
-                      border: '1px solid var(--border-color)',
-                      color: 'var(--text-main)',
+                      fontSize: '0.73rem',
+                      padding: '0.32rem 0.65rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 700, fontSize: '0.73rem', marginBottom: '0.35rem' }}>
-                      <CheckCircle2 size={13} color="var(--green-600)" />
-                      Agregado a Borradores
-                    </div>
-                    {onVisualizarDashboard && (
-                      <button
-                        type="button"
-                        onClick={() => onVisualizarDashboard(m.dashboardGenerado!.id, m.dashboardGenerado)}
-                        className="btn btn-primary"
-                        style={{ fontSize: '0.72rem', padding: '0.28rem 0.6rem', width: '100%' }}
-                      >
-                        <Layers size={12} />
-                        Ver en el panel central
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Si se alcanzaron a crear elementos en Superset (incluso ante error) */}
-                {m.creados && m.creados.length > 0 && (
-                  <div
-                    style={{
-                      marginTop: '0.45rem',
-                      padding: '0.45rem 0.6rem',
-                      borderRadius: '8px',
-                      background: 'var(--bg-card)',
-                      border: '1px solid var(--border-color)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: '0.72rem',
-                        fontWeight: 600,
-                        color: 'var(--text-main)',
-                        marginBottom: '0.25rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.35rem',
-                      }}
-                    >
-                      <Layers size={12} color="var(--sky-600)" />
-                      <span>Elementos creados en Superset:</span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                      {m.creados.map((item, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            fontSize: '0.7rem',
-                            padding: '0.2rem 0.4rem',
-                            borderRadius: '4px',
-                            background: 'var(--bg-card-subtle)',
-                            border: '1px solid var(--border-color)',
-                            color: 'var(--text-main)',
-                            fontFamily: 'var(--font-mono)',
-                          }}
-                        >
-                          {item}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Herramientas MCP y tiempo de respuesta del asistente */}
-                {((m.pasos && m.pasos.length > 0) || m.segundos !== undefined) && (
-                  <div
-                    style={{
-                      marginTop: '0.45rem',
-                      paddingTop: '0.35rem',
-                      borderTop: '1px solid var(--border-color)',
-                      fontSize: '0.67rem',
-                      color: 'var(--text-muted)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.2rem',
-                    }}
-                  >
-                    {m.pasos && m.pasos.length > 0 && (
-                      <div>
-                        <span style={{ fontWeight: 600 }}>Herramientas usadas: </span>
-                        <span>{m.pasos.join(', ')}</span>
-                      </div>
-                    )}
-                    {m.segundos !== undefined && (
-                      <div style={{ fontStyle: 'italic', fontSize: '0.63rem' }}>
-                        Listo en {m.segundos}s · {m.nombreModelo || (m.proveedorModelo === 'API' ? 'Claude Opus' : 'San Miguel 1')}
-                      </div>
-                    )}
-                  </div>
+                    <Layers size={12} />
+                    <span>Ver tablero: {m.dashboardGenerado.titulo}</span>
+                  </button>
                 )}
               </div>
-
-              {m.rol === 'user' && (
-                <div
-                  style={{
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '50%',
-                    background: 'var(--slate-200)',
-                    color: 'var(--slate-700)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <User size={13} />
-                </div>
-              )}
             </div>
           ))
         )}
@@ -646,62 +407,56 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
           <div
             style={{
               display: 'flex',
-              flexDirection: 'column',
-              gap: '0.35rem',
-              padding: '0.65rem 0.8rem',
-              background: 'var(--bg-card-subtle)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '10px',
+              gap: '0.45rem',
+              alignSelf: 'flex-start',
               maxWidth: '94%',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--sky-700)', fontWeight: 600, fontSize: '0.78rem' }}>
-                <Sparkles size={14} className="spin-anim" />
-                <span>
-                  {progresoLive?.estado
-                    ? `${progresoLive.estado}…`
-                    : `Procesando en ${nombreModeloActivo}…`}
-                </span>
-              </div>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>
-                {progresoLive?.segundos !== undefined ? `${progresoLive.segundos}s` : 'Iniciando…'}
-              </span>
+            <div
+              style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-color)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                overflow: 'hidden',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+              }}
+            >
+              <Image
+                src="/icon.png"
+                alt="San Miguel"
+                width={18}
+                height={18}
+                style={{ objectFit: 'contain' }}
+              />
             </div>
 
-            {proveedorModelo === 'LOCAL' && (
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', lineHeight: 1.35 }}>
-                Inferencia privada en CPU (San Miguel 1): una respuesta suele tardar de decenas de segundos a minutos.
-              </div>
-            )}
-
-            {proveedorModelo === 'API' && (
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', lineHeight: 1.35 }}>
-                Inferencia vía API ({nombreModeloActivo}): respuesta rápida con herramientas MCP de Superset (~15–20s).
-              </div>
-            )}
-
-            {progresoLive?.pasos && progresoLive.pasos.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap', marginTop: '0.2rem' }}>
-                <span style={{ fontSize: '0.66rem', fontWeight: 600, color: 'var(--text-main)' }}>Herramientas:</span>
-                {progresoLive.pasos.map((p, idx) => (
-                  <span
-                    key={idx}
-                    style={{
-                      fontSize: '0.64rem',
-                      padding: '0.1rem 0.35rem',
-                      borderRadius: '4px',
-                      background: 'var(--bg-card)',
-                      border: '1px solid var(--border-color)',
-                      color: 'var(--sky-700)',
-                      fontFamily: 'monospace',
-                    }}
-                  >
-                    {p}
-                  </span>
-                ))}
-              </div>
-            )}
+            <div
+              style={{
+                background: 'var(--bg-card-subtle)',
+                color: 'var(--text-muted)',
+                borderRadius: '10px',
+                padding: '0.55rem 0.8rem',
+                fontSize: '0.78rem',
+                border: '1px solid var(--border-color)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+              }}
+            >
+              <Sparkles size={14} className="spin-anim" color="var(--sky-600)" />
+              <span>
+                Procesando
+                <span style={{ display: 'inline-block', width: '1.25em', textAlign: 'left' }}>
+                  {SECUENCIA_PUNTOS[pasoPuntos]}
+                </span>
+              </span>
+            </div>
           </div>
         )}
       </div>
@@ -753,20 +508,11 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
               flexShrink: 0,
             }}
           >
-            {opcionesModelo.map((opt) => {
-              let sufijo = '';
-              if (opt.valor === 'LOCAL' && estadoIa?.modelo && estadoIa.modelo !== 'DISPONIBLE') {
-                sufijo = estadoIa.modelo === 'SIN_RESPUESTA' ? ' (Sin respuesta)' : ' (No config.)';
-              } else if (opt.valor === 'API' && estadoIa?.api === 'NO_CONFIGURADO') {
-                sufijo = ' (No config.)';
-              }
-              return (
-                <option key={opt.valor} value={opt.valor}>
-                  {opt.etiqueta}
-                  {sufijo}
-                </option>
-              );
-            })}
+            {opcionesModelo.map((opt) => (
+              <option key={opt.valor} value={opt.valor}>
+                {opt.etiqueta}
+              </option>
+            ))}
           </select>
 
           <input

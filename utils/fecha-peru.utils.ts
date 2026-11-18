@@ -56,6 +56,11 @@ export function fechaPeru(fecha: string): string {
   return fechaHoraPeru(fecha).split(',')[0];
 }
 
+/** Fecha del backend para mostrar: "30/10/2026" si solo trae el día, "30/10/2026, 10:45" si trae la hora. */
+export function fechaLegible(fecha: string): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(fecha) ? fechaPeru(fecha) : fechaHoraPeru(fecha);
+}
+
 /** "lun 10/11" para una fecha `YYYY-MM-DD` (es un día calendario, no un instante). */
 export function diaCorto(fecha: string): string {
   const d = new Date(`${fecha}T12:00:00Z`);

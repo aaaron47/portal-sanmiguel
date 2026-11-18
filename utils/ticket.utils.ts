@@ -25,9 +25,15 @@ export const esActivo = (t: Ticket) => ESTADOS_ACTIVOS.includes(t.estado);
 /** El backend dice qué puede hacer quien consulta (`accionesPermitidas`) y lo vuelve a comprobar al guardar. */
 export const puede = (t: Ticket, accion: AccionCodigo) => Boolean(t.accionesPermitidas?.includes(accion));
 
-/** Acciones que avanzan el reclamo (todas menos la nota interna y adjuntar una evidencia). */
+/** El reclamo ya terminó: se envió la respuesta final (respondido o cerrado) o se declaró improcedente. */
+export const estaConcluido = (t: Ticket) => !esActivo(t);
+
+/**
+ * Acciones que avanzan el reclamo: todas menos la nota interna, adjuntar una evidencia y el cierre que el
+ * portal ya no ofrece (el reclamo concluye con la respuesta final).
+ */
 export const tieneAccionesPendientes = (t: Ticket) =>
-  Boolean(t.accionesPermitidas?.some((a) => a !== 'NOTA' && a !== 'ADJUNTAR_EVIDENCIA'));
+  Boolean(t.accionesPermitidas?.some((a) => a !== 'NOTA' && a !== 'ADJUNTAR_EVIDENCIA' && a !== 'CERRAR'));
 
 /** Reglas de las evidencias (las vuelve a comprobar el backend). */
 export const TIPOS_ADJUNTO_PERMITIDOS = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -77,6 +83,22 @@ export const ETIQUETAS_RESULTADO: Record<ResultadoReclamo, string> = {
   FUNDADO_EN_PARTE: 'Fundado en parte',
   INFUNDADO: 'Infundado',
 };
+
+const ETIQUETAS_CANAL: Record<string, string> = {
+  APP_MOVIL: 'App móvil',
+};
+
+/**
+ * Canal del inconveniente en palabras: el backend manda un código (`APP_MOVIL`). Un código que el portal no
+ * conoce se muestra sin guiones bajos ("PORTAL_WEB" → "Portal web"); un texto ya escrito se deja igual.
+ */
+export function nombreCanal(canal?: string | null): string | undefined {
+  if (!canal) return undefined;
+  if (ETIQUETAS_CANAL[canal]) return ETIQUETAS_CANAL[canal];
+  if (!/^[A-Z0-9_]+$/.test(canal)) return canal;
+  const texto = canal.replace(/_/g, ' ').toLowerCase();
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
 
 /** Funcionario al que se le puede asignar un reclamo. */
 export interface FuncionarioOpcion {
@@ -179,13 +201,11 @@ export function mensajeExitoAccion(accion: AccionCodigo, t: Ticket, datos: Datos
     case 'ELABORAR_RESPUESTA':
       return t.respuestaPorAprobar
         ? `Respuesta del reclamo ${t.folio} enviada al supervisor para su aprobación`
-        : `Respuesta enviada al ciudadano; el reclamo ${t.folio} quedó respondido`;
+        : `Respuesta enviada al ciudadano; el reclamo ${t.folio} quedó concluido`;
     case 'APROBAR_RESPUESTA':
-      return `Respuesta aprobada y enviada al ciudadano (${t.numeroResolucion || t.folio})`;
+      return `Respuesta aprobada y enviada al ciudadano (${t.numeroResolucion || t.folio}); el reclamo quedó concluido`;
     case 'OBSERVAR_RESPUESTA':
       return `Respuesta del reclamo ${t.folio} devuelta al funcionario con tus observaciones`;
-    case 'CERRAR':
-      return `Reclamo ${t.folio} cerrado`;
     case 'DECLARAR_IMPROCEDENTE':
       return `Reclamo ${t.folio} declarado improcedente; se avisó al ciudadano`;
     case 'NOTA':

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowDown, ArrowUp } from 'lucide-react';
+import { ArrowDown, ArrowUp, ExternalLink } from 'lucide-react';
 import { CargaFuncionario } from '@/utils/ticket.utils';
 
 export type CriterioOrdenCarga = 'activos' | 'alta' | 'media' | 'baja' | 'porAprobar' | 'nombre';
@@ -189,24 +189,33 @@ export const CargaFuncionariosTable: React.FC<CargaFuncionariosTableProps> = ({
 
                   {/* Casos activos */}
                   <td style={celdaNumero}>
-                    {estaLibre ? (
-                      <span className="badge badge-success" style={{ fontSize: '0.75rem', padding: '0.15rem 0.45rem' }}>
-                        0
-                      </span>
-                    ) : (
-                      <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                        {c.activos}
-                      </span>
-                    )}
+                    <span
+                      style={{
+                        fontSize: '0.95rem',
+                        fontWeight: c.activos > 0 ? 700 : 500,
+                        color: c.activos > 0 ? 'var(--text-main)' : 'var(--text-muted)',
+                      }}
+                    >
+                      {c.activos}
+                    </span>
                   </td>
 
                   <td style={{ textAlign: 'center' }}>
                     <button
                       onClick={() => onSeleccionar(c.id)}
-                      className={`btn ${seleccionado ? 'btn-primary' : 'btn-secondary'}`}
-                      style={{ padding: '0.3rem 0.65rem', fontSize: '0.75rem' }}
+                      className={`btn ${estaLibre ? 'btn-secondary' : 'btn-primary'}`}
+                      style={{
+                        padding: '0.35rem 0.65rem',
+                        fontSize: '0.75rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        whiteSpace: 'nowrap',
+                        opacity: estaLibre ? 0.6 : 1,
+                      }}
                       disabled={estaLibre}
                     >
+                      {!estaLibre && <ExternalLink size={14} />}
                       {estaLibre ? 'Sin reclamos' : seleccionado ? 'Viendo reclamos' : 'Ver reclamos'}
                     </button>
                   </td>

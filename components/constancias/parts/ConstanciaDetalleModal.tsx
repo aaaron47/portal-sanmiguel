@@ -8,6 +8,7 @@ import { SolicitudConstancia } from '@/types/constancia.types';
 import { fechaHoraPeru, fechaPeru } from '@/utils/fecha-peru.utils';
 import { importe, motivoNoAprobable, puedeConstancia, tieneDeuda } from '../constancia.utils';
 import { MENSAJES_CONSTANCIAS } from '../useConstancias';
+import { ConstanciaStatusBadge } from './ConstanciaStatusBadge';
 
 interface ConstanciaDetalleModalProps {
   /** La fila de la tabla: se muestra al instante mientras llega el detalle. */
@@ -131,8 +132,11 @@ export const ConstanciaDetalleModal: React.FC<ConstanciaDetalleModalProps> = ({ 
             <h3 id="titulo-constancia" style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <FileCheck size={18} /> Solicitud {s.numero}
             </h3>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-              {s.estadoEtiqueta} · solicitada el {fechaHoraPeru(s.solicitadoEn)}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
+              <ConstanciaStatusBadge estado={s.estado} etiqueta={s.estadoEtiqueta} />
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                · solicitada el {fechaHoraPeru(s.solicitadoEn)}
+              </span>
             </div>
           </div>
           <button type="button" onClick={onClose} disabled={enviando} aria-label="Cerrar" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
@@ -229,7 +233,12 @@ export const ConstanciaDetalleModal: React.FC<ConstanciaDetalleModalProps> = ({ 
               {s.motivoRechazo && <Dato nombre="Motivo">{s.motivoRechazo}</Dato>}
               {s.constancia && (
                 <>
-                  <Dato nombre="Constancia">{s.constancia.estado === 'VIGENTE' ? 'Vigente' : s.constancia.estado}</Dato>
+                  <Dato nombre="Constancia">
+                    <ConstanciaStatusBadge
+                      estado={s.constancia.estado}
+                      etiqueta={s.constancia.estado === 'VIGENTE' ? 'Vigente' : s.constancia.estado}
+                    />
+                  </Dato>
                   <Dato nombre="Vigente hasta">{fechaPeru(s.constancia.vigenteHasta)}</Dato>
                   <Dato nombre="Código de verificación">
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{s.constancia.codigoVerificacion}</span>

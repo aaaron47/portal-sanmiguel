@@ -1,43 +1,33 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import { Ticket } from '@/types/ticket.types';
-import { StatusBadge, PriorityLabel } from '@/components/shared/ui/TicketLabels';
+import { StatusBadge } from '@/components/shared/ui/TicketLabels';
 
 interface ExpedienteHeaderProps {
   ticket: Ticket;
+  /** Id del título: el diálogo lo usa como nombre. */
+  tituloId: string;
   onClose: () => void;
 }
 
-export const ExpedienteHeader: React.FC<ExpedienteHeaderProps> = ({ ticket, onClose }) => (
-  <div className="modal-header">
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
-        <span style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--primary-500)', fontFamily: 'var(--font-mono)' }}>
-          {ticket.folio}
-        </span>
+/**
+ * Cabecera del expediente. Modelo Z: arriba a la izquierda, qué reclamo es (folio, estado, prioridad y
+ * asunto); arriba a la derecha, la salida.
+ */
+export const ExpedienteHeader: React.FC<ExpedienteHeaderProps> = ({ ticket, tituloId, onClose }) => (
+  <div className="modal-header expediente-cabecera">
+    <div style={{ minWidth: 0 }}>
+      <div className="expediente-cabecera-datos">
+        <span className="expediente-folio">{ticket.folio}</span>
         <StatusBadge estado={ticket.estado} porAprobar={ticket.respuestaPorAprobar} />
-        <PriorityLabel prioridad={ticket.prioridad} />
+        <span className="expediente-prioridad">Prioridad {ticket.prioridad}</span>
       </div>
-      <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+      <h2 id={tituloId} className="expediente-asunto">
         {ticket.asunto}
       </h2>
     </div>
-    <button
-      onClick={onClose}
-      style={{
-        background: 'var(--bg-card-subtle)',
-        border: '1px solid var(--border-color)',
-        borderRadius: '8px',
-        padding: '0.35rem',
-        cursor: 'pointer',
-        color: 'var(--text-muted)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-      aria-label="Cerrar modal"
-    >
-      <X size={18} />
+    <button type="button" onClick={onClose} className="expediente-cerrar" aria-label="Cerrar ventana" title="Cerrar ventana (Esc)">
+      <X size={18} aria-hidden="true" />
     </button>
   </div>
 );
