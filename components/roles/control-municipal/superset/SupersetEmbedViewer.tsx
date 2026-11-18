@@ -253,10 +253,7 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
     if (uuidEmbebido) return;
     // Un dashboard real de Superset (id numérico) sin embebido no tiene guest token: el endpoint pide el UUID de embed y con
     // el id numérico respondería 404. Se muestra "Habilitar embebido" y el token se pide al habilitarlo.
-    if (sidNumerico !== null) {
-      setEmbedConfig(null);
-      return;
-    }
+    if (sidNumerico !== null) return;
     iaDashboardsController
       .getSupersetEmbedToken(dashboardActual.id, dashboardActual.modulo || modulo, theme)
       .then((cfg) => {
@@ -580,7 +577,7 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
             hideChartControls={false}
             theme={theme}
           />
-        ) : embedConfig?.embedUrl ? (
+        ) : sidNumerico === null && embedConfig?.embedUrl ? (
           /* Fallback con URL directa si existiese */
           <iframe
             key={`${dashboardActual.id}-${iframeRefreshKey}-${theme}`}
