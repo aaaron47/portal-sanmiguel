@@ -823,7 +823,13 @@ export function extraerDashboardDeCreados(
   promptOrigen: string
 ): SupersetDashboardInfo | undefined {
   if (!creados || creados.length === 0) return undefined;
-  for (const linea of creados) {
+  // `creados` mezcla dashboards y gráficos: "Gráfico creado: «X» (id 199)" lleva el id de un GRÁFICO, que no es un
+  // dashboard (daría 404 en todo). Solo cuentan las líneas de dashboard; la de "Dashboard creado" va primero.
+  const lineasDashboard = [
+    ...creados.filter((l) => /^\s*Dashboard creado/i.test(l)),
+    ...creados.filter((l) => /^\s*Gráfico agregado al dashboard/i.test(l)),
+  ];
+  for (const linea of lineasDashboard) {
     const matchId = /\(id\s+(\d+)\)/i.exec(linea) || /\/dashboard\/(\d+)/i.exec(linea);
     if (matchId) {
       const numId = Number(matchId[1]);
