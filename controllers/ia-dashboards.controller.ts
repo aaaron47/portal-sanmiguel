@@ -1150,7 +1150,7 @@ export class IaDashboardsController {
   /**
    * Habilita el embebido reintentando mientras el backend responde 409 `bi_graficos_sin_query_context`
    * (los gráficos recién creados por el asistente tardan unos segundos en quedar listos).
-   * Reintenta cada 4 s hasta unos 60 s; `onEspera` permite mostrar "Preparando…".
+   * Reintenta cada 4 s hasta unos 3 min; `onEspera` permite mostrar "Preparando…".
    */
   async habilitarEmbebidoConReintentos(
     id: number,
@@ -1158,7 +1158,7 @@ export class IaDashboardsController {
     signal?: AbortSignal
   ): Promise<BiEmbebidoResponse> {
     const INTERVALO_MS = 4000;
-    const MAX_INTENTOS = 15;
+    const MAX_INTENTOS = 45;
     for (let intento = 1; ; intento++) {
       try {
         return await this.habilitarEmbebido(id);
