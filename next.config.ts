@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
   experimental: {
     agentUpgrade: 'security',
   },
+  // La pantalla de inicio de sesión está en "/": quien escriba /login (por costumbre o un enlace viejo) llega ahí.
+  async redirects() {
+    return [{ source: '/login', destination: '/', permanent: false }];
+  },
   async rewrites() {
     if (!BACKEND_URL) return [];
     return [{ source: '/api/:path*', destination: `${BACKEND_URL}/api/:path*` }];
