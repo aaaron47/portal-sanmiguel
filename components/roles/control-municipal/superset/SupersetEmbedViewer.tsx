@@ -123,6 +123,7 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
   const [publicadoManual, setPublicadoManual] = useState<Record<string, boolean>>({});
   const [habilitandoEmbebido, setHabilitandoEmbebido] = useState(false);
   const [mensajeEmbebido, setMensajeEmbebido] = useState<string | null>(null);
+  const [avanceEmbebido, setAvanceEmbebido] = useState<{ listos: number; total: number } | null>(null);
   const [errorEmbebido, setErrorEmbebido] = useState<string | null>(null);
   const [publicando, setPublicando] = useState(false);
 
@@ -146,19 +147,30 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
     setHabilitandoEmbebido(true);
     setErrorEmbebido(null);
     setMensajeEmbebido('Solicitando habilitar embebido...');
+    setAvanceEmbebido(null);
     try {
       const res = await iaDashboardsController.habilitarEmbebidoConReintentos(
         sidNumerico,
-        (intento: number) => {
-          setMensajeEmbebido(
-            `Preparando gráficos en Superset (intento ${intento})... reintentando en unos segundos`
-          );
+        (_intento: number, avance) => {
+          if (avance && avance.total > 0) {
+            setAvanceEmbebido({ listos: avance.listos, total: avance.total });
+            const faltan = avance.total - avance.listos;
+            setMensajeEmbebido(
+              `Preparando gráficos en Superset: ${avance.listos} de ${avance.total} listos` +
+                ` (${faltan === 1 ? 'falta 1' : `faltan ${faltan}`}). Esto no es un error, puede tardar un poco.`
+            );
+          } else {
+            setMensajeEmbebido('Preparando gráficos en Superset... esto no es un error, puede tardar un poco.');
+          }
         }
       );
       setUuidManual((prev) => ({ ...prev, [dashboardActual.id]: res.uuid }));
       dashboardActual.embedUuid = res.uuid;
       setMensajeEmbebido(null);
+      setAvanceEmbebido(null);
     } catch (err) {
+      setMensajeEmbebido(null);
+      setAvanceEmbebido(null);
       setErrorEmbebido(
         formatearErrorIaBackend(
           err,
@@ -432,7 +444,13 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
               title="Habilitar embebido en Superset para este dashboard"
             >
               <Share2 size={13} />
-              <span>{habilitandoEmbebido ? 'Preparando...' : 'Habilitar embebido'}</span>
+              <span>
+                {habilitandoEmbebido
+                  ? avanceEmbebido
+                    ? `Preparando ${avanceEmbebido.listos}/${avanceEmbebido.total}...`
+                    : 'Preparando...'
+                  : 'Habilitar embebido'}
+              </span>
             </button>
           )}
 
@@ -600,6 +618,30 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
                       errorEmbebido ||
                       'El dashboard existe en Superset pero su identificador de embebido no está activo (embedUuid: null).'}
                   </span>
+                  {habilitandoEmbebido && avanceEmbebido && avanceEmbebido.total > 0 && (
+                    <div
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={avanceEmbebido.total}
+                      aria-valuenow={avanceEmbebido.listos}
+                      style={{
+                        marginTop: '0.4rem',
+                        height: 6,
+                        borderRadius: 3,
+                        background: 'var(--border, #e5e7eb)',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          height: '100%',
+                          width: `${Math.max(4, (avanceEmbebido.listos / avanceEmbebido.total) * 100)}%`,
+                          background: 'var(--primary, #2563eb)',
+                          transition: 'width 0.4s ease',
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <button
@@ -609,7 +651,11 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
                   className="btn btn-primary"
                   style={{ fontSize: '0.78rem', padding: '0.38rem 0.85rem' }}
                 >
-                  {habilitandoEmbebido ? 'Preparando embebido...' : 'Habilitar embebido'}
+                  {habilitandoEmbebido
+                    ? avanceEmbebido
+                      ? `Preparando ${avanceEmbebido.listos}/${avanceEmbebido.total}...`
+                      : 'Preparando embebido...'
+                    : 'Habilitar embebido'}
                 </button>
               </div>
             )}
