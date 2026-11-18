@@ -154,6 +154,14 @@ export interface BiEmbebidoResponse {
   dominiosPermitidos: string[];
 }
 
+/** Respuesta de `GET /api/v1/admin/bi/dashboards/{id}/embebido/estado`: avance de la preparación de los gráficos. */
+export interface BiEstadoEmbebidoResponse {
+  dashboardId: number;
+  total: number;
+  listos: number;
+  pendientes: number[];
+}
+
 export type EstadoDisponibilidadIa = 'DISPONIBLE' | 'SIN_RESPUESTA' | 'NO_CONFIGURADO';
 
 /** Respuesta de `GET /api/v1/admin/bi/ia/estado` */

@@ -12,6 +12,7 @@ import {
   AmbitoDashboardBi,
   BiDashboardItemResponse,
   BiEmbebidoResponse,
+  BiEstadoEmbebidoResponse,
   BiGuestTokenResponse,
   BiPublicacionResponse,
   ConfiguracionModuloIA,
@@ -1148,25 +1149,47 @@ export class IaDashboardsController {
   }
 
   /**
+   * Avance de la preparación del embebido: cuántos gráficos del dashboard ya están listos (sección 3.3).
+   * Endpoint backend: `GET /api/v1/admin/bi/dashboards/{id}/embebido/estado`
+   */
+  async estadoEmbebido(id: number): Promise<BiEstadoEmbebidoResponse> {
+    return apiClient<BiEstadoEmbebidoResponse>(`${RUTA_BI}/dashboards/${id}/embebido/estado`);
+  }
+
+  /**
    * Habilita el embebido reintentando mientras el backend responde 409 `bi_graficos_sin_query_context`
-   * (los gráficos recién creados por el asistente tardan unos segundos en quedar listos).
-   * Reintenta cada 4 s hasta unos 3 min; `onEspera` permite mostrar "Preparando…".
+   * (los gráficos creados por el asistente tardan en quedar listos: Superset los prepara de uno en uno).
+   * Reintenta cada 3 s y se rinde solo si pasan ~2 min SIN que avance ningún gráfico, no por tiempo total.
+   * `onEspera` recibe el avance real (`listos` de `total`) para mostrar una barra de progreso.
    */
   async habilitarEmbebidoConReintentos(
     id: number,
-    onEspera?: (intento: number) => void,
+    onEspera?: (intento: number, avance?: BiEstadoEmbebidoResponse) => void,
     signal?: AbortSignal
   ): Promise<BiEmbebidoResponse> {
-    const INTERVALO_MS = 4000;
-    const MAX_INTENTOS = 45;
+    const INTERVALO_MS = 3000;
+    const MAX_INTENTOS_SIN_AVANCE = 40;
+    let sinAvance = 0;
+    let mejorListos = -1;
     for (let intento = 1; ; intento++) {
       try {
         return await this.habilitarEmbebido(id);
       } catch (err) {
-        const reintentable =
-          codigoErrorApi(err) === 'bi_graficos_sin_query_context' && intento < MAX_INTENTOS;
-        if (!reintentable) throw err;
-        onEspera?.(intento);
+        if (codigoErrorApi(err) !== 'bi_graficos_sin_query_context') throw err;
+        let avance: BiEstadoEmbebidoResponse | undefined;
+        try {
+          avance = await this.estadoEmbebido(id);
+        } catch {
+          // Sin el avance se sigue reintentando; solo se pierde el contador de la barra
+        }
+        if (avance && avance.listos > mejorListos) {
+          mejorListos = avance.listos;
+          sinAvance = 0;
+        } else {
+          sinAvance++;
+        }
+        if (sinAvance >= MAX_INTENTOS_SIN_AVANCE) throw err;
+        onEspera?.(intento, avance);
         await new Promise((resolve) => setTimeout(resolve, INTERVALO_MS));
         if (signal?.aborted) throw new Error('Operación cancelada.');
       }
