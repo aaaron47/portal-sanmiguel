@@ -1316,13 +1316,21 @@ export class IaDashboardsController {
   }
 
   /**
-   * Retira el embebido de un dashboard generado por la IA.
+   * Elimina el dashboard en Apache Superset (ADMIN o su dueño). Los gráficos se conservan.
+   * Endpoint backend: `DELETE /api/v1/admin/bi/dashboards/{id}`
+   */
+  async eliminarDashboard(id: number): Promise<void> {
+    await apiClient<void>(`${RUTA_BI}/dashboards/${id}`, { method: 'DELETE' });
+  }
+
+  /**
+   * Elimina un dashboard generado por la IA en Superset.
    */
   async eliminarDashboardIA(_modulo: ModuloAnalitico, dashboardId: string): Promise<void> {
     const numId = Number(dashboardId);
     if (!Number.isNaN(numId)) {
       try {
-        await this.retirarEmbebido(numId);
+        await this.eliminarDashboard(numId);
       } catch (err) {
         if (!usarDatosDemo(err)) throw err;
       }
