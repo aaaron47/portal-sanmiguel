@@ -1164,18 +1164,34 @@ export class IaDashboardsController {
    */
   async habilitarEmbebidoConReintentos(
     id: number,
-    onEspera?: (intento: number, avance?: BiEstadoEmbebidoResponse) => void,
+    onEspera?: (
+      intento: number,
+      avance?: BiEstadoEmbebidoResponse,
+      motivo?: 'creando' | 'graficos'
+    ) => void,
     signal?: AbortSignal
   ): Promise<BiEmbebidoResponse> {
     const INTERVALO_MS = 3000;
     const MAX_INTENTOS_SIN_AVANCE = 40;
+    // Un dashboard recién creado por el asistente puede verse en la lista antes de que Superset termine de
+    // armarlo (o de reemplazar sus gráficos): responde 404 unos segundos. Se espera hasta ~1 min antes de darlo por inexistente.
+    const MAX_INTENTOS_NO_ENCONTRADO = 20;
     let sinAvance = 0;
     let mejorListos = -1;
+    let noEncontrado = 0;
     for (let intento = 1; ; intento++) {
       try {
         return await this.habilitarEmbebido(id);
       } catch (err) {
-        if (codigoErrorApi(err) !== 'bi_graficos_sin_query_context') throw err;
+        const codigo = codigoErrorApi(err);
+        if (codigo === 'not_found' && ++noEncontrado <= MAX_INTENTOS_NO_ENCONTRADO) {
+          onEspera?.(intento, undefined, 'creando');
+          await new Promise((resolve) => setTimeout(resolve, INTERVALO_MS));
+          if (signal?.aborted) throw new Error('Operación cancelada.');
+          continue;
+        }
+        if (codigo !== 'bi_graficos_sin_query_context') throw err;
+        noEncontrado = 0;
         let avance: BiEstadoEmbebidoResponse | undefined;
         try {
           avance = await this.estadoEmbebido(id);
@@ -1189,7 +1205,7 @@ export class IaDashboardsController {
           sinAvance++;
         }
         if (sinAvance >= MAX_INTENTOS_SIN_AVANCE) throw err;
-        onEspera?.(intento, avance);
+        onEspera?.(intento, avance, 'graficos');
         await new Promise((resolve) => setTimeout(resolve, INTERVALO_MS));
         if (signal?.aborted) throw new Error('Operación cancelada.');
       }
