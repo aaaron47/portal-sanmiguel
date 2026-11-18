@@ -151,8 +151,13 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
     try {
       const res = await iaDashboardsController.habilitarEmbebidoConReintentos(
         sidNumerico,
-        (_intento: number, avance) => {
-          if (avance && avance.total > 0) {
+        (_intento: number, avance, motivo) => {
+          if (motivo === 'creando') {
+            setAvanceEmbebido(null);
+            setMensajeEmbebido(
+              'Superset está terminando de crear el dashboard... esto no es un error, se reintenta solo.'
+            );
+          } else if (avance && avance.total > 0) {
             setAvanceEmbebido({ listos: avance.listos, total: avance.total });
             const faltan = avance.total - avance.listos;
             setMensajeEmbebido(
