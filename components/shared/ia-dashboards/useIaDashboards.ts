@@ -172,7 +172,7 @@ export function useIaDashboards(modulo: ModuloAnalitico, onNotify?: NotifyFn) {
         if (dashboardActivo?.id === dashboardId) {
           setDashboardActivo(dashboardsSuperset[0] || null);
         }
-        onNotify?.('info', 'Borrador eliminado del listado.');
+        onNotify?.('info', 'Dashboard eliminado de Superset.');
       } catch (err) {
         onNotify?.(
           'error',
