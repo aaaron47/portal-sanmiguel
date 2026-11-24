@@ -24,11 +24,18 @@ import {
   iaDashboardsController,
 } from '@/controllers/ia-dashboards.controller';
 import { exportarCSV } from '@/utils/csv.utils';
-import { SupersetSdkDashboard } from '@/components/superset/SupersetSdkDashboard';
+import { ControlDashboardSuperset, SupersetSdkDashboard } from '@/components/superset/SupersetSdkDashboard';
+import { ExportarPdfDashboard } from '@/components/superset/ExportarPdfDashboard';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 
 export const DASHBOARDS_PREDEFINIDOS: SupersetDashboardInfo[] = DASHBOARDS_SUPERSET_CONTROL_MUNICIPAL;
+
+const NOMBRE_MODULO: Record<ModuloAnalitico, string> = {
+  CONTROL_MUNICIPAL: 'Control Municipal',
+  CONTROL_TI: 'Control TI',
+  ADMIN: 'Administración',
+};
 
 function inyectarParametrosTemaUrl(url: string, tema: 'light' | 'dark'): string {
   if (!url) return url;
@@ -87,6 +94,8 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
   const [recargando, setRecargando] = useState(false);
   const [embedConfig, setEmbedConfig] = useState<SupersetEmbedTokenResponse | null>(null);
   const [iframeRefreshKey, setIframeRefreshKey] = useState(0);
+  /** Dashboard del SDK ya montado (para exportarlo a PDF) */
+  const [controlSdk, setControlSdk] = useState<ControlDashboardSuperset | null>(null);
 
   const esControladoPorPadre = typeof onToggleFullscreen === 'function';
   const isFullscreen = esControladoPorPadre ? Boolean(externalFullscreen) : internalFullscreen;
@@ -475,6 +484,15 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
             </button>
           )}
 
+          {uuidEmbebido && !recargando && (
+            <ExportarPdfDashboard
+              control={controlSdk}
+              titulo={dashboardActual.titulo}
+              descripcion={dashboardActual.descripcion}
+              modulo={NOMBRE_MODULO[dashboardActual.modulo || modulo]}
+            />
+          )}
+
           <button
             onClick={handleRecargar}
             disabled={recargando}
@@ -576,6 +594,7 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
             hideTab={false}
             hideChartControls={false}
             theme={theme}
+            onControl={setControlSdk}
           />
         ) : sidNumerico === null && embedConfig?.embedUrl ? (
           /* Fallback con URL directa si existiese */

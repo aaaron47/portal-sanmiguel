@@ -1333,6 +1333,12 @@ body:has(.expediente-modal) .notification-toast {
   margin-inline: auto;
 }
 
+/* Exportar dashboard a PDF: mientras se captura, el iframe de Superset va en la capa superior y su fondo
+   tapa la página (ver utils/superset-pdf/exportar-dashboard.ts) */
+iframe.exportando-pdf::backdrop {
+  background: #ffffff;
+}
+
 /* Texto solo para lectores de pantalla */
 .solo-lectores {
   position: absolute;
@@ -2052,6 +2058,25 @@ dialog.ia-chat-modal-dialog[open] {
   background-color: var(--bg-card-subtle);
   border-color: var(--sky-400);
   color: var(--sky-600);
+}
+
+/* Exportar dashboard a PDF: mientras se captura, el iframe de Superset va en la capa superior y su fondo
+   tapa la página (ver utils/superset-pdf/exportar-dashboard.ts) */
+iframe.exportando-pdf::backdrop {
+  background: #ffffff;
+}
+
+/* Texto solo para lectores de pantalla */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Reglas globales de impresión */

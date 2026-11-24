@@ -13,7 +13,8 @@ import { CardHeader, CardAside } from '@/components/shared/ui/CardHeader';
 import { KpisReporte, ReportePorArea } from '@/controllers/reportes.controller';
 import { ControlMunicipalKpis } from '../reportes/parts/ControlMunicipalKpis';
 import { CumplimientoAreasTable } from '../reportes/parts/CumplimientoAreasTable';
-import { SupersetSdkDashboard } from '@/components/superset/SupersetSdkDashboard';
+import { ControlDashboardSuperset, SupersetSdkDashboard } from '@/components/superset/SupersetSdkDashboard';
+import { ExportarPdfDashboard } from '@/components/superset/ExportarPdfDashboard';
 import { iaDashboardsController } from '@/controllers/ia-dashboards.controller';
 import { SupersetDashboardInfo } from '@/types/superset.types';
 import { mensajeErrorApi } from '@/services/api-client.service';
@@ -38,6 +39,8 @@ export const DashboardGeneralControl: React.FC<DashboardGeneralControlProps> = (
   const [cargandoDashboard, setCargandoDashboard] = useState<boolean>(true);
   const [errorDashboard, setErrorDashboard] = useState<string | null>(null);
   const [recargaKey, setRecargaKey] = useState<number>(0);
+  /** Dashboard de Superset ya montado (para exportarlo a PDF) */
+  const [controlSdk, setControlSdk] = useState<ControlDashboardSuperset | null>(null);
 
   const reintentar = useCallback(() => {
     setCargandoDashboard(true);
@@ -169,7 +172,30 @@ export const DashboardGeneralControl: React.FC<DashboardGeneralControlProps> = (
               </button>
             </div>
           ) : dashboardTributario?.embedUuid ? (
-            <SupersetSdkDashboard dashboardId={dashboardTributario.embedUuid} />
+            <>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  flexWrap: 'wrap',
+                  padding: '0.25rem 0.25rem 0.75rem',
+                }}
+              >
+                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <BarChart3 size={18} color="var(--sky-600)" />
+                  {dashboardTributario.titulo}
+                </h3>
+                <ExportarPdfDashboard
+                  control={controlSdk}
+                  titulo={dashboardTributario.titulo}
+                  descripcion={dashboardTributario.descripcion}
+                  modulo="Control Municipal"
+                />
+              </div>
+              <SupersetSdkDashboard dashboardId={dashboardTributario.embedUuid} onControl={setControlSdk} />
+            </>
           ) : (
             <div
               style={{

@@ -122,6 +122,8 @@ components/
 ├── modals/     TicketDetailModal (armazón, foco y teclado) + ticket-detail/: acciones.config (botones, zonas del pie, textos),
 │               useAccionReclamo (estado de la acción abierta) y parts (cabecera, FlujoPasos, ExpedienteTabs, datos, adjuntos,
 │               flujo, historial, AccionesForm con los campos y AccionesPie con los botones); FaqModal
+├── superset/   SupersetSdkDashboard (embebido con el SDK; `onControl` da la instancia y el iframe) y ExportarPdfDashboard
+│               (botón "Exportar PDF", aviso del permiso y barra de avance)
 ├── roles/      una carpeta por rol: <Rol>View.tsx, use<Rol>*.ts (estado y llamadas), y subcarpetas por pestaña con parts/
 │   ├── funcionario/   bandeja (las constancias usan components/constancias)
 │   └── supervisor/    supervision (panorama y por aprobar), reasignacion (carga por funcionario)
@@ -131,7 +133,8 @@ controllers/    auth, tickets, constancias, usuarios, auditoria, reportes, telem
 services/       api-client.service (fetch + JWT + ApiError), storage.service (sesión en localStorage)
 types/          auth, ticket, constancia, ui, auditoria, telemetria
 utils/          ticket.utils (reglas por estado, carga, áreas), csv.utils, fecha-peru.utils (fechas en hora de Perú),
-                telemetria.utils (nombres de los códigos del backend y uso del sistema a partir del resumen)
+                telemetria.utils (nombres de los códigos del backend y uso del sistema a partir del resumen),
+                superset-pdf/ (captura de la pestaña, armado del PDF con jsPDF y exportación del dashboard)
 docs/           Cambios_rama_supervisor_funcionario.md (todo lo de la rama), Plan_Supervisor_Funcionario.md y documentos de la etapa Oracle
 ```
 
@@ -175,6 +178,22 @@ pendiente de validación / en evaluación ─declarar improcedente─> improcede
 - El canal del inconveniente llega como código (`APP_MOVIL`) y se muestra con `nombreCanal` (`utils/ticket.utils.ts`).
 - Con el expediente abierto, el aviso flotante (`NotificationToast`) sale arriba al centro para no tapar los botones.
 - Los estilos están en `app/globals.css`, bloque "Expediente del reclamo" (clases `expediente-*` y `flujo-*`).
+
+### Exportar un dashboard de Superset a PDF (desde el 24/11/2026)
+
+- Pedido del JP: exportar los dashboards en PDF con un formato. Botón "Exportar PDF" en Dashboard General (Control
+  Municipal) y en el visor del Centro de Analítica (`SupersetEmbedViewer`), solo para dashboards con embebido.
+- **Por qué captura la pestaña:** el dashboard es un iframe de otro dominio y la página no puede leer sus píxeles; el SDK
+  (`getChartDataPayloads`) solo da las consultas de las tablas con estado, no de todos los gráficos. Se usa
+  `getDisplayMedia` con `preferCurrentTab`: el navegador pide permiso para ver la pestaña y la imagen no sale del equipo.
+  Funciona en Chrome y Edge de escritorio; en otros navegadores avisa.
+- **Cómo:** el iframe pasa a la capa superior (Popover API, sin recargarse) con el ancho de la captura y el alto de todo su
+  contenido (`getScrollSize`), se copia por tramos esperando a que cada uno deje de cambiar (spinners y animaciones, máx.
+  20 s) y se arma un A4 horizontal con jsPDF: cabecera con logo, título, descripción, módulo, quién lo generó, fecha en
+  hora de Perú y filtros aplicados (`getDataMask`); pie con numeración. Los cortes de página buscan el gris entre filas de
+  gráficos. En modo oscuro el dashboard se pasa a claro solo durante la captura. Esc o "Cancelar" detienen todo.
+- Probado contra Superset 6.1.0 en Docker con los dashboards de ejemplo (largo de 3 páginas, filtros, claro y oscuro,
+  visor, cancelar, permiso rechazado). No probado contra el Superset del grupo.
 
 ### Endpoints que usa el front (para el grupo de backend)
 
@@ -228,6 +247,7 @@ no tiene hoy área, funcionario asignado, aprobación ni constancias, y sus esta
 | 11/11/2026 (noche, 3) | PR #2 unido a `main` (`0d1d5e4`). **Constancias de no adeudo (Req 2)** con el backend: bandeja nueva `components/constancias/` en Funcionario y en Supervisor (pestaña nueva), detalle con cuotas, Aprobar (comentario opcional) y Desaprobar (motivo obligatorio) según `accionesPermitidas`, mensajes para `invalid_state`, `fee_required` y `outstanding_debts`, CSV de todas las páginas. Se quitó la marca `tieneConstancia` del reclamo (columna, filtro, tarjeta y dato del expediente). Navegador: simulado 40/40, real 9/9 (solo lectura), demo 3/3. `tsc`, `lint` y `build` OK. |
 | 11/11/2026 (noche, 4) | **Constancias probadas contra el backend real** con las solicitudes de prueba del backend: `funcionario.demo` aprobó `SOL-2026-001044` y `supervisor.demo` desaprobó `SOL-2026-001045`; 409 `outstanding_debts` al forzar el aprobar, 409 `invalid_state` al repetir, 403 para Control Municipal (21/21). La tabla de cuotas usa el formato real (`concepto`, `periodo`, `venceEl`, `total`, `vencida`), ordenada por vencimiento y sin el `id`; las cuotas solo llegan en el detalle. Simulado 40/40. |
 | 16/11/2026 | Pedido de Braulio. Rama `feature/modal-reclamo` (PR #3, unido a `main`; antes se unió `main` en `a9941d1` y se volvió a probar: mismo resultado): expediente del reclamo rediseñado. Botones según el modelo Z en un pie fijo, pestañas "Datos generales" y "Flujo del reclamo", pasos del flujo siempre visibles, el reclamo concluye con la respuesta final (sin "Cerrar caso"; `CERRAR` del backend se ignora) y heurísticas de Nielsen (estado visible, qué pasará al confirmar, pregunta antes de descartar, error junto al botón, Esc y Tab dentro del diálogo, foco de vuelta a la tabla). Navegador con backend simulado 61/61 y modo demo 6/6; `tsc`, `lint` y `build` OK. **Backend real, solo lectura** (`funcionario.demo` y `supervisor.demo`, sin enviar ninguna acción): 71/71; salieron dos defectos que el simulado no mostraba y se corrigieron (canal como código `APP_MOVIL`; "Esperando al ciudadano" en un reclamo con respuesta por aprobar). **Backend real, flujo completo** en `REC-2026-001022` (autorizado por Aaron): recibir, validar, asignar, evaluar y responder desde el expediente, todo con 200; el reclamo quedó en `respondido` sin llamar a `/cerrar` (el backend ofrece `CERRAR` y el portal lo ignora); 32 comprobaciones OK. No pasó por aprobación (prioridad MEDIA). Sin probar contra el real: aprobar u observar la respuesta, pedir información, reasignar, devolver, improcedente y nota. |
+| 24/11/2026 | Pedido del JP. Rama `feature/superset-pdf`: **exportar dashboards de Superset a PDF con el formato del portal** (Dashboard General y Centro de Analítica). Detalle en la sección 5. Nueva dependencia `jspdf`. Probado con Playwright + Edge contra Superset 6.1.0 en Docker con datos de ejemplo: Dashboard General en claro y oscuro con filtros, dashboard de 3 páginas, visor, Esc en el aviso, cancelar a mitad y permiso rechazado (todo OK). `tsc`, `lint` y `build` OK. Se descartó la rama `fix/superset-embed-responsive` (altura automática del iframe). |
 | 11/11/2026 (tarde) | El backend publicó `/telemetria/*` con un formato distinto al propuesto (filtros `fechaDesde`/`fechaHasta`/`canal`, códigos como `DEUDAS` o `ANDROID`, `sesiones` y `consultas` en la raíz). Se adaptó el portal: tipos, controlador, `utils/telemetria.utils.ts`, filtro de canal, tabla de eventos con resultado, Control de Acceso por secciones (guarda la telemetría aunque falten las políticas, envía solo lo que cambió y no duplica la auditoría). Navegador: demo 48/48, simulado 108/108, **backend real 92/92** (incluye pausar y reanudar la telemetría; quedó activa). Detalle en `docs/Pruebas_telemetria.md`, sección 7. Nuevo: `docs/Solicitud_backend_adjuntos.md`. |
 
 ## 9. Pendientes
