@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback, useId } from 'react';
 import {
   FileSpreadsheet,
-  FileArchive,
+  FileText,
   Download,
+  MoreHorizontal,
   AlertTriangle,
   AlertCircle,
   RefreshCw,
@@ -25,8 +26,8 @@ import {
 } from '@/components/shared/ui/FilterControls';
 import { TablaCertificadaBi } from '@/types/reportes-tributarios.types';
 import { iaDashboardsController } from '@/controllers/ia-dashboards.controller';
-import { descargarBlobArchivo } from '@/utils/csv.utils';
 import { mensajeErrorApi } from '@/services/api-client.service';
+import { exportarReporteTributarioPdf } from './exportarReportePdf';
 
 export const ReportesTributariosView: React.FC = () => {
   // Datasets certificados devueltos por GET /api/v1/admin/bi/tablas (son los reportes oficiales)
@@ -48,24 +49,24 @@ export const ReportesTributariosView: React.FC = () => {
   const [paginaActual, setPaginaActual] = useState<number>(1);
   const [registrosPorPagina, setRegistrosPorPagina] = useState<number>(10);
 
-  // Estados de descarga individual
-  const [descargandoFormato, setDescargandoFormato] = useState<'csv' | 'xlsx' | null>(null);
+  // Estados de descarga individual y menú compacto de exportación
+  const [descargandoFormato, setDescargandoFormato] = useState<'csv' | 'xlsx' | 'pdf' | null>(null);
   const [tablaIncompleta, setTablaIncompleta] = useState<boolean>(false);
+  const [menuAbierto, setMenuAbierto] = useState<boolean>(false);
+  const triggerId = useId();
+  const menuId = useId();
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuPopoverRef = useRef<HTMLDivElement | null>(null);
+  const menuFocusGroupRef = useRef<HTMLDivElement | null>(null);
+  const entrarAlAbrirRef = useRef<boolean>(false);
+  const aperturaPorPunteroRef = useRef<boolean>(false);
 
-  // Estados de descarga masiva ZIP
-  const [trabajoZip, setTrabajoZip] = useState<{
-    id: string;
-    estado: string;
-    total: number;
-    hechas: number;
-    error: string | null;
-  } | null>(null);
-  const zipPollingRef = useRef<NodeJS.Timeout | null>(null);
-
-  // 1. Carga inicial de datasets certificados desde Superset
+  // 1. Carga y actualización de datasets certificados y sus filas desde Superset
   const cargarTablasCertificadas = useCallback(async () => {
     setCargandoTablas(true);
     setErrorCarga(null);
+    setTablaIncompleta(false);
+    setDatosSuperset({});
     try {
       const items = await iaDashboardsController.getTablas();
       setTablasBi(items);
@@ -109,7 +110,6 @@ export const ReportesTributariosView: React.FC = () => {
 
     return () => {
       cancelado = true;
-      if (zipPollingRef.current) clearInterval(zipPollingRef.current);
     };
   }, []);
 
@@ -233,56 +233,126 @@ export const ReportesTributariosView: React.FC = () => {
     }
   };
 
-  // Descarga masiva en ZIP
-  const handleDescargarTodasZip = async () => {
-    if (trabajoZip && (trabajoZip.estado === 'EN_COLA' || trabajoZip.estado === 'EJECUTANDO')) {
-      return;
-    }
+  // Descarga / generación de archivo PDF oficial con membrete de San Miguel
+  const handleDescargarPdf = async () => {
+    if (!tablaActiva || cargandoPrevisualizacion || filasFiltradas.length === 0) return;
+    setDescargandoFormato('pdf');
     setErrorCarga(null);
     try {
-      const trabajoInicial = await iaDashboardsController.iniciarDescargaTodas('csv');
-      setTrabajoZip({
-        id: trabajoInicial.id,
-        estado: trabajoInicial.estado,
-        total: trabajoInicial.total,
-        hechas: trabajoInicial.hechas,
-        error: trabajoInicial.error,
+      await exportarReporteTributarioPdf({
+        tabla: tablaActiva,
+        cabeceras,
+        filas: filasFiltradas,
+        busquedaTexto,
+        enmascararPrivacidad,
+        tablaIncompleta: Boolean(datosSuperset[tablaActiva.id]?.incompleta),
+        enmascararValor,
       });
-
-      if (zipPollingRef.current) clearInterval(zipPollingRef.current);
-
-      zipPollingRef.current = setInterval(async () => {
-        try {
-          const poll = await iaDashboardsController.consultarDescargaTodas(trabajoInicial.id);
-          setTrabajoZip({
-            id: poll.id,
-            estado: poll.estado,
-            total: poll.total,
-            hechas: poll.hechas,
-            error: poll.error,
-          });
-
-          if (poll.estado === 'COMPLETADO') {
-            if (zipPollingRef.current) clearInterval(zipPollingRef.current);
-            const blobZip = await iaDashboardsController.obtenerArchivoDescargaTodas(poll.id);
-            descargarBlobArchivo(blobZip, poll.nombreArchivo || 'reportes_tributarios_san_miguel.zip');
-            setTimeout(() => setTrabajoZip(null), 3500);
-          } else if (poll.estado === 'ERROR') {
-            if (zipPollingRef.current) clearInterval(zipPollingRef.current);
-            setErrorCarga(poll.error || 'Error al generar el archivo ZIP de los reportes.');
-          }
-        } catch (errPoll) {
-          if (zipPollingRef.current) clearInterval(zipPollingRef.current);
-          setErrorCarga(mensajeErrorApi(errPoll, 'Error al consultar el progreso del archivo ZIP.'));
-          setTrabajoZip(null);
-        }
-      }, 2500);
     } catch (err) {
-      setErrorCarga(
-        mensajeErrorApi(err, 'No se pudo iniciar la generación del archivo ZIP con todos los reportes.')
-      );
+      setErrorCarga(mensajeErrorApi(err, 'No se pudo generar el archivo PDF del reporte.'));
+    } finally {
+      setDescargandoFormato(null);
     }
   };
+
+  // Respaldo de posicionamiento para navegadores sin CSS Anchor Positioning y foco accesible del menú
+  useEffect(() => {
+    const popoverEl = menuPopoverRef.current;
+    const focusGroupEl = menuFocusGroupRef.current;
+    if (!popoverEl || !focusGroupEl) return;
+
+    const obtenerItemsHabilitados = () =>
+      Array.from(focusGroupEl.querySelectorAll<HTMLButtonElement>('button')).filter(
+        (btn) => !btn.disabled && btn.getAttribute('aria-disabled') !== 'true'
+      );
+
+    // Respaldo de navegación por flechas cuando focusgroup nativo no está disponible
+    let limpiarFallbackTeclado: (() => void) | undefined;
+    if (!('focusGroup' in HTMLElement.prototype)) {
+      focusGroupEl.setAttribute('role', 'menu');
+      focusGroupEl.querySelectorAll('button:not([role])').forEach((btn) => {
+        btn.setAttribute('role', 'menuitem');
+      });
+      const onKeyDownFallback = (event: KeyboardEvent) => {
+        if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+        const items = obtenerItemsHabilitados();
+        if (items.length === 0) return;
+        const actual = items.indexOf(document.activeElement as HTMLButtonElement);
+        if (actual < 0) return;
+        const siguiente =
+          event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? items.length - 1
+              : (actual + (event.key === 'ArrowUp' ? -1 : 1) + items.length) % items.length;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        items[siguiente]?.focus({ preventScroll: true });
+      };
+      focusGroupEl.addEventListener('keydown', onKeyDownFallback, true);
+      limpiarFallbackTeclado = () =>
+        focusGroupEl.removeEventListener('keydown', onKeyDownFallback, true);
+    }
+
+    const posicionarFallback = () => {
+      if (CSS.supports('position-area: block-end') || !triggerRef.current) return;
+      const triggerRect = triggerRef.current.getBoundingClientRect();
+      const menuRect = popoverEl.getBoundingClientRect();
+      const margen = 8;
+      const espacioAbajo = window.innerHeight - triggerRect.bottom - 6;
+      const top =
+        espacioAbajo >= menuRect.height || triggerRect.top < menuRect.height
+          ? Math.min(triggerRect.bottom + 6, window.innerHeight - menuRect.height - margen)
+          : Math.max(margen, triggerRect.top - menuRect.height - 6);
+      const leftDeseado = triggerRect.right - menuRect.width;
+      const left = Math.max(
+        margen,
+        Math.min(leftDeseado, window.innerWidth - menuRect.width - margen)
+      );
+      popoverEl.style.top = `${Math.round(top)}px`;
+      popoverEl.style.left = `${Math.round(left)}px`;
+    };
+
+    const onToggle = (event: Event) => {
+      const toggleEvent = event as ToggleEvent;
+      const abierto = toggleEvent.newState === 'open';
+      setMenuAbierto(abierto);
+      if (abierto) {
+        posicionarFallback();
+        if (entrarAlAbrirRef.current) {
+          entrarAlAbrirRef.current = false;
+          aperturaPorPunteroRef.current = false;
+          obtenerItemsHabilitados()[0]?.focus({ preventScroll: true });
+        } else if (aperturaPorPunteroRef.current) {
+          aperturaPorPunteroRef.current = false;
+          triggerRef.current?.focus({ preventScroll: true });
+        }
+      } else {
+        entrarAlAbrirRef.current = false;
+        aperturaPorPunteroRef.current = false;
+      }
+    };
+
+    popoverEl.addEventListener('toggle', onToggle);
+    return () => {
+      popoverEl.removeEventListener('toggle', onToggle);
+      limpiarFallbackTeclado?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!menuAbierto) return;
+    const onFocusIn = (event: FocusEvent) => {
+      const objetivo = event.target as Node | null;
+      if (!objetivo) return;
+      if (triggerRef.current?.contains(objetivo) || menuPopoverRef.current?.contains(objetivo)) {
+        return;
+      }
+      menuPopoverRef.current?.hidePopover?.();
+    };
+    document.addEventListener('focusin', onFocusIn);
+    return () => document.removeEventListener('focusin', onFocusIn);
+  }, [menuAbierto]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -319,73 +389,7 @@ export const ReportesTributariosView: React.FC = () => {
               Previsualización de registros en vivo y descarga oficial de los datasets certificados de Apache Superset.
             </p>
           </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={cargarTablasCertificadas}
-              disabled={cargandoTablas}
-              className="btn btn-secondary"
-              style={{ fontSize: '0.78rem', padding: '0.4rem 0.65rem' }}
-              title="Refrescar reportes certificados desde Superset"
-            >
-              <RefreshCw
-                size={13}
-                style={{ animation: cargandoTablas ? 'spin 1s linear infinite' : 'none' }}
-              />
-              <span>Actualizar</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleDescargarTodasZip}
-              disabled={
-                tablasBi.length === 0 ||
-                (trabajoZip !== null &&
-                  (trabajoZip.estado === 'EN_COLA' || trabajoZip.estado === 'EJECUTANDO'))
-              }
-              className="btn btn-secondary"
-              style={{ fontSize: '0.78rem', padding: '0.4rem 0.75rem' }}
-              title="Descargar todos los reportes certificados en un archivo ZIP"
-            >
-              <FileArchive size={14} />
-              <span>Bajar todas (ZIP)</span>
-            </button>
-          </div>
         </div>
-
-        {/* Alerta de progreso de ZIP masivo */}
-        {trabajoZip && (
-          <div
-            style={{
-              marginBottom: '1rem',
-              padding: '0.7rem 0.9rem',
-              borderRadius: '8px',
-              border: '1px solid var(--sky-300)',
-              background: 'var(--sky-50)',
-              color: 'var(--sky-900)',
-              fontSize: '0.8rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '0.5rem',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
-              <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />
-              <span>
-                Generando archivo ZIP:{' '}
-                <strong>
-                  {trabajoZip.hechas} de {trabajoZip.total || '—'} reportes procesados
-                </strong>{' '}
-                ({trabajoZip.estado === 'EN_COLA' ? 'En cola' : 'Comprimiendo'}...)
-              </span>
-            </div>
-            {trabajoZip.estado === 'COMPLETADO' && (
-              <span className="badge badge-success">¡Descarga completada!</span>
-            )}
-          </div>
-        )}
 
         {/* Alerta de tabla incompleta */}
         {tablaIncompleta && (
@@ -528,8 +532,28 @@ export const ReportesTributariosView: React.FC = () => {
             />
           </div>
 
-          {/* Botones de acción: Privacidad (ojo) + Descargas CSV / Excel alineados con el panel de constancias */}
+          {/* Botones de acción: Actualizar + Privacidad (ojo) + Menú compacto de descargas (CSV / Excel / PDF) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', paddingBottom: '0.1rem' }}>
+            <button
+              type="button"
+              onClick={cargarTablasCertificadas}
+              disabled={cargandoTablas || cargandoPrevisualizacion}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.85rem' }}
+              aria-label="Actualizar reportes certificados desde Superset"
+              title="Actualizar reportes certificados desde Superset"
+            >
+              <RefreshCw
+                size={15}
+                style={{
+                  animation:
+                    cargandoTablas || cargandoPrevisualizacion
+                      ? 'spin 1s linear infinite'
+                      : 'none',
+                }}
+              />
+            </button>
+
             <button
               type="button"
               onClick={() => setEnmascararPrivacidad((prev) => !prev)}
@@ -550,28 +574,125 @@ export const ReportesTributariosView: React.FC = () => {
             </button>
 
             <button
+              ref={triggerRef}
+              id={triggerId}
               type="button"
-              onClick={() => handleDescargar('csv')}
+              className="btn btn-secondary reporte-acciones-trigger"
+              aria-haspopup="menu"
+              aria-expanded={menuAbierto}
+              aria-label={
+                descargandoFormato
+                  ? `Descargando ${descargandoFormato.toUpperCase()}...`
+                  : 'Opciones de descarga'
+              }
+              title="Opciones de descarga (CSV, Excel, PDF)"
               disabled={!tablaActiva || descargandoFormato !== null}
-              className="btn btn-secondary"
-              style={{ fontSize: '0.85rem' }}
-              title="Descargar este reporte completo en formato CSV"
+              {...({ commandfor: menuId, command: 'toggle-popover' } as Record<string, string>)}
+              onPointerDown={() => {
+                aperturaPorPunteroRef.current = true;
+                entrarAlAbrirRef.current = false;
+              }}
+              onClick={() => {
+                if (!('commandForElement' in HTMLButtonElement.prototype)) {
+                  const popoverEl = menuPopoverRef.current as
+                    | (HTMLDivElement & {
+                        togglePopover?: (opts?: { source?: HTMLElement | null }) => void;
+                      })
+                    | null;
+                  popoverEl?.togglePopover?.({ source: triggerRef.current });
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  entrarAlAbrirRef.current = true;
+                  aperturaPorPunteroRef.current = false;
+                } else if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  entrarAlAbrirRef.current = true;
+                  aperturaPorPunteroRef.current = false;
+                  if (!menuAbierto) {
+                    triggerRef.current?.click();
+                  } else {
+                    const primero = menuFocusGroupRef.current?.querySelector<HTMLButtonElement>(
+                      'button:not(:disabled)'
+                    );
+                    primero?.focus({ preventScroll: true });
+                  }
+                }
+              }}
             >
-              <Download size={15} />
-              <span>{descargandoFormato === 'csv' ? 'Descargando...' : 'Descargar CSV'}</span>
+              {descargandoFormato ? (
+                <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} />
+              ) : (
+                <MoreHorizontal size={16} />
+              )}
             </button>
 
-            <button
-              type="button"
-              onClick={() => handleDescargar('xlsx')}
-              disabled={!tablaActiva || descargandoFormato !== null}
-              className="btn btn-primary"
-              style={{ fontSize: '0.85rem' }}
-              title="Descargar este reporte en formato Excel (.xlsx)"
+            <div
+              ref={menuPopoverRef}
+              id={menuId}
+              popover="auto"
+              className="reporte-menu-popover"
+              onKeyDown={(e) => {
+                if (e.key === 'Tab') {
+                  menuPopoverRef.current?.hidePopover?.();
+                }
+              }}
             >
-              <FileSpreadsheet size={15} />
-              <span>{descargandoFormato === 'xlsx' ? 'Descargando...' : 'Descargar Excel'}</span>
-            </button>
+              <div
+                ref={menuFocusGroupRef}
+                className="reporte-menu-list"
+                aria-labelledby={triggerId}
+                {...({ focusgroup: 'menu nomemory' } as Record<string, string>)}
+              >
+                <button
+                  type="button"
+                  className="reporte-menu-item"
+                  disabled={!tablaActiva || descargandoFormato !== null}
+                  onPointerMove={(e) => e.currentTarget.focus({ preventScroll: true })}
+                  onClick={() => {
+                    menuPopoverRef.current?.hidePopover?.();
+                    void handleDescargar('csv');
+                  }}
+                >
+                  <Download size={15} />
+                  <span>Descargar CSV</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="reporte-menu-item"
+                  disabled={!tablaActiva || descargandoFormato !== null}
+                  onPointerMove={(e) => e.currentTarget.focus({ preventScroll: true })}
+                  onClick={() => {
+                    menuPopoverRef.current?.hidePopover?.();
+                    void handleDescargar('xlsx');
+                  }}
+                >
+                  <FileSpreadsheet size={15} />
+                  <span>Descargar Excel</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="reporte-menu-item"
+                  disabled={
+                    !tablaActiva ||
+                    descargandoFormato !== null ||
+                    cargandoPrevisualizacion ||
+                    filasFiltradas.length === 0
+                  }
+                  onPointerMove={(e) => e.currentTarget.focus({ preventScroll: true })}
+                  onClick={() => {
+                    menuPopoverRef.current?.hidePopover?.();
+                    void handleDescargarPdf();
+                  }}
+                >
+                  <FileText size={15} />
+                  <span>Descargar PDF</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 

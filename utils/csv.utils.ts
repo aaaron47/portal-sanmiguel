@@ -37,6 +37,43 @@ export function exportarCSV(
 }
 
 /**
+ * Exporta y descarga un archivo Excel (.xls con codificación UTF-8 BOM)
+ * siguiendo el mismo formato de descarga de Control Municipal.
+ */
+export function exportarExcel(
+  nombreObjetivo: string,
+  cabeceras: string[],
+  filas: (string | number | boolean | null | undefined)[][]
+): void {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+
+  const fechaStr = `${year}-${month}-${day}`;
+  const horaStr = `${hours}-${minutes}-${seconds}`;
+  const nombreArchivo = `${nombreObjetivo}_${fechaStr}_${horaStr}.xls`;
+
+  const limpiarCelda = (val: unknown): string => {
+    if (val === null || val === undefined) return '';
+    return String(val).replace(/[\t\r\n]+/g, ' ').trim();
+  };
+
+  const contenido = [
+    cabeceras.map(limpiarCelda).join('\t'),
+    ...filas.map((fila) => fila.map(limpiarCelda).join('\t')),
+  ].join('\n');
+
+  const blob = new Blob(['\ufeff' + contenido], {
+    type: 'application/vnd.ms-excel;charset=utf-8;',
+  });
+  descargarBlobArchivo(blob, nombreArchivo);
+}
+
+/**
  * Descarga en el navegador un Blob con el nombre de archivo especificado.
  */
 export function descargarBlobArchivo(blob: Blob, nombreArchivo: string): void {

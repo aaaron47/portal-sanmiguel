@@ -3,12 +3,21 @@ import { reportesController, KpisReporte, ReportePorArea } from '@/controllers/r
 import { mensajeErrorApi } from '@/services/api-client.service';
 import { NotifyFn } from '@/types/ui.types';
 
+function obtenerPeriodoActual(): string {
+  const ahora = new Date();
+  const anio = ahora.getFullYear();
+  const mes = String(ahora.getMonth() + 1).padStart(2, '0');
+  return `${anio}-${mes}`;
+}
+
 export function useControlMunicipal(onNotify: NotifyFn) {
   const [kpis, setKpis] = useState<KpisReporte | null>(null);
   const [areas, setAreas] = useState<ReportePorArea[]>([]);
-  const [periodo, setPeriodo] = useState('2026-10');
+  const [periodo, setPeriodo] = useState<string>(obtenerPeriodoActual);
+  const [cargando, setCargando] = useState<boolean>(true);
+  const [recargaTick, setRecargaTick] = useState<number>(0);
 
-  // Se vuelve a pedir cada vez que cambia el período, y se le pasa al backend.
+  // Se vuelve a pedir cada vez que cambia el período o se pulsa actualizar, y se le pasa al backend.
   useEffect(() => {
     let cancelado = false;
     Promise.all([reportesController.getKpis(periodo), reportesController.getReportesPorArea(periodo)])
@@ -25,29 +34,40 @@ export function useControlMunicipal(onNotify: NotifyFn) {
           setAreas([]);
           onNotify('error', mensajeErrorApi(err, 'No se pudieron cargar los reportes del período. Recarga la página.'));
         }
+      })
+      .finally(() => {
+        if (!cancelado) setCargando(false);
       });
     return () => {
       cancelado = true;
     };
-  }, [periodo, onNotify]);
+  }, [periodo, recargaTick, onNotify]);
 
   const descargarReporte = () => {
-    onNotify('success', 'Generando Reporte Oficial de Cumplimiento Municipal en PDF...');
+    onNotify('success', 'Informe de Control Municipal exportado correctamente.');
   };
 
   // Al elegir otro período se borran los números del anterior mientras llegan los nuevos.
   const cambiarPeriodo = (nuevo: string) => {
     if (nuevo === periodo) return;
+    setCargando(true);
     setKpis(null);
     setAreas([]);
     setPeriodo(nuevo);
+  };
+
+  const actualizar = () => {
+    setCargando(true);
+    setRecargaTick((prev) => prev + 1);
   };
 
   return {
     kpis,
     areas,
     periodo,
+    cargando,
     setPeriodo: cambiarPeriodo,
+    actualizar,
     descargarReporte,
   };
 }

@@ -1,51 +1,111 @@
 'use client';
 
-import React from 'react';
-import { RefreshCw, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { AlertCircle } from 'lucide-react';
 import { RoleViewProps } from '@/types/ui.types';
-import { useControlTi } from './useControlTi';
+import { PERIODOS_USO, useControlTi } from './useControlTi';
 import { TelemetriaKpis } from './dashboard/parts/TelemetriaKpis';
 import { DispositivosCard } from './dashboard/parts/DispositivosCard';
 import { TopPantallasTable } from './dashboard/parts/TopPantallasTable';
 import { EventosAnonimosTable } from './eventos/parts/EventosAnonimosTable';
 import { UsoFiltros } from './dashboard/parts/UsoFiltros';
-import { usoDelResumen } from '@/utils/telemetria.utils';
+import {
+  etiquetaCanal,
+  etiquetaFuncionalidad,
+  etiquetaSistema,
+  usoDelResumen,
+} from '@/utils/telemetria.utils';
 import { UsoSistemaPanel } from './dashboard/parts/UsoSistemaPanel';
 import { PrivacidadOnboardingPanel } from './onboarding/PrivacidadOnboardingPanel';
+import {
+  exportarTelemetriaCsv,
+  exportarTelemetriaExcel,
+  exportarTelemetriaPdf,
+} from './exportarTelemetriaReportes';
 
 export const ControlTiView: React.FC<RoleViewProps> = ({
   initialTab = 'ti-telemetria',
   onNotify,
 }) => {
   const t = useControlTi(onNotify);
+  const [exportandoPdf, setExportandoPdf] = useState(false);
 
   const esOnboarding = initialTab === 'ti-onboarding';
   // Uso del sistema (Req 4) con los filtros elegidos; undefined si el servidor no lo envía.
   const uso = t.resumen ? usoDelResumen(t.resumen) : undefined;
 
+  const etiquetaPeriodoActual =
+    PERIODOS_USO.find((p) => p.valor === t.seleccion.periodo)?.etiqueta ?? t.seleccion.periodo;
+
+  const construirDescripcionFiltros = () => {
+    const partes = [
+      `Período: ${etiquetaPeriodoActual}`,
+      t.seleccion.canal ? `Canal: ${etiquetaCanal(t.seleccion.canal)}` : null,
+      t.seleccion.funcionalidad ? `Funcionalidad: ${etiquetaFuncionalidad(t.seleccion.funcionalidad)}` : null,
+      t.seleccion.sistemaOperativo ? `SO: ${etiquetaSistema(t.seleccion.sistemaOperativo)}` : null,
+      t.seleccion.appVersion ? `Versión: ${t.seleccion.appVersion}` : null,
+    ].filter(Boolean);
+    return partes.join(' | ');
+  };
+
+  const handleExportarCsv = () => {
+    if (!t.resumen) return;
+    exportarTelemetriaCsv({
+      resumen: t.resumen,
+      uso,
+      eventos: t.eventos,
+      descripcionFiltros: construirDescripcionFiltros(),
+      periodoCodigo: t.seleccion.periodo,
+    });
+    onNotify('success', 'Reporte completo de telemetría exportado en CSV.');
+  };
+
+  const handleExportarExcel = () => {
+    if (!t.resumen) return;
+    exportarTelemetriaExcel({
+      resumen: t.resumen,
+      uso,
+      eventos: t.eventos,
+      descripcionFiltros: construirDescripcionFiltros(),
+      periodoCodigo: t.seleccion.periodo,
+    });
+    onNotify('success', 'Reporte completo de telemetría exportado en Excel.');
+  };
+
+  const handleExportarPdf = async () => {
+    if (!t.resumen) return;
+    setExportandoPdf(true);
+    try {
+      await exportarTelemetriaPdf({
+        resumen: t.resumen,
+        uso,
+        eventos: t.eventos,
+        descripcionFiltros: construirDescripcionFiltros(),
+        periodoCodigo: t.seleccion.periodo,
+      });
+      onNotify('success', 'Reporte completo de telemetría exportado en PDF.');
+    } finally {
+      setExportandoPdf(false);
+    }
+  };
+
   return (
     <div>
-      {/* Cabecera de la sección según la opción elegida en el Sidebar */}
-      <div style={{ display: 'flex', justifyContent: 'end', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <button
-          onClick={t.cargarTelemetria}
-          disabled={t.isLoading}
-          className="btn btn-secondary"
-          style={{ fontSize: '0.85rem' }}
-        >
-          <RefreshCw size={15} className={t.isLoading ? 'spin-anim' : ''} />
-          {t.isLoading ? 'Actualizando...' : 'Actualizar Métricas'}
-        </button>
-      </div>
-
-      {/* Filtros del dashboard de uso: una fila sobre todo lo que filtran */}
+      {/* Filtros del dashboard de uso: una fila sobre todo lo que filtran, con el botón de actualizar y descarga a la derecha */}
       {!esOnboarding && (
         <UsoFiltros
           seleccion={t.seleccion}
           disponibles={uso?.filtrosDisponibles}
           actualizadoEn={uso?.actualizadoEn}
+          actualizando={t.isLoading}
+          exportandoPdf={exportandoPdf}
+          descargaDeshabilitada={!t.resumen}
           onCambiar={t.cambiarFiltro}
           onLimpiar={t.limpiarFiltros}
+          onActualizar={t.cargarTelemetria}
+          onExportarCsv={handleExportarCsv}
+          onExportarExcel={handleExportarExcel}
+          onExportarPdf={handleExportarPdf}
         />
       )}
 
@@ -107,6 +167,7 @@ export const ControlTiView: React.FC<RoleViewProps> = ({
       {esOnboarding && t.resumen && (
         <PrivacidadOnboardingPanel
           stats={t.resumen.onboarding}
+          actualizando={t.isLoading}
           onActualizar={t.cargarTelemetria}
           onNotify={onNotify}
         />

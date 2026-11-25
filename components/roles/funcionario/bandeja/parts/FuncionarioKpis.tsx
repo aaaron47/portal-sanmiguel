@@ -18,7 +18,7 @@ export const FuncionarioKpis: React.FC<FuncionarioKpisProps> = ({ tickets, area 
     <div className="kpi-grid">
       <KpiCard
         icon={Inbox}
-        label={`Reclamos en ${area || 'Mi Área'}`}
+        label={`Mis reclamos asignados (${area || 'Mi Área'})`}
         value={tickets.length}
         bg="var(--sky-100)"
         color="var(--sky-600)"

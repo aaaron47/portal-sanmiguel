@@ -23,7 +23,9 @@ export const ControlMunicipalView: React.FC<RoleViewProps> = ({
           kpis={c.kpis}
           areas={c.areas}
           periodo={c.periodo}
+          cargando={c.cargando}
           onPeriodoChange={c.setPeriodo}
+          onActualizar={c.actualizar}
           onDescargarReporte={c.descargarReporte}
         />
       )}

@@ -14,10 +14,25 @@ interface ConstanciasTableProps {
   onTamanoChange: (n: number) => void;
   onPaginaChange: (n: number) => void;
   onAbrir: (s: SolicitudConstancia) => void;
+  enmascararPrivacidad?: boolean;
 }
 
 const muted: React.CSSProperties = { fontSize: '0.75rem', color: 'var(--text-muted)' };
 const botonPagina: React.CSSProperties = { padding: '0.25rem 0.5rem', display: 'inline-flex', alignItems: 'center' };
+
+export const enmascararNombreContribuyente = (texto: string, activo: boolean): string => {
+  if (!activo || !texto) return texto;
+  return texto
+    .split(' ')
+    .map((p) => (p.length > 2 ? `${p[0]}${'*'.repeat(Math.min(4, p.length - 1))}` : p))
+    .join(' ');
+};
+
+export const enmascararDocumentoContribuyente = (doc: string, activo: boolean): string => {
+  if (!activo || !doc) return doc;
+  if (doc.includes('*')) return doc;
+  return doc.length > 4 ? `${doc.slice(0, 2)}****${doc.slice(-2)}` : doc;
+};
 
 export const ConstanciasTable: React.FC<ConstanciasTableProps> = ({
   listado,
@@ -28,6 +43,7 @@ export const ConstanciasTable: React.FC<ConstanciasTableProps> = ({
   onTamanoChange,
   onPaginaChange,
   onAbrir,
+  enmascararPrivacidad = false,
 }) => {
   const items = listado?.items ?? [];
   const total = listado?.totalRegistros ?? 0;
@@ -74,9 +90,13 @@ export const ConstanciasTable: React.FC<ConstanciasTableProps> = ({
                       <div style={muted}>{fechaHoraPeru(s.solicitadoEn)}</div>
                     </td>
                     <td>
-                      <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{s.contribuyente.nombre}</div>
+                      <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>
+                        {enmascararNombreContribuyente(s.contribuyente.nombre, enmascararPrivacidad)}
+                      </div>
                       <div style={muted}>
-                        {s.contribuyente.tipoDocumento} {s.contribuyente.documento} · {s.contribuyente.codigo}
+                        {s.contribuyente.tipoDocumento}{' '}
+                        {enmascararDocumentoContribuyente(s.contribuyente.documento, enmascararPrivacidad)} ·{' '}
+                        {s.contribuyente.codigo}
                       </div>
                     </td>
                     <td>

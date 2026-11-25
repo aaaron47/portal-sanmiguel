@@ -1,14 +1,19 @@
 import React, { useMemo, useState } from 'react';
 import { Users, ListChecks } from 'lucide-react';
 import { AccionTicket, Ticket } from '@/types/ticket.types';
+import { NotifyFn } from '@/types/ui.types';
 import { CardHeader, CardAside } from '@/components/shared/ui/CardHeader';
-import { CargaFuncionario, SIN_ASIGNAR_ID, esActivo } from '@/utils/ticket.utils';
+import { ReporteExportMenu } from '@/components/shared/ui/ReporteExportMenu';
+import { CargaFuncionario, SIN_ASIGNAR_ID, esActivo, textoEstado } from '@/utils/ticket.utils';
+import { exportarCSV, exportarExcel } from '@/utils/csv.utils';
+import { exportarReporteTributarioPdf } from '@/components/roles/control-municipal/tributarios/exportarReportePdf';
 import { CargaFuncionariosTable, CriterioOrdenCarga } from './parts/CargaFuncionariosTable';
 import { SupervisorTable } from '../supervision/parts/SupervisorTable';
 import {
   FilterSelectWrapper,
   FilterResetButton,
   ESTILO_SELECT_FILTRO,
+  ESTILO_LABEL_FILTRO,
 } from '@/components/shared/ui/FilterControls';
 
 interface ReasignacionPanelProps {
@@ -16,6 +21,7 @@ interface ReasignacionPanelProps {
   carga: CargaFuncionario[];
   areas?: string[];
   onSelectTicket: (t: Ticket, accion?: AccionTicket) => void;
+  onNotify?: NotifyFn;
 }
 
 export const ReasignacionPanel: React.FC<ReasignacionPanelProps> = ({
@@ -23,6 +29,7 @@ export const ReasignacionPanel: React.FC<ReasignacionPanelProps> = ({
   carga,
   areas = [],
   onSelectTicket,
+  onNotify,
 }) => {
   const [seleccionadoId, setSeleccionadoId] = useState<string | null>(null);
   const [campoOrden, setCampoOrden] = useState<CriterioOrdenCarga>('activos');
@@ -82,6 +89,120 @@ export const ReasignacionPanel: React.FC<ReasignacionPanelProps> = ({
         ? !t.funcionarioAsignadoId
         : t.funcionarioAsignadoId === idEfectivo)
   );
+
+  const construirTablaCarga = () => {
+    const cabeceras = [
+      'Funcionario',
+      'Estado Usuario',
+      'Área Municipal',
+      'Prioridad Alta',
+      'Prioridad Media',
+      'Prioridad Baja',
+      'Por Aprobar',
+      'Casos Activos',
+    ];
+    const filas = cargaFiltradaYOrdenada.map((c) => [
+      c.nombre,
+      c.activo ? 'Activo' : 'Inactivo',
+      c.area || '—',
+      String(c.alta),
+      String(c.media),
+      String(c.baja),
+      String(c.porAprobar),
+      String(c.activos),
+    ]);
+    return { cabeceras, filas };
+  };
+
+  const handleExportCargaCsv = () => {
+    const { cabeceras, filas } = construirTablaCarga();
+    exportarCSV('reasignacion_carga_funcionarios', cabeceras, filas);
+    onNotify?.('success', 'Reporte CSV de carga por funcionario descargado');
+  };
+
+  const handleExportCargaExcel = () => {
+    const { cabeceras, filas } = construirTablaCarga();
+    exportarExcel('reasignacion_carga_funcionarios', cabeceras, filas);
+    onNotify?.('success', 'Reporte Excel de carga por funcionario descargado');
+  };
+
+  const handleExportCargaPdf = async () => {
+    if (cargaFiltradaYOrdenada.length === 0) return;
+    const { cabeceras, filas } = construirTablaCarga();
+    await exportarReporteTributarioPdf({
+      tabla: {
+        id: 0,
+        nombre: 'Reasignación de Casos y Carga por Funcionario',
+        descripcion: 'Distribución operativa de reclamos abiertos por funcionario y nivel de prioridad',
+        certificadoPor: 'Supervisión General Municipal',
+      },
+      cabeceras,
+      filas,
+      busquedaTexto: areaFiltro !== 'todas' ? `Área: ${areaFiltro}` : '',
+      subtituloDocumento: 'Reporte Oficial de Supervisión',
+    });
+    onNotify?.('success', 'Reporte PDF de carga por funcionario descargado');
+  };
+
+  const construirTablaReclamosFuncionario = () => {
+    const cabeceras = [
+      'Folio',
+      'Ciudadano',
+      'DNI',
+      'Área Municipal',
+      'Funcionario Asignado',
+      'Asunto',
+      'Estado',
+      'Prioridad',
+      'Fecha Ingreso',
+    ];
+    const filas = ticketsDelFuncionario.map((t) => [
+      t.folio,
+      t.ciudadanoNombre,
+      t.ciudadanoDni,
+      t.areaAsignada || 'Sin área',
+      t.funcionarioAsignadoNombre || 'Sin asignar',
+      t.asunto,
+      textoEstado(t),
+      t.prioridad,
+      t.fechaCreacion,
+    ]);
+    return { cabeceras, filas };
+  };
+
+  const handleExportCasosCsv = () => {
+    const { cabeceras, filas } = construirTablaReclamosFuncionario();
+    exportarCSV('reclamos_abiertos_reasignacion', cabeceras, filas);
+    onNotify?.('success', 'Reporte CSV de reclamos abiertos descargado');
+  };
+
+  const handleExportCasosExcel = () => {
+    const { cabeceras, filas } = construirTablaReclamosFuncionario();
+    exportarExcel('reclamos_abiertos_reasignacion', cabeceras, filas);
+    onNotify?.('success', 'Reporte Excel de reclamos abiertos descargado');
+  };
+
+  const handleExportCasosPdf = async () => {
+    if (!seleccionado || ticketsDelFuncionario.length === 0) return;
+    const { cabeceras, filas } = construirTablaReclamosFuncionario();
+    const tituloCasos =
+      seleccionado.id === SIN_ASIGNAR_ID
+        ? 'Reclamos Abiertos sin Funcionario Asignado'
+        : `Reclamos Abiertos - ${seleccionado.nombre}`;
+    await exportarReporteTributarioPdf({
+      tabla: {
+        id: 0,
+        nombre: tituloCasos,
+        descripcion: 'Casos activos sujetos a evaluación o reasignación operativa',
+        certificadoPor: 'Supervisión General Municipal',
+      },
+      cabeceras,
+      filas,
+      busquedaTexto: seleccionado.area ? `Área: ${seleccionado.area}` : '',
+      subtituloDocumento: 'Reporte Oficial de Supervisión',
+    });
+    onNotify?.('success', 'Reporte PDF de reclamos abiertos descargado');
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -158,6 +279,18 @@ export const ReasignacionPanel: React.FC<ReasignacionPanelProps> = ({
             activo={areaFiltro !== 'todas' || campoOrden !== 'activos' || direccionOrden !== 'desc'}
             title="Eliminar filtros y restablecer orden"
           />
+
+          {/* Menú compacto de exportación (...) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', justifyContent: 'flex-end' }}>
+            <span style={{ ...ESTILO_LABEL_FILTRO, visibility: 'hidden' }}>&nbsp;</span>
+            <ReporteExportMenu
+              onExportCsv={handleExportCargaCsv}
+              onExportExcel={handleExportCargaExcel}
+              onExportPdf={handleExportCargaPdf}
+              disabled={cargaFiltradaYOrdenada.length === 0}
+              title="Exportar carga de trabajo por funcionario (CSV, Excel, PDF)"
+            />
+          </div>
         </div>
 
         <CargaFuncionariosTable
@@ -179,7 +312,18 @@ export const ReasignacionPanel: React.FC<ReasignacionPanelProps> = ({
                 ? 'Reclamos abiertos sin funcionario'
                 : `Reclamos abiertos de ${seleccionado.nombre}`
             }
-            aside={<CardAside>Usa “Reasignar” para pasar un reclamo a otro funcionario</CardAside>}
+            aside={
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <CardAside>Usa “Reasignar” para pasar un reclamo a otro funcionario</CardAside>
+                <ReporteExportMenu
+                  onExportCsv={handleExportCasosCsv}
+                  onExportExcel={handleExportCasosExcel}
+                  onExportPdf={handleExportCasosPdf}
+                  disabled={ticketsDelFuncionario.length === 0}
+                  title="Exportar reclamos abiertos del funcionario (CSV, Excel, PDF)"
+                />
+              </div>
+            }
           />
           <SupervisorTable
             tickets={ticketsDelFuncionario}

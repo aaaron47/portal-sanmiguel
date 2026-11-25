@@ -53,6 +53,12 @@ const FAQS: FaqItem[] = [
     respuesta: 'El módulo de Control TI monitorea métricas anónimas de rendimiento, pantallas más visitadas y versiones de SO de la app móvil. No se almacena información de identificación personal (PII) sin consentimiento explícito, respetando el Onboarding de Privacidad.',
   },
   {
+    id: 'telemetria-conteo',
+    categoria: 'Telemetría y Privacidad',
+    pregunta: '¿Cómo se cuentan los usuarios únicos, sesiones y consultas en el dashboard de uso?',
+    respuesta: 'Usuario único = identificador seudónimo distinto en el período (sin nombre, correo ni DNI). Sesión = uso continuo de un dispositivo; termina al cerrar sesión o tras 30 minutos sin actividad, y se cuenta en el período en que tuvo eventos. Consulta completada = la acción terminó bien; fallida = terminó con error. El porcentaje compara las completadas con las iniciadas.',
+  },
+  {
     id: '6',
     categoria: 'Seguridad',
     pregunta: '¿Cómo se auditan los cambios de usuarios y accesos?',

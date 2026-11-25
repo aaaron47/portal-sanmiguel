@@ -16,11 +16,11 @@ interface BandejaPanelProps {
   onEstadoChange: (estado: TicketFiltroEstado | 'todos') => void;
   filtroPrioridad: TicketPrioridad | 'todos';
   onPrioridadChange: (prioridad: TicketPrioridad | 'todos') => void;
-  soloAsignadosAMi: boolean;
-  onSoloAsignadosChange: (val: boolean) => void;
   onLimpiarFiltros?: () => void;
   onSelectTicket: (ticket: Ticket) => void;
   onDescargarCSV: () => void;
+  onDescargarExcel: () => void;
+  onDescargarPDF: () => Promise<void>;
 }
 
 export const BandejaPanel: React.FC<BandejaPanelProps> = ({
@@ -33,11 +33,11 @@ export const BandejaPanel: React.FC<BandejaPanelProps> = ({
   onEstadoChange,
   filtroPrioridad,
   onPrioridadChange,
-  soloAsignadosAMi,
-  onSoloAsignadosChange,
   onLimpiarFiltros,
   onSelectTicket,
   onDescargarCSV,
+  onDescargarExcel,
+  onDescargarPDF,
 }) => (
   <div>
     <FuncionarioKpis tickets={tickets} area={area} />
@@ -60,10 +60,11 @@ export const BandejaPanel: React.FC<BandejaPanelProps> = ({
         onEstadoChange={onEstadoChange}
         filtroPrioridad={filtroPrioridad}
         onPrioridadChange={onPrioridadChange}
-        soloAsignadosAMi={soloAsignadosAMi}
-        onSoloAsignadosChange={onSoloAsignadosChange}
         onLimpiarFiltros={onLimpiarFiltros}
         onDescargarCSV={onDescargarCSV}
+        onDescargarExcel={onDescargarExcel}
+        onDescargarPDF={onDescargarPDF}
+        sinRegistros={ticketsFiltrados.length === 0}
       />
 
       <ReclamosTable

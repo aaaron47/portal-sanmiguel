@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, MonitorSmartphone, CheckCircle2, XCircle, Info, CalendarDays, Clock3, ListChecks } from 'lucide-react';
+import { Users, MonitorSmartphone, CheckCircle2, XCircle, CalendarDays, Clock3, ListChecks } from 'lucide-react';
 import { UsoSistema } from '@/types/telemetria.types';
 import { KpiCard } from '@/components/shared/ui/KpiCard';
 import { CardHeader, CardAside } from '@/components/shared/ui/CardHeader';
@@ -59,26 +59,6 @@ export const UsoSistemaPanel: React.FC<{ uso: UsoSistema }> = ({ uso }) => {
           color="var(--red-600)"
         />
       </div>
-
-      <p
-        style={{
-          display: 'flex',
-          gap: '0.4rem',
-          alignItems: 'flex-start',
-          fontSize: '0.775rem',
-          color: 'var(--text-muted)',
-          margin: '-0.5rem 0 1.25rem',
-          lineHeight: 1.45,
-        }}
-      >
-        <Info size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
-        <span>
-          <strong>Cómo se cuenta:</strong> usuario único = identificador seudónimo distinto en el período (sin nombre,
-          correo ni DNI). Sesión = uso continuo de un dispositivo; termina al cerrar sesión o tras 30 minutos sin actividad, y se cuenta en el período en que tuvo eventos. Consulta
-          completada = la acción terminó bien; fallida = terminó con error. El porcentaje compara las completadas con
-          las iniciadas ({formato(uso.consultasCompletadas)} de {formato(uso.consultasIniciadas)}).
-        </span>
-      </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.25rem' }}>
         <div className="card">

@@ -1,5 +1,4 @@
 import React from 'react';
-import { Download } from 'lucide-react';
 import { TicketFiltroEstado, TicketPrioridad } from '@/types/ticket.types';
 import { SearchInput } from '@/components/shared/ui/SearchInput';
 import {
@@ -8,6 +7,7 @@ import {
   ESTILO_SELECT_FILTRO,
   ESTILO_LABEL_FILTRO,
 } from '@/components/shared/ui/FilterControls';
+import { ReporteExportMenu } from '@/components/shared/ui/ReporteExportMenu';
 import { ESTADOS } from '@/utils/ticket.utils';
 
 interface ReclamosFiltrosProps {
@@ -17,10 +17,11 @@ interface ReclamosFiltrosProps {
   onEstadoChange: (estado: TicketFiltroEstado | 'todos') => void;
   filtroPrioridad: TicketPrioridad | 'todos';
   onPrioridadChange: (prioridad: TicketPrioridad | 'todos') => void;
-  soloAsignadosAMi: boolean;
-  onSoloAsignadosChange: (val: boolean) => void;
   onLimpiarFiltros?: () => void;
   onDescargarCSV?: () => void;
+  onDescargarExcel?: () => void;
+  onDescargarPDF?: () => Promise<void>;
+  sinRegistros?: boolean;
 }
 
 export const ReclamosFiltros: React.FC<ReclamosFiltrosProps> = ({
@@ -30,16 +31,16 @@ export const ReclamosFiltros: React.FC<ReclamosFiltrosProps> = ({
   onEstadoChange,
   filtroPrioridad,
   onPrioridadChange,
-  soloAsignadosAMi,
-  onSoloAsignadosChange,
   onLimpiarFiltros,
   onDescargarCSV,
+  onDescargarExcel,
+  onDescargarPDF,
+  sinRegistros = false,
 }) => {
   const hayFiltrosActivos = Boolean(
     searchQuery.trim() ||
       filtroEstado !== 'todos' ||
-      filtroPrioridad !== 'todos' ||
-      soloAsignadosAMi
+      filtroPrioridad !== 'todos'
   );
 
   const handleLimpiar = () => {
@@ -49,7 +50,6 @@ export const ReclamosFiltros: React.FC<ReclamosFiltrosProps> = ({
       onSearchChange('');
       onEstadoChange('todos');
       onPrioridadChange('todos');
-      onSoloAsignadosChange(false);
     }
   };
 
@@ -103,54 +103,22 @@ export const ReclamosFiltros: React.FC<ReclamosFiltrosProps> = ({
         </select>
       </FilterSelectWrapper>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', justifyContent: 'flex-end', height: '38px', paddingBottom: '0.45rem', boxSizing: 'border-box' }}>
-        <label
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-            fontSize: '0.825rem',
-            cursor: 'pointer',
-            color: 'var(--text-main)',
-            userSelect: 'none',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={soloAsignadosAMi}
-            onChange={(e) => onSoloAsignadosChange(e.target.checked)}
-          />
-          Solo asignados a mí
-        </label>
-      </div>
-
       <FilterResetButton
         onReset={handleLimpiar}
         activo={hayFiltrosActivos}
         title="Eliminar filtros de la bandeja"
       />
 
-      {onDescargarCSV && (
+      {onDescargarCSV && onDescargarExcel && onDescargarPDF && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', justifyContent: 'flex-end', marginLeft: 'auto' }}>
           <span style={{ ...ESTILO_LABEL_FILTRO, visibility: 'hidden' }}>&nbsp;</span>
-          <button
-            type="button"
-            onClick={onDescargarCSV}
-            className="btn btn-secondary"
-            style={{
-              height: '38px',
-              padding: '0 0.85rem',
-              fontSize: '0.8rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              boxSizing: 'border-box',
-            }}
-            title="Descargar datos en formato CSV"
-          >
-            <Download size={14} /> Exportar CSV
-          </button>
+          <ReporteExportMenu
+            onExportCsv={onDescargarCSV}
+            onExportExcel={onDescargarExcel}
+            onExportPdf={onDescargarPDF}
+            disabled={sinRegistros}
+            title="Opciones de descarga de la bandeja (CSV, Excel, PDF)"
+          />
         </div>
       )}
     </div>

@@ -97,6 +97,24 @@ export const ConstanciaDetalleModal: React.FC<ConstanciaDetalleModalProps> = ({ 
     setError(null);
   };
 
+  // Heurística 3 de Nielsen (Control y libertad del usuario): Esc retrocede un nivel
+  // (cierra el formulario de decisión si está abierto, o cierra el modal si no se está guardando).
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || enviando) return;
+      e.stopPropagation();
+      if (modo) {
+        setModo(null);
+        setTexto('');
+        setError(null);
+      } else {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [enviando, modo, onClose]);
+
   const confirmar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!modo || motivoFalta || enviando) return;
@@ -125,21 +143,32 @@ export const ConstanciaDetalleModal: React.FC<ConstanciaDetalleModalProps> = ({ 
   };
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="titulo-constancia">
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="titulo-constancia"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !enviando && !modo) onClose();
+      }}
+    >
       <form className="modal-content" style={{ maxWidth: '720px' }} onSubmit={confirmar}>
         <div className="modal-header">
           <div>
-            <h3 id="titulo-constancia" style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <FileCheck size={18} /> Solicitud {s.numero}
-            </h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary-500)', fontFamily: 'var(--font-mono)' }}>
+                {s.numero}
+              </span>
               <ConstanciaStatusBadge estado={s.estado} etiqueta={s.estadoEtiqueta} />
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
                 · solicitada el {fechaHoraPeru(s.solicitadoEn)}
               </span>
             </div>
+            <h3 id="titulo-constancia" style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--text-main)' }}>
+              <FileCheck size={18} /> Evaluación de Constancia de No Adeudo
+            </h3>
           </div>
-          <button type="button" onClick={onClose} disabled={enviando} aria-label="Cerrar" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+          <button type="button" onClick={onClose} disabled={enviando} aria-label="Cerrar" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <X size={20} />
           </button>
         </div>

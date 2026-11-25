@@ -2157,6 +2157,15 @@ dialog.ia-chat-modal-dialog[open] {
   color: var(--sky-600);
 }
 
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Reglas globales de impresión */
 @media print {
   .no-imprimir {
@@ -2167,6 +2176,130 @@ dialog.ia-chat-modal-dialog[open] {
     background: #ffffff !important;
     color: #000000 !important;
   }
+}
+
+/* Menú compacto de descargas en Reportes Tributarios Oficiales */
+.reporte-acciones-trigger {
+  padding: 0.45rem 0.6rem;
+  min-width: 36px;
+}
+
+.reporte-acciones-trigger[aria-expanded='true'] {
+  background: var(--sky-50);
+  border-color: var(--sky-400);
+  color: var(--sky-700);
+}
+
+[data-theme='dark'] .reporte-acciones-trigger[aria-expanded='true'] {
+  background: rgba(14, 165, 233, 0.2);
+  border-color: var(--sky-400);
+  color: var(--sky-300);
+}
+
+.reporte-acciones-trigger:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.reporte-menu-popover {
+  padding: 0.35rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  box-shadow: var(--shadow-lg);
+  min-width: 205px;
+}
+
+@supports (position-area: block-end) {
+  .reporte-menu-popover {
+    position-area: block-end span-inline-start;
+    position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+    inset: auto;
+    margin: 0.35rem 0 0 0;
+  }
+}
+
+@supports not (position-area: block-end) {
+  .reporte-menu-popover {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .reporte-menu-popover {
+    opacity: 0;
+    transition: opacity 0.14s ease, translate 0.14s ease, display 0.14s ease, overlay 0.14s ease;
+    transition-behavior: allow-discrete;
+  }
+
+  @supports selector(:popover-open) {
+    .reporte-menu-popover {
+      translate: 0 -0.25rem;
+    }
+  }
+
+  .reporte-menu-popover:popover-open {
+    opacity: 1;
+    translate: 0 0;
+    transition-duration: 0.1s;
+  }
+
+  @starting-style {
+    .reporte-menu-popover:popover-open {
+      opacity: 0;
+      translate: 0 -0.25rem;
+    }
+  }
+}
+
+.reporte-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.reporte-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 0.84rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.reporte-menu-item:hover:not(:disabled),
+.reporte-menu-item:focus-visible:not(:disabled) {
+  background: var(--bg-card-subtle);
+  color: var(--primary-700);
+}
+
+[data-theme='dark'] .reporte-menu-item:hover:not(:disabled),
+[data-theme='dark'] .reporte-menu-item:focus-visible:not(:disabled) {
+  color: var(--sky-300);
+}
+
+.reporte-menu-item:focus-visible {
+  outline: 2px solid var(--sky-500);
+  outline-offset: -2px;
+}
+
+.reporte-menu-item:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.reporte-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 

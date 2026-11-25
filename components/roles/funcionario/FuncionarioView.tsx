@@ -27,11 +27,11 @@ export const FuncionarioView: React.FC<RoleViewProps> = ({ initialTab = 'funcion
           onEstadoChange={f.setFiltroEstado}
           filtroPrioridad={f.filtroPrioridad}
           onPrioridadChange={f.setFiltroPrioridad}
-          soloAsignadosAMi={f.soloAsignadosAMi}
-          onSoloAsignadosChange={f.setSoloAsignadosAMi}
           onLimpiarFiltros={f.limpiarFiltros}
           onSelectTicket={f.abrirTicket}
           onDescargarCSV={f.descargarCSV}
+          onDescargarExcel={f.descargarExcel}
+          onDescargarPDF={f.descargarPDF}
         />
       )}
 

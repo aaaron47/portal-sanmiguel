@@ -6,6 +6,7 @@ import {
   ESTILO_SELECT_FILTRO,
   ESTILO_LABEL_FILTRO,
 } from '@/components/shared/ui/FilterControls';
+import { ReporteExportMenu } from '@/components/shared/ui/ReporteExportMenu';
 import { TicketFiltroEstado, TicketPrioridad } from '@/types/ticket.types';
 import { ESTADOS, FuncionarioOpcion } from '@/utils/ticket.utils';
 
@@ -25,6 +26,10 @@ interface SupervisorFiltrosProps {
   filtroPrioridad: TicketPrioridad | 'todos';
   onPrioridadChange: (val: TicketPrioridad | 'todos') => void;
   onLimpiarFiltros?: () => void;
+  onExportCsv?: () => void;
+  onExportExcel?: () => void;
+  onExportPdf?: () => Promise<void>;
+  sinRegistros?: boolean;
 }
 
 const PRIORIDADES: TicketPrioridad[] = ['ALTA', 'MEDIA', 'BAJA'];
@@ -44,6 +49,10 @@ export const SupervisorFiltros: React.FC<SupervisorFiltrosProps> = ({
   filtroPrioridad,
   onPrioridadChange,
   onLimpiarFiltros,
+  onExportCsv,
+  onExportExcel,
+  onExportPdf,
+  sinRegistros = false,
 }) => {
   const hayFiltrosActivos = Boolean(
     searchQuery.trim() ||
@@ -157,6 +166,19 @@ export const SupervisorFiltros: React.FC<SupervisorFiltrosProps> = ({
         activo={hayFiltrosActivos}
         title="Eliminar filtros de reclamos"
       />
+
+      {onExportCsv && onExportExcel && onExportPdf && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', justifyContent: 'flex-end', marginLeft: 'auto' }}>
+          <span style={{ ...ESTILO_LABEL_FILTRO, visibility: 'hidden' }}>&nbsp;</span>
+          <ReporteExportMenu
+            onExportCsv={onExportCsv}
+            onExportExcel={onExportExcel}
+            onExportPdf={onExportPdf}
+            disabled={sinRegistros}
+            title="Opciones de descarga (CSV, Excel, PDF)"
+          />
+        </div>
+      )}
     </div>
   );
 };

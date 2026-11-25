@@ -121,7 +121,7 @@ export const IaDashboardsHubView: React.FC<IaDashboardsHubViewProps> = ({
               flexDirection: 'column',
               gap: '0.85rem',
               height: isFullscreen ? 'calc(100vh - 2rem)' : 'auto',
-              maxHeight: isFullscreen ? 'calc(100vh - 2rem)' : '80vh',
+              maxHeight: isFullscreen ? 'calc(100vh - 2rem)' : 'calc(100vh - 4rem)',
               overflowY: 'auto',
               minWidth: 0,
             }}

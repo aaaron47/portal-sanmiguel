@@ -1,15 +1,17 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useId, useCallback } from 'react';
 import {
   FileCheck,
+  FileSpreadsheet,
   Search,
   Download,
+  MoreHorizontal,
+  RefreshCw,
   Eye,
   EyeOff,
   ShieldCheck,
   AlertTriangle,
-  QrCode,
   Printer,
   X,
   FileText,
@@ -26,12 +28,13 @@ import {
   Info
 } from 'lucide-react';
 import { CardHeader, CardAside } from '@/components/shared/ui/CardHeader';
-import { exportarCSV } from '@/utils/csv.utils';
+import { exportarCSV, descargarBlobArchivo } from '@/utils/csv.utils';
 import {
   ConstanciaItem,
   ConstanciaPdfResponse,
 } from '@/types/reportes-tributarios.types';
 import { MOCK_CONSTANCIAS, reportesController } from '@/controllers/reportes.controller';
+import { exportarReporteTributarioPdf } from '../tributarios/exportarReportePdf';
 import Image from 'next/image';
 import {
   FilterSelectWrapper,
@@ -50,10 +53,19 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
   const [pdfData, setPdfData] = useState<ConstanciaPdfResponse | null>(null);
   const [cargandoPdf, setCargandoPdf] = useState<boolean>(false);
 
-  // Paginación y Privacidad LPDP
+  // Paginación, Privacidad LPDP y Menú compacto de exportación
   const [paginaActual, setPaginaActual] = useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
   const [enmascararPrivacidad, setEnmascararPrivacidad] = useState(false);
+  const [exportandoPdfLista, setExportandoPdfLista] = useState(false);
+  const [menuAbierto, setMenuAbierto] = useState(false);
+  const triggerId = useId();
+  const menuId = useId();
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuPopoverRef = useRef<HTMLDivElement | null>(null);
+  const menuFocusGroupRef = useRef<HTMLDivElement | null>(null);
+  const entrarAlAbrirRef = useRef<boolean>(false);
+  const aperturaPorPunteroRef = useRef<boolean>(false);
 
   useEffect(() => {
     let cancelado = false;
@@ -79,9 +91,39 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
     };
   }, [filtroEstado, busqueda, paginaActual, registrosPorPagina, enmascararPrivacidad]);
 
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string>('');
+  const pdfIframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+    };
+  }, [pdfBlobUrl]);
+
+  const base64ToPdfBlobUrl = (base64Raw: string): string => {
+    try {
+      const limpio = base64Raw.replace(/^data:application\/pdf;base64,/, '').trim();
+      const bytesStr = window.atob(limpio);
+      const bytes = new Uint8Array(bytesStr.length);
+      for (let i = 0; i < bytesStr.length; i++) {
+        bytes[i] = bytesStr.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      return URL.createObjectURL(blob);
+    } catch {
+      return base64Raw.startsWith('data:')
+        ? base64Raw
+        : `data:application/pdf;base64,${base64Raw}`;
+    }
+  };
+
   const handleVerConstancia = async (item: ConstanciaItem) => {
     setConstanciaSeleccionada(item);
     setPdfData(null);
+    if (pdfBlobUrl) {
+      URL.revokeObjectURL(pdfBlobUrl);
+      setPdfBlobUrl('');
+    }
     setCargandoPdf(true);
     setMostrarVisorPdf(false);
     try {
@@ -89,6 +131,9 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
       setPdfData(respPdf);
       if (respPdf.detalle) {
         setConstanciaSeleccionada(respPdf.detalle);
+      }
+      if (respPdf.pdfBase64) {
+        setPdfBlobUrl(base64ToPdfBlobUrl(respPdf.pdfBase64));
       }
     } catch {
       setPdfData(null);
@@ -100,12 +145,16 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
   const [copiadoCvd, setCopiadoCvd] = useState(false);
   const [mostrarVisorPdf, setMostrarVisorPdf] = useState(false);
 
-  const handleCerrarModalPdf = () => {
+  const handleCerrarModalPdf = useCallback(() => {
     setConstanciaSeleccionada(null);
     setPdfData(null);
+    setPdfBlobUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return '';
+    });
     setCopiadoCvd(false);
     setMostrarVisorPdf(false);
-  };
+  }, []);
 
   // Heurística 3 de Nielsen: Control y libertad del usuario (cerrar con tecla Escape)
   useEffect(() => {
@@ -117,7 +166,7 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [constanciaSeleccionada]);
+  }, [constanciaSeleccionada, handleCerrarModalPdf]);
 
   // Heurística 7 de Nielsen: Eficiencia de uso (copiar hash CVD con feedback visual)
   const handleCopiarCvd = async (cvd: string) => {
@@ -131,15 +180,35 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
   };
 
   const pdfEmbedSrc = useMemo(() => {
-    if (!pdfData) return '';
-    if (pdfData.pdfUrl) return pdfData.pdfUrl;
-    if (pdfData.pdfBase64) {
+    if (pdfData?.pdfUrl) return pdfData.pdfUrl;
+    if (pdfBlobUrl) return pdfBlobUrl;
+    if (pdfData?.pdfBase64) {
       return pdfData.pdfBase64.startsWith('data:')
         ? pdfData.pdfBase64
         : `data:application/pdf;base64,${pdfData.pdfBase64}`;
     }
     return '';
-  }, [pdfData]);
+  }, [pdfData, pdfBlobUrl]);
+
+  const handleImprimirConstancia = () => {
+    // Si la constancia tiene el PDF oficial emitido (el mismo de la App Móvil),
+    // imprime directamente ese archivo PDF para que coincida con "Descargar PDF Firmado".
+    if (pdfEmbedSrc) {
+      const iframeWin = pdfIframeRef.current?.contentWindow;
+      if (iframeWin) {
+        try {
+          iframeWin.focus();
+          iframeWin.print();
+          return;
+        } catch {
+          // Si es cross-origin, abrimos el PDF en una ventana para imprimirlo
+        }
+      }
+      const printWin = window.open(pdfEmbedSrc, '_blank', 'noopener,noreferrer');
+      if (printWin) return;
+    }
+    window.print();
+  };
 
   const handleDescargarPdfFirmado = () => {
     if (!constanciaSeleccionada) return;
@@ -194,8 +263,7 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
       .join(' ');
   };
 
-  // Exportar relación a CSV
-  const handleExportarRelacion = () => {
+  const construirDatosExportacion = () => {
     const cabeceras = [
       'Folio Trámite',
       'Código Contribuyente',
@@ -224,7 +292,7 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
       c.predioCodigo,
       c.direccionPredio,
       c.estadoTributario === 'SIN_DEUDA' ? 'SIN DEUDA AL DIA' : 'REGISTRA DEUDA',
-      c.deudaMonto.toString(),
+      c.deudaMonto.toFixed(2),
       c.firmadoDigitalmente ? 'FIRMADO DIGITALMENTE' : 'NO EMITIDO / OBSERVADO',
       c.entidadCertificadora,
       c.hashCVD,
@@ -232,8 +300,152 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
       c.fechaVencimiento,
     ]);
 
+    return { cabeceras, filas };
+  };
+
+  // Exportar relación a CSV
+  const handleExportarRelacionCsv = () => {
+    menuPopoverRef.current?.hidePopover?.();
+    const { cabeceras, filas } = construirDatosExportacion();
     exportarCSV('Relacion_Constancias_NoAdeudo_2026', cabeceras, filas);
   };
+
+  // Exportar relación a Excel
+  const handleExportarRelacionExcel = () => {
+    menuPopoverRef.current?.hidePopover?.();
+    const { cabeceras, filas } = construirDatosExportacion();
+    const contenido = [cabeceras.join('\t'), ...filas.map((f) => f.join('\t'))].join('\n');
+    const blob = new Blob(['\ufeff' + contenido], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    descargarBlobArchivo(blob, 'Relacion_Constancias_NoAdeudo_2026.xls');
+  };
+
+  // Exportar relación a PDF oficial con membrete de San Miguel
+  const handleExportarRelacionPdf = async () => {
+    menuPopoverRef.current?.hidePopover?.();
+    if (constanciasFiltradas.length === 0) return;
+    setExportandoPdfLista(true);
+    try {
+      const { cabeceras, filas } = construirDatosExportacion();
+      const filtroPartes = [
+        filtroEstado !== 'TODOS' ? `Estado: ${filtroEstado}` : '',
+        busqueda.trim(),
+      ].filter(Boolean);
+
+      await exportarReporteTributarioPdf({
+        tabla: {
+          id: 0,
+          nombre: 'Constancias de No Adeudo Tributario',
+          descripcion: 'Expedientes y auditoría de firmas digitales PAdES y validez tributaria',
+          certificadoPor: 'Gerencia de Administración Tributaria',
+        },
+        cabeceras,
+        filas,
+        busquedaTexto: filtroPartes.join(' | '),
+        enmascararPrivacidad,
+        tablaIncompleta: false,
+        enmascararValor: (valor) => valor,
+      });
+    } finally {
+      setExportandoPdfLista(false);
+    }
+  };
+
+  useEffect(() => {
+    const popoverEl = menuPopoverRef.current;
+    const focusGroupEl = menuFocusGroupRef.current;
+    if (!popoverEl || !focusGroupEl) return;
+
+    const obtenerItemsHabilitados = () =>
+      Array.from(focusGroupEl.querySelectorAll<HTMLButtonElement>('button')).filter(
+        (btn) => !btn.disabled && btn.getAttribute('aria-disabled') !== 'true'
+      );
+
+    let limpiarFallbackTeclado: (() => void) | undefined;
+    if (!('focusGroup' in HTMLElement.prototype)) {
+      focusGroupEl.setAttribute('role', 'menu');
+      focusGroupEl.querySelectorAll('button:not([role])').forEach((btn) => {
+        btn.setAttribute('role', 'menuitem');
+      });
+      const onKeyDownFallback = (event: KeyboardEvent) => {
+        if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+        const items = obtenerItemsHabilitados();
+        if (items.length === 0) return;
+        const actual = items.indexOf(document.activeElement as HTMLButtonElement);
+        if (actual < 0) return;
+        const siguiente =
+          event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? items.length - 1
+              : (actual + (event.key === 'ArrowUp' ? -1 : 1) + items.length) % items.length;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        items[siguiente]?.focus({ preventScroll: true });
+      };
+      focusGroupEl.addEventListener('keydown', onKeyDownFallback, true);
+      limpiarFallbackTeclado = () =>
+        focusGroupEl.removeEventListener('keydown', onKeyDownFallback, true);
+    }
+
+    const posicionarFallback = () => {
+      if (CSS.supports('position-area: block-end') || !triggerRef.current) return;
+      const triggerRect = triggerRef.current.getBoundingClientRect();
+      const menuRect = popoverEl.getBoundingClientRect();
+      const margen = 8;
+      const espacioAbajo = window.innerHeight - triggerRect.bottom - 6;
+      const top =
+        espacioAbajo >= menuRect.height || triggerRect.top < menuRect.height
+          ? Math.min(triggerRect.bottom + 6, window.innerHeight - menuRect.height - margen)
+          : Math.max(margen, triggerRect.top - menuRect.height - 6);
+      const leftDeseado = triggerRect.right - menuRect.width;
+      const left = Math.max(
+        margen,
+        Math.min(leftDeseado, window.innerWidth - menuRect.width - margen)
+      );
+      popoverEl.style.top = `${Math.round(top)}px`;
+      popoverEl.style.left = `${Math.round(left)}px`;
+    };
+
+    const onToggle = (event: Event) => {
+      const toggleEvent = event as ToggleEvent;
+      const abierto = toggleEvent.newState === 'open';
+      setMenuAbierto(abierto);
+      if (abierto) {
+        posicionarFallback();
+        if (entrarAlAbrirRef.current) {
+          entrarAlAbrirRef.current = false;
+          aperturaPorPunteroRef.current = false;
+          obtenerItemsHabilitados()[0]?.focus({ preventScroll: true });
+        } else if (aperturaPorPunteroRef.current) {
+          aperturaPorPunteroRef.current = false;
+          triggerRef.current?.focus({ preventScroll: true });
+        }
+      } else {
+        entrarAlAbrirRef.current = false;
+        aperturaPorPunteroRef.current = false;
+      }
+    };
+
+    popoverEl.addEventListener('toggle', onToggle);
+    return () => {
+      popoverEl.removeEventListener('toggle', onToggle);
+      limpiarFallbackTeclado?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!menuAbierto) return;
+    const onFocusIn = (event: FocusEvent) => {
+      const objetivo = event.target as Node | null;
+      if (!objetivo) return;
+      if (triggerRef.current?.contains(objetivo) || menuPopoverRef.current?.contains(objetivo)) {
+        return;
+      }
+      menuPopoverRef.current?.hidePopover?.();
+    };
+    document.addEventListener('focusin', onFocusIn);
+    return () => document.removeEventListener('focusin', onFocusIn);
+  }, [menuAbierto]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -291,19 +503,118 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
               onClick={() => setEnmascararPrivacidad(!enmascararPrivacidad)}
               className={`btn ${enmascararPrivacidad ? 'btn-primary' : 'btn-secondary'}`}
               style={{ fontSize: '0.85rem' }}
+              aria-label={
+                enmascararPrivacidad
+                  ? 'Mostrar datos sensibles completos'
+                  : 'Enmascarar datos de personas según Ley 29733 de Protección de Datos Personales'
+              }
               title="Enmascarar datos de personas según Ley 29733 de Protección de Datos Personales"
             >
               {enmascararPrivacidad ? <EyeOff size={15} /> : <Eye size={15} />}
             </button>
 
             <button
-              onClick={handleExportarRelacion}
-              className="btn btn-primary"
-              style={{ fontSize: '0.85rem' }}
+              ref={triggerRef}
+              id={triggerId}
+              type="button"
+              className="btn btn-secondary reporte-acciones-trigger"
+              aria-haspopup="menu"
+              aria-expanded={menuAbierto}
+              aria-label={exportandoPdfLista ? 'Generando PDF...' : 'Opciones de descarga'}
+              title="Opciones de descarga (CSV, Excel, PDF)"
+              disabled={constanciasFiltradas.length === 0 || exportandoPdfLista}
+              {...({ commandfor: menuId, command: 'toggle-popover' } as Record<string, string>)}
+              onPointerDown={() => {
+                aperturaPorPunteroRef.current = true;
+                entrarAlAbrirRef.current = false;
+              }}
+              onClick={() => {
+                if (!('commandForElement' in HTMLButtonElement.prototype)) {
+                  const popoverEl = menuPopoverRef.current as
+                    | (HTMLDivElement & {
+                        togglePopover?: (opts?: { source?: HTMLElement | null }) => void;
+                      })
+                    | null;
+                  popoverEl?.togglePopover?.({ source: triggerRef.current });
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  entrarAlAbrirRef.current = true;
+                  aperturaPorPunteroRef.current = false;
+                } else if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  entrarAlAbrirRef.current = true;
+                  aperturaPorPunteroRef.current = false;
+                  if (!menuAbierto) {
+                    triggerRef.current?.click();
+                  } else {
+                    const primero = menuFocusGroupRef.current?.querySelector<HTMLButtonElement>(
+                      'button:not(:disabled)'
+                    );
+                    primero?.focus({ preventScroll: true });
+                  }
+                }
+              }}
             >
-              <Download size={15} />
-              Exportar CSV
+              {exportandoPdfLista ? (
+                <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} />
+              ) : (
+                <MoreHorizontal size={16} />
+              )}
             </button>
+
+            <div
+              ref={menuPopoverRef}
+              id={menuId}
+              popover="auto"
+              className="reporte-menu-popover"
+              onKeyDown={(e) => {
+                if (e.key === 'Tab') {
+                  menuPopoverRef.current?.hidePopover?.();
+                }
+              }}
+            >
+              <div
+                ref={menuFocusGroupRef}
+                className="reporte-menu-list"
+                aria-labelledby={triggerId}
+                {...({ focusgroup: 'menu nomemory' } as Record<string, string>)}
+              >
+                <button
+                  type="button"
+                  className="reporte-menu-item"
+                  disabled={constanciasFiltradas.length === 0}
+                  onPointerMove={(e) => e.currentTarget.focus({ preventScroll: true })}
+                  onClick={handleExportarRelacionCsv}
+                >
+                  <Download size={15} />
+                  <span>Descargar CSV</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="reporte-menu-item"
+                  disabled={constanciasFiltradas.length === 0}
+                  onPointerMove={(e) => e.currentTarget.focus({ preventScroll: true })}
+                  onClick={handleExportarRelacionExcel}
+                >
+                  <FileSpreadsheet size={15} />
+                  <span>Descargar Excel</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="reporte-menu-item"
+                  disabled={constanciasFiltradas.length === 0 || exportandoPdfLista}
+                  onPointerMove={(e) => e.currentTarget.focus({ preventScroll: true })}
+                  onClick={handleExportarRelacionPdf}
+                >
+                  <FileText size={15} />
+                  <span>Descargar PDF</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -808,119 +1119,81 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
                   </div>
                 )}
 
-                {/* Sello Reglamentario de Firma Digital PAdES / RENIEC (Heurística 2, 7 y 10) */}
+                {/* Sello Reglamentario de Firma Digital PAdES / RENIEC (Heurística 2, 7 y 8: Minimalismo sin elementos decorativos falsos como QR estático) */}
                 {constanciaSeleccionada.firmadoDigitalmente && (
                   <div
                     style={{
-                      border: '1.5px dashed var(--green-600, #16a34a)',
-                      background: 'var(--green-50, rgba(22, 163, 74, 0.06))',
+                      border: '1px solid var(--border-color)',
+                      borderLeft: '4px solid var(--green-600, #16a34a)',
+                      background: 'var(--bg-card-subtle)',
                       borderRadius: '10px',
-                      padding: '1rem',
+                      padding: '1rem 1.15rem',
                       display: 'flex',
                       justifyContent: 'space-between',
-                      alignItems: 'center',
+                      alignItems: 'flex-start',
                       flexWrap: 'wrap',
                       gap: '1rem',
                     }}
                   >
-                    <div style={{ flex: 1, minWidth: '220px' }}>
+                    <div style={{ flex: 1, minWidth: '240px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.35rem' }}>
-                        <ShieldCheck size={18} color="var(--green-700, #15803d)" />
-                        <span style={{ fontSize: '0.725rem', fontWeight: 800, color: 'var(--green-900, #14532d)', letterSpacing: '0.3px' }}>
+                        <ShieldCheck size={17} color="var(--green-600, #16a34a)" />
+                        <span style={{ fontSize: '0.725rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '0.3px' }}>
                           DOCUMENTO FIRMADO DIGITALMENTE (LEY N° 27269)
                         </span>
                       </div>
-                      <div style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--green-950, #052e16)' }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
                         {constanciaSeleccionada.firmanteNombre}
                       </div>
-                      <div style={{ fontSize: '0.725rem', color: 'var(--green-800, #166534)' }}>
-                        {constanciaSeleccionada.firmanteCargo}
-                      </div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--green-700, #15803d)', marginTop: '0.2rem' }}>
-                        Entidad Certificadora: {constanciaSeleccionada.entidadCertificadora}
-                      </div>
-
-                      {/* Código de Verificación Digital (CVD) con botón interactivo de copiar (Heurística 7) */}
-                      <div
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.4rem',
-                          background: 'white',
-                          border: '1px solid var(--green-300, #86efac)',
-                          borderRadius: '6px',
-                          padding: '0.25rem 0.5rem',
-                          marginTop: '0.4rem',
-                          fontSize: '0.725rem',
-                        }}
-                      >
-                        <span style={{ color: 'var(--text-muted)' }}>CVD:</span>
-                        <code style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 700, color: 'var(--green-900, #14532d)' }}>
-                          {constanciaSeleccionada.hashCVD}
-                        </code>
-                        <button
-                          type="button"
-                          className="no-imprimir"
-                          onClick={() => handleCopiarCvd(constanciaSeleccionada.hashCVD)}
-                          title="Copiar CVD al portapapeles"
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: copiadoCvd ? 'var(--green-700, #15803d)' : 'var(--text-muted)',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.2rem',
-                            padding: '0.1rem 0.25rem',
-                            fontWeight: 600,
-                          }}
-                        >
-                          {copiadoCvd ? (
-                            <>
-                              <Check size={12} color="var(--green-700, #15803d)" /> ¡Copiado!
-                            </>
-                          ) : (
-                            <>
-                              <Copy size={12} /> Copiar
-                            </>
-                          )}
-                        </button>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {constanciaSeleccionada.firmanteCargo} · Entidad Certificadora: {constanciaSeleccionada.entidadCertificadora}
                       </div>
                     </div>
 
-                    {/* Recuadro de Validación QR (Heurística 7 y 10) */}
+                    {/* Código de Verificación Digital (CVD) con botón interactivo de copiar (Heurística 7) */}
                     <div
                       style={{
-                        textAlign: 'center',
-                        background: 'white',
-                        padding: '0.6rem 0.85rem',
-                        borderRadius: '10px',
-                        border: '1px solid var(--green-300, #86efac)',
-                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.45rem',
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '8px',
+                        padding: '0.35rem 0.65rem',
+                        fontSize: '0.75rem',
                       }}
                     >
-                      <QrCode size={58} color="var(--green-800, #166534)" style={{ display: 'block', margin: '0 auto' }} />
-                      <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--green-800, #166534)', marginTop: '0.25rem' }}>
-                        VALIDACIÓN QR
-                      </div>
-                      <a
-                        href={constanciaSeleccionada.qrUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>CVD:</span>
+                      <code style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 700, color: 'var(--text-main)' }}>
+                        {constanciaSeleccionada.hashCVD}
+                      </code>
+                      <button
+                        type="button"
                         className="no-imprimir"
+                        onClick={() => handleCopiarCvd(constanciaSeleccionada.hashCVD)}
+                        title="Copiar CVD al portapapeles"
                         style={{
+                          background: 'none',
+                          border: 'none',
+                          color: copiadoCvd ? 'var(--green-600, #16a34a)' : 'var(--primary-500)',
+                          cursor: 'pointer',
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '0.2rem',
-                          fontSize: '0.675rem',
-                          color: 'var(--primary-600, #0284c7)',
-                          textDecoration: 'none',
-                          marginTop: '0.25rem',
+                          padding: '0.1rem 0.25rem',
                           fontWeight: 600,
                         }}
                       >
-                        <ExternalLink size={10} /> Validar en web
-                      </a>
+                        {copiadoCvd ? (
+                          <>
+                            <Check size={12} /> ¡Copiado!
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} /> Copiar
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
                 )}
@@ -971,6 +1244,18 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
                     </span>
                   </button>
 
+                  {/* Iframe oculto siempre montado cuando hay PDF para que el botón "Imprimir" imprima el PDF oficial de la app móvil incluso si el acordeón está cerrado */}
+                  {!mostrarVisorPdf && (
+                    <iframe
+                      ref={pdfIframeRef}
+                      src={pdfEmbedSrc}
+                      title={`Impresión PDF ${constanciaSeleccionada.folio}`}
+                      style={{ position: 'fixed', width: 0, height: 0, border: 0, opacity: 0, pointerEvents: 'none' }}
+                      aria-hidden="true"
+                      tabIndex={-1}
+                    />
+                  )}
+
                   {mostrarVisorPdf && (
                     <div>
                       <div
@@ -1002,6 +1287,7 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
                         </a>
                       </div>
                       <iframe
+                        ref={pdfIframeRef}
                         src={pdfEmbedSrc}
                         title={`PDF ${constanciaSeleccionada.folio}`}
                         style={{ width: '100%', height: '480px', border: 'none', display: 'block' }}
@@ -1042,7 +1328,7 @@ export const ConstanciasNoAdeudoPanel: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => window.print()}
+                  onClick={handleImprimirConstancia}
                   className="btn btn-secondary"
                   style={{ fontSize: '0.8rem', padding: '0.4rem 0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                 >

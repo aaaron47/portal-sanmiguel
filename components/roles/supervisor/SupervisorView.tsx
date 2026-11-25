@@ -11,7 +11,9 @@ import { SupervisorFiltros } from './supervision/parts/SupervisorFiltros';
 import { SupervisorTable } from './supervision/parts/SupervisorTable';
 import { ReasignacionPanel } from './reasignacion/ReasignacionPanel';
 import { ConstanciasPanel } from '@/components/constancias/ConstanciasPanel';
-import { cumpleFiltroEstado, puedeAprobar } from '@/utils/ticket.utils';
+import { cumpleFiltroEstado, puedeAprobar, textoEstado } from '@/utils/ticket.utils';
+import { exportarCSV, exportarExcel } from '@/utils/csv.utils';
+import { exportarReporteTributarioPdf } from '@/components/roles/control-municipal/tributarios/exportarReportePdf';
 
 type SupervisorTab = 'panorama' | 'aprobaciones' | 'reasignaciones' | 'constancias';
 
@@ -58,6 +60,88 @@ export const SupervisorView: React.FC<RoleViewProps> = ({
     return true;
   });
 
+  const esAprobaciones = subTab === 'aprobaciones';
+  const nombreBaseArchivo = esAprobaciones
+    ? 'revision_aprobacion_reclamos'
+    : 'panorama_integral_reclamos';
+
+  const construirTablaSupervision = () => {
+    const cabeceras = [
+      'Folio',
+      'Ciudadano',
+      'DNI',
+      'Área Municipal',
+      'Funcionario Asignado',
+      'Asunto',
+      'Estado',
+      'Prioridad',
+      'Fecha Ingreso',
+    ];
+    const filas = ticketsFiltrados.map((t) => [
+      t.folio,
+      t.ciudadanoNombre,
+      t.ciudadanoDni,
+      t.areaAsignada || 'Sin área',
+      t.funcionarioAsignadoNombre || 'Sin asignar',
+      t.asunto,
+      textoEstado(t),
+      t.prioridad,
+      t.fechaCreacion,
+    ]);
+    return { cabeceras, filas };
+  };
+
+  const handleExportCsv = () => {
+    const { cabeceras, filas } = construirTablaSupervision();
+    exportarCSV(nombreBaseArchivo, cabeceras, filas);
+    onNotify('success', 'Reporte CSV descargado con éxito');
+  };
+
+  const handleExportExcel = () => {
+    const { cabeceras, filas } = construirTablaSupervision();
+    exportarExcel(nombreBaseArchivo, cabeceras, filas);
+    onNotify('success', 'Reporte Excel descargado con éxito');
+  };
+
+  const handleExportPdf = async () => {
+    if (ticketsFiltrados.length === 0) return;
+    const { cabeceras, filas } = construirTablaSupervision();
+    const nombreFuncionario =
+      s.filtroFuncionario === 'todos'
+        ? ''
+        : s.filtroFuncionario === 'sin_asignar'
+          ? 'Sin asignar'
+          : s.funcionarios.find((f) => f.id === s.filtroFuncionario)?.nombre || s.filtroFuncionario;
+
+    const resumenFiltros = [
+      s.filtroArea !== 'todas' ? `Área: ${s.filtroArea}` : '',
+      nombreFuncionario ? `Asignado: ${nombreFuncionario}` : '',
+      !esAprobaciones && s.filtroEstado !== 'todos' ? `Estado: ${s.filtroEstado}` : '',
+      s.filtroPrioridad !== 'todos' ? `Prioridad: ${s.filtroPrioridad}` : '',
+      s.searchQuery.trim(),
+    ]
+      .filter(Boolean)
+      .join(' | ');
+
+    await exportarReporteTributarioPdf({
+      tabla: {
+        id: 0,
+        nombre: esAprobaciones
+          ? 'Revisión y Aprobación de Respuestas'
+          : 'Panorama Integral de Reclamos Vecinales',
+        descripcion: esAprobaciones
+          ? 'Reclamos vecinales en evaluación con proyecto de respuesta pendiente de aprobación'
+          : 'Control transversal y estado de atención de reclamos en toda la municipalidad',
+        certificadoPor: 'Supervisión General Municipal',
+      },
+      cabeceras,
+      filas,
+      busquedaTexto: resumenFiltros,
+      subtituloDocumento: 'Reporte Oficial de Supervisión',
+    });
+    onNotify('success', 'Reporte PDF descargado con éxito');
+  };
+
   return (
     <div>
       {subTab !== 'reasignaciones' && subTab !== 'constancias' && <SupervisorKpis tickets={s.tickets} />}
@@ -70,6 +154,7 @@ export const SupervisorView: React.FC<RoleViewProps> = ({
           carga={s.carga}
           areas={s.areas}
           onSelectTicket={s.abrirTicket}
+          onNotify={onNotify}
         />
       ) : (
         <div className="card">
@@ -100,6 +185,10 @@ export const SupervisorView: React.FC<RoleViewProps> = ({
             filtroPrioridad={s.filtroPrioridad}
             onPrioridadChange={s.setFiltroPrioridad}
             onLimpiarFiltros={s.limpiarFiltros}
+            onExportCsv={handleExportCsv}
+            onExportExcel={handleExportExcel}
+            onExportPdf={handleExportPdf}
+            sinRegistros={ticketsFiltrados.length === 0}
           />
 
           <SupervisorTable

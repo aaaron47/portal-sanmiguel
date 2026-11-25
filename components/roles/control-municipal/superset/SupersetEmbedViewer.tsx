@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useId } from 'react';
 import {
   BarChart2,
-  Maximize2,
-  Minimize2,
+  MoreHorizontal,
   RefreshCw,
   Download,
   FileDown,
@@ -84,31 +83,12 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
 }) => {
   const { theme } = useTheme();
   const [internalId, setInternalId] = useState(dashboardSeleccionadoId);
-  const [internalFullscreen, setInternalFullscreen] = useState(false);
   const [recargando, setRecargando] = useState(false);
   const [embedConfig, setEmbedConfig] = useState<SupersetEmbedTokenResponse | null>(null);
   const [iframeRefreshKey, setIframeRefreshKey] = useState(0);
 
   const esControladoPorPadre = typeof onToggleFullscreen === 'function';
-  const isFullscreen = esControladoPorPadre ? Boolean(externalFullscreen) : internalFullscreen;
-
-  const handleToggleFullscreen = () => {
-    if (onToggleFullscreen) {
-      onToggleFullscreen();
-    } else {
-      setInternalFullscreen((prev) => !prev);
-    }
-  };
-
-  // Heurística de Nielsen 3 (Control y libertad del usuario): salir con tecla Escape cuando es local
-  useEffect(() => {
-    if (esControladoPorPadre || !internalFullscreen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setInternalFullscreen(false);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [esControladoPorPadre, internalFullscreen]);
+  const isFullscreen = Boolean(externalFullscreen);
 
   const activeId = onCambiarDashboard ? dashboardSeleccionadoId : internalId;
 
@@ -128,6 +108,14 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
   const [errorEmbebido, setErrorEmbebido] = useState<string | null>(null);
   const [publicando, setPublicando] = useState(false);
   const [exportandoPdf, setExportandoPdf] = useState(false);
+  const [menuAbierto, setMenuAbierto] = useState(false);
+  const triggerId = useId();
+  const menuId = useId();
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuPopoverRef = useRef<HTMLDivElement | null>(null);
+  const menuFocusGroupRef = useRef<HTMLDivElement | null>(null);
+  const entrarAlAbrirRef = useRef<boolean>(false);
+  const aperturaPorPunteroRef = useRef<boolean>(false);
 
   const sidNumerico =
     dashboardActual.supersetId ??
@@ -145,6 +133,7 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
       : dashboardActual.publicado;
 
   const handleHabilitarEmbebido = async () => {
+    menuPopoverRef.current?.hidePopover?.();
     if (!sidNumerico) return;
     setHabilitandoEmbebido(true);
     setErrorEmbebido(null);
@@ -172,7 +161,6 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
         }
       );
       setUuidManual((prev) => ({ ...prev, [dashboardActual.id]: res.uuid }));
-      dashboardActual.embedUuid = res.uuid;
       setMensajeEmbebido(null);
       setAvanceEmbebido(null);
     } catch (err) {
@@ -190,6 +178,7 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
   };
 
   const handleAlternarPublicacion = async () => {
+    menuPopoverRef.current?.hidePopover?.();
     const idDashboard = sidNumerico ?? dashboardActual.id;
     if (!idDashboard) return;
     setPublicando(true);
@@ -198,11 +187,9 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
       if (onPublicarDashboard) {
         await onPublicarDashboard(idDashboard, nuevo);
       } else if (sidNumerico) {
-        const res = await iaDashboardsController.publicarDashboard(sidNumerico, nuevo);
-        dashboardActual.publicado = res.publicado;
+        await iaDashboardsController.publicarDashboard(sidNumerico, nuevo);
       }
       setPublicadoManual((prev) => ({ ...prev, [dashboardActual.id]: nuevo }));
-      dashboardActual.publicado = nuevo;
     } catch (err) {
       alert(
         formatearErrorIaBackend(
@@ -216,6 +203,7 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
   };
 
   const handleExportarPdf = async () => {
+    menuPopoverRef.current?.hidePopover?.();
     if (!sidNumerico) return;
     setExportandoPdf(true);
     try {
@@ -234,13 +222,13 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
   };
 
   const handleRetirarEmbebido = async () => {
+    menuPopoverRef.current?.hidePopover?.();
     if (!sidNumerico) return;
     if (!confirm('¿Deseas retirar el embebido de este dashboard en Apache Superset?')) return;
     setHabilitandoEmbebido(true);
     try {
       await iaDashboardsController.retirarEmbebido(sidNumerico);
       setUuidManual((prev) => ({ ...prev, [dashboardActual.id]: null }));
-      dashboardActual.embedUuid = null;
     } catch (err) {
       alert(formatearErrorIaBackend(err, 'No se pudo retirar el embebido del dashboard.'));
     } finally {
@@ -293,15 +281,125 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
   };
 
   const handleRecargar = () => {
+    setRecargando(true);
     setIframeRefreshKey((prev) => prev + 1);
     if (!uuidEmbebido) {
-      cargarEmbedToken(dashboardActual.id, true);
+      void cargarEmbedToken(dashboardActual.id, false).finally(() => {
+        window.setTimeout(() => setRecargando(false), 300);
+      });
+    } else {
+      window.setTimeout(() => setRecargando(false), 350);
     }
   };
 
   const handleDescargarPlantilla = (rep: ReporteItemInfo) => {
     exportarCSV(`Plantilla_${rep.codigo}_${rep.nombre.replace(/\s+/g, '_')}`, rep.cabeceras, []);
   };
+
+  const tieneAccionesMenu = sidNumerico !== null || Boolean(onPublicarDashboard);
+  const ocupadoMenu = exportandoPdf || publicando || habilitandoEmbebido;
+
+  useEffect(() => {
+    const popoverEl = menuPopoverRef.current;
+    const focusGroupEl = menuFocusGroupRef.current;
+    if (!popoverEl || !focusGroupEl) return;
+
+    const obtenerItemsHabilitados = () =>
+      Array.from(focusGroupEl.querySelectorAll<HTMLButtonElement>('button')).filter(
+        (btn) => !btn.disabled && btn.getAttribute('aria-disabled') !== 'true'
+      );
+
+    let limpiarFallbackTeclado: (() => void) | undefined;
+    if (!('focusGroup' in HTMLElement.prototype)) {
+      focusGroupEl.setAttribute('role', 'menu');
+      focusGroupEl.querySelectorAll('button:not([role])').forEach((btn) => {
+        btn.setAttribute('role', 'menuitem');
+      });
+      const onKeyDownFallback = (event: KeyboardEvent) => {
+        if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+        const items = obtenerItemsHabilitados();
+        if (items.length === 0) return;
+        const actual = items.indexOf(document.activeElement as HTMLButtonElement);
+        if (actual < 0) return;
+        const siguiente =
+          event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? items.length - 1
+              : (actual + (event.key === 'ArrowUp' ? -1 : 1) + items.length) % items.length;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        items[siguiente]?.focus({ preventScroll: true });
+      };
+      focusGroupEl.addEventListener('keydown', onKeyDownFallback, true);
+      limpiarFallbackTeclado = () =>
+        focusGroupEl.removeEventListener('keydown', onKeyDownFallback, true);
+    }
+
+    const posicionarFallback = () => {
+      if (CSS.supports('position-area: block-end') || !triggerRef.current) return;
+      const triggerRect = triggerRef.current.getBoundingClientRect();
+      const menuRect = popoverEl.getBoundingClientRect();
+      const margen = 8;
+      const espacioAbajo = window.innerHeight - triggerRect.bottom - 6;
+      const top =
+        espacioAbajo >= menuRect.height || triggerRect.top < menuRect.height
+          ? Math.min(triggerRect.bottom + 6, window.innerHeight - menuRect.height - margen)
+          : Math.max(margen, triggerRect.top - menuRect.height - 6);
+      const leftDeseado = triggerRect.right - menuRect.width;
+      const left = Math.max(
+        margen,
+        Math.min(leftDeseado, window.innerWidth - menuRect.width - margen)
+      );
+      popoverEl.style.top = `${Math.round(top)}px`;
+      popoverEl.style.left = `${Math.round(left)}px`;
+    };
+
+    const onToggle = (event: Event) => {
+      const toggleEvent = event as ToggleEvent;
+      const abierto = toggleEvent.newState === 'open';
+      setMenuAbierto(abierto);
+      if (abierto) {
+        if (!('focusGroup' in HTMLElement.prototype)) {
+          focusGroupEl.querySelectorAll('button:not([role])').forEach((btn) => {
+            btn.setAttribute('role', 'menuitem');
+          });
+        }
+        posicionarFallback();
+        if (entrarAlAbrirRef.current) {
+          entrarAlAbrirRef.current = false;
+          aperturaPorPunteroRef.current = false;
+          obtenerItemsHabilitados()[0]?.focus({ preventScroll: true });
+        } else if (aperturaPorPunteroRef.current) {
+          aperturaPorPunteroRef.current = false;
+          triggerRef.current?.focus({ preventScroll: true });
+        }
+      } else {
+        entrarAlAbrirRef.current = false;
+        aperturaPorPunteroRef.current = false;
+      }
+    };
+
+    popoverEl.addEventListener('toggle', onToggle);
+    return () => {
+      popoverEl.removeEventListener('toggle', onToggle);
+      limpiarFallbackTeclado?.();
+    };
+  }, [tieneAccionesMenu]);
+
+  useEffect(() => {
+    if (!menuAbierto) return;
+    const onFocusIn = (event: FocusEvent) => {
+      const objetivo = event.target as Node | null;
+      if (!objetivo) return;
+      if (triggerRef.current?.contains(objetivo) || menuPopoverRef.current?.contains(objetivo)) {
+        return;
+      }
+      menuPopoverRef.current?.hidePopover?.();
+    };
+    document.addEventListener('focusin', onFocusIn);
+    return () => document.removeEventListener('focusin', onFocusIn);
+  }, [menuAbierto]);
 
   const fullscreenPropio = !esControladoPorPadre && isFullscreen;
 
@@ -316,6 +414,7 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
         bottom: fullscreenPropio ? 0 : undefined,
         zIndex: fullscreenPropio ? 9999 : 1,
         height: fullscreenPropio ? '100vh' : isFullscreen ? 'calc(100vh - 2rem)' : 'auto',
+        minHeight: fullscreenPropio ? '100vh' : isFullscreen ? 'calc(100vh - 2rem)' : 'calc(100vh - 4rem)',
         borderRadius: fullscreenPropio ? 0 : '16px',
         display: 'flex',
         flexDirection: 'column',
@@ -385,149 +484,185 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
 
       {/* 2. Cabecera Única del Visor Analítico */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
           {controlIzquierdoCabecera}
-          <div>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {modoFijo ? 'Apache Superset' : dashboardActual.titulo}
-            </h3>
-          </div>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {modoFijo ? 'Apache Superset' : dashboardActual.titulo}
+          </h3>
+          {(sidNumerico !== null || onPublicarDashboard) && estadoPublicado && (
+            <span
+              className="badge badge-success"
+              style={{
+                fontSize: '0.72rem',
+                padding: '0.3rem 0.55rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+              }}
+              title="Dashboard oficial publicado y visible para todos los usuarios"
+            >
+              <Globe size={12} />
+              Oficial
+            </span>
+          )}
         </div>
 
-        {/* Acciones del visor */}
+        {/* Acciones del visor compactadas */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           {controlDerechoCabecera}
 
-          {/* Acciones de gestión y publicación: Subir a oficial / Devolver a borrador */}
-          {(sidNumerico !== null || onPublicarDashboard) && (
-            estadoPublicado ? (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span
-                  className="badge badge-success"
-                  style={{
-                    fontSize: '0.72rem',
-                    padding: '0.35rem 0.55rem',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.3rem',
-                  }}
-                  title="Dashboard oficial publicado y visible para todos los usuarios"
-                >
-                  <Globe size={12} />
-                  Oficial
-                </span>
-
-                <button
-                  type="button"
-                  onClick={handleAlternarPublicacion}
-                  disabled={publicando}
-                  className="btn btn-secondary"
-                  style={{
-                    fontSize: '0.78rem',
-                    padding: '0.4rem 0.65rem',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                  }}
-                  title="Devolver este dashboard a borrador privado"
-                >
-                  <Lock size={13} />
-                  <span>{publicando ? 'Guardando...' : 'Devolver a borrador'}</span>
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={handleAlternarPublicacion}
-                disabled={publicando}
-                className="btn btn-primary"
-                style={{
-                  fontSize: '0.78rem',
-                  padding: '0.4rem 0.65rem',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                }}
-                title="Subir borrador a oficial (visible para todos los usuarios de Control Municipal)"
-              >
-                <Globe size={13} />
-                <span>{publicando ? 'Subiendo...' : 'Subir a oficial'}</span>
-              </button>
-            )
-          )}
-
-          {!uuidEmbebido && sidNumerico !== null && (
-            <button
-              type="button"
-              onClick={handleHabilitarEmbebido}
-              disabled={habilitandoEmbebido}
-              className="btn btn-primary"
-              style={{
-                fontSize: '0.78rem',
-                padding: '0.4rem 0.65rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-              }}
-              title="Habilitar embebido en Superset para este dashboard"
-            >
-              <Share2 size={13} />
-              <span>
-                {habilitandoEmbebido
-                  ? avanceEmbebido
-                    ? `Preparando ${avanceEmbebido.listos}/${avanceEmbebido.total}...`
-                    : 'Preparando...'
-                  : 'Habilitar embebido'}
-              </span>
-            </button>
-          )}
-
-          {uuidEmbebido && sidNumerico !== null && esAdmin && (
-            <button
-              type="button"
-              onClick={handleRetirarEmbebido}
-              disabled={habilitandoEmbebido}
-              className="btn btn-secondary"
-              style={{ fontSize: '0.78rem', padding: '0.4rem 0.55rem' }}
-              title="Retirar embebido de Apache Superset"
-            >
-              <Share2 size={13} style={{ opacity: 0.7 }} />
-            </button>
-          )}
-
-          {sidNumerico !== null && (
-            <button
-              type="button"
-              onClick={handleExportarPdf}
-              disabled={exportandoPdf}
-              className="btn btn-secondary"
-              style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
-              title="Descargar el dashboard en PDF (estado guardado, sin los filtros aplicados en pantalla)"
-            >
-              <FileDown size={14} />
-              <span>{exportandoPdf ? 'Generando PDF...' : 'PDF'}</span>
-            </button>
-          )}
-
           <button
+            type="button"
             onClick={handleRecargar}
             disabled={recargando}
             className="btn btn-secondary"
-            style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+            style={{ fontSize: '0.8rem', padding: '0.4rem 0.65rem' }}
+            aria-label="Sincronizar datos con Apache Superset"
             title="Sincronizar datos con Apache Superset"
           >
             <RefreshCw size={14} style={{ animation: recargando ? 'spin 1s linear infinite' : 'none' }} />
-            <span>{recargando ? 'Actualizando...' : 'Actualizar'}</span>
           </button>
 
-          <button
-            onClick={handleToggleFullscreen}
-            className="btn btn-secondary"
-            style={{ fontSize: '0.8rem', padding: '0.4rem 0.65rem' }}
-            title={isFullscreen ? 'Salir de pantalla completa (Esc)' : 'Pantalla completa'}
-          >
-            {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-          </button>
+          {tieneAccionesMenu && (
+            <>
+              <button
+                ref={triggerRef}
+                id={triggerId}
+                type="button"
+                className="btn btn-secondary reporte-acciones-trigger"
+                style={{ fontSize: '0.8rem', padding: '0.4rem 0.65rem' }}
+                aria-haspopup="menu"
+                aria-expanded={menuAbierto}
+                aria-label="Más opciones del dashboard"
+                title="Más opciones del dashboard"
+                disabled={ocupadoMenu}
+                {...({ commandfor: menuId, command: 'toggle-popover' } as Record<string, string>)}
+                onPointerDown={() => {
+                  aperturaPorPunteroRef.current = true;
+                  entrarAlAbrirRef.current = false;
+                }}
+                onClick={() => {
+                  if (!('commandForElement' in HTMLButtonElement.prototype)) {
+                    const popoverEl = menuPopoverRef.current as
+                      | (HTMLDivElement & {
+                          togglePopover?: (opts?: { source?: HTMLElement | null }) => void;
+                        })
+                      | null;
+                    popoverEl?.togglePopover?.({ source: triggerRef.current });
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    entrarAlAbrirRef.current = true;
+                    aperturaPorPunteroRef.current = false;
+                  } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    entrarAlAbrirRef.current = true;
+                    aperturaPorPunteroRef.current = false;
+                    if (!menuAbierto) {
+                      triggerRef.current?.click();
+                    } else {
+                      const primero = menuFocusGroupRef.current?.querySelector<HTMLButtonElement>(
+                        'button:not(:disabled)'
+                      );
+                      primero?.focus({ preventScroll: true });
+                    }
+                  }
+                }}
+              >
+                {ocupadoMenu ? (
+                  <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                ) : (
+                  <MoreHorizontal size={15} />
+                )}
+              </button>
+
+              <div
+                ref={menuPopoverRef}
+                id={menuId}
+                popover="auto"
+                className="reporte-menu-popover"
+                onKeyDown={(e) => {
+                  if (e.key === 'Tab') {
+                    menuPopoverRef.current?.hidePopover?.();
+                  }
+                }}
+              >
+                <div
+                  ref={menuFocusGroupRef}
+                  className="reporte-menu-list"
+                  aria-labelledby={triggerId}
+                  {...({ focusgroup: 'menu nomemory' } as Record<string, string>)}
+                >
+                  {sidNumerico !== null && (
+                    <button
+                      type="button"
+                      className="reporte-menu-item"
+                      disabled={exportandoPdf}
+                      onPointerMove={(e) => e.currentTarget.focus({ preventScroll: true })}
+                      onClick={handleExportarPdf}
+                    >
+                      <FileDown size={15} />
+                      <span>{exportandoPdf ? 'Generando PDF...' : 'Descargar PDF'}</span>
+                    </button>
+                  )}
+
+                  {(sidNumerico !== null || onPublicarDashboard) && (
+                    <button
+                      type="button"
+                      className="reporte-menu-item"
+                      disabled={publicando}
+                      onPointerMove={(e) => e.currentTarget.focus({ preventScroll: true })}
+                      onClick={handleAlternarPublicacion}
+                    >
+                      {estadoPublicado ? <Lock size={15} /> : <Globe size={15} />}
+                      <span>
+                        {estadoPublicado
+                          ? publicando
+                            ? 'Guardando...'
+                            : 'Devolver a borrador'
+                          : publicando
+                            ? 'Subiendo...'
+                            : 'Subir a oficial'}
+                      </span>
+                    </button>
+                  )}
+
+                  {!uuidEmbebido && sidNumerico !== null && (
+                    <button
+                      type="button"
+                      className="reporte-menu-item"
+                      disabled={habilitandoEmbebido}
+                      onPointerMove={(e) => e.currentTarget.focus({ preventScroll: true })}
+                      onClick={handleHabilitarEmbebido}
+                    >
+                      <Share2 size={15} />
+                      <span>
+                        {habilitandoEmbebido
+                          ? avanceEmbebido
+                            ? `Preparando ${avanceEmbebido.listos}/${avanceEmbebido.total}...`
+                            : 'Preparando...'
+                          : 'Habilitar embebido'}
+                      </span>
+                    </button>
+                  )}
+
+                  {uuidEmbebido && sidNumerico !== null && esAdmin && (
+                    <button
+                      type="button"
+                      className="reporte-menu-item"
+                      disabled={habilitandoEmbebido}
+                      onPointerMove={(e) => e.currentTarget.focus({ preventScroll: true })}
+                      onClick={handleRetirarEmbebido}
+                    >
+                      <Share2 size={15} />
+                      <span>Retirar embebido</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -569,7 +704,9 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
       <div
         style={{
           flex: 1,
-          minHeight: isFullscreen ? 'calc(100vh - 280px)' : '420px',
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: isFullscreen ? 'calc(100vh - 115px)' : 'calc(100vh - 9.75rem)',
           border: '1px solid var(--border-color)',
           borderRadius: '12px',
           overflow: 'hidden',
@@ -580,8 +717,9 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
         {recargando ? (
           <div
             style={{
+              flex: 1,
               height: '100%',
-              minHeight: '380px',
+              minHeight: isFullscreen ? 'calc(100vh - 115px)' : 'calc(100vh - 9.75rem)',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -605,7 +743,7 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
           <SupersetSdkDashboard
             key={`${dashboardActual.id}-${iframeRefreshKey}`}
             dashboardId={uuidEmbebido}
-            height={isFullscreen ? 'calc(100vh - 130px)' : '620px'}
+            height={isFullscreen ? 'calc(100vh - 115px)' : 'calc(100vh - 9.75rem)'}
             hideTitle
             hideTab={false}
             hideChartControls={false}
@@ -621,7 +759,7 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
             referrerPolicy="strict-origin-when-cross-origin"
             style={{
               width: '100%',
-              height: isFullscreen ? 'calc(100vh - 130px)' : '620px',
+              height: isFullscreen ? 'calc(100vh - 115px)' : 'calc(100vh - 9.75rem)',
               border: 'none',
               display: 'block',
               colorScheme: theme,
