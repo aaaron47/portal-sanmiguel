@@ -281,7 +281,8 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
 
   const tieneAccionesMenu =
     Boolean(onPublicarDashboard) ||
-    sidNumerico !== null;
+    sidNumerico !== null ||
+    Boolean(uuidEmbebido);
   const ocupadoMenu = publicando || habilitandoEmbebido;
 
   useEffect(() => {
@@ -496,17 +497,6 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           {controlDerechoCabecera}
 
-          {!(uuidEmbebido && recargando) && (
-            <BotonExportarPdf
-              embebido={!!uuidEmbebido}
-              control={controlSdk}
-              supersetId={sidNumerico}
-              titulo={dashboardActual.titulo}
-              descripcion={dashboardActual.descripcion}
-              modulo={NOMBRE_MODULO[dashboardActual.modulo || modulo]}
-            />
-          )}
-
           <button
             type="button"
             onClick={handleRecargar}
@@ -590,6 +580,19 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
                   aria-labelledby={triggerId}
                   {...({ focusgroup: 'menu nomemory' } as Record<string, string>)}
                 >
+                  {!(uuidEmbebido && recargando) && (
+                    <BotonExportarPdf
+                      variante="menu"
+                      embebido={!!uuidEmbebido}
+                      control={controlSdk}
+                      supersetId={sidNumerico}
+                      titulo={dashboardActual.titulo}
+                      descripcion={dashboardActual.descripcion}
+                      modulo={NOMBRE_MODULO[dashboardActual.modulo || modulo]}
+                      onAccion={() => menuPopoverRef.current?.hidePopover?.()}
+                    />
+                  )}
+
                   {(sidNumerico !== null || onPublicarDashboard) && (
                     <button
                       type="button"

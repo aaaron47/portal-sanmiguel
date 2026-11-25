@@ -23,6 +23,10 @@ interface ExportarPdfDashboardProps {
   descripcion?: string;
   /** Ej. "Control Municipal" */
   modulo?: string;
+  /** "boton": botón de barra; "menu": ítem dentro de un menú popover (reporte-menu-item) */
+  variante?: 'boton' | 'menu';
+  /** Callback ejecutado antes de abrir el modal (ej. cerrar un menú popover padre) */
+  onAccion?: () => void;
 }
 
 type Fase = 'inactivo' | 'aviso' | 'exportando';
@@ -31,7 +35,14 @@ type Fase = 'inactivo' | 'aviso' | 'exportando';
  * Botón "Exportar PDF" del visor de Superset: explica el permiso que pedirá el navegador, muestra el avance
  * mientras captura y descarga el PDF con el formato del portal.
  */
-export const ExportarPdfDashboard: React.FC<ExportarPdfDashboardProps> = ({ control, titulo, descripcion, modulo }) => {
+export const ExportarPdfDashboard: React.FC<ExportarPdfDashboardProps> = ({
+  control,
+  titulo,
+  descripcion,
+  modulo,
+  variante = 'boton',
+  onAccion,
+}) => {
   const { usuario, rol } = useAuth();
   const { theme } = useTheme();
   const [fase, setFase] = useState<Fase>('inactivo');
@@ -72,6 +83,7 @@ export const ExportarPdfDashboard: React.FC<ExportarPdfDashboardProps> = ({ cont
   }, [descargado]);
 
   const abrirAviso = () => {
+    onAccion?.();
     setError(null);
     setDescargado(false);
     setFase('aviso');
@@ -79,7 +91,7 @@ export const ExportarPdfDashboard: React.FC<ExportarPdfDashboardProps> = ({ cont
 
   const cerrarAviso = () => {
     setFase('inactivo');
-    botonRef.current?.focus();
+    if (variante !== 'menu') botonRef.current?.focus();
   };
 
   // El permiso de captura se pide en este mismo clic: el navegador lo exige
@@ -139,18 +151,33 @@ export const ExportarPdfDashboard: React.FC<ExportarPdfDashboardProps> = ({ cont
 
   return (
     <>
-      <button
-        ref={botonRef}
-        type="button"
-        onClick={abrirAviso}
-        disabled={!control || fase !== 'inactivo'}
-        className="btn btn-secondary"
-        style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
-        title={control ? 'Descargar este dashboard en PDF con el formato del portal' : 'Espera a que cargue el dashboard'}
-      >
-        {descargado ? <CheckCircle2 size={14} color="var(--green-600)" /> : <FileDown size={14} />}
-        <span>{descargado ? 'PDF descargado' : 'Exportar PDF'}</span>
-      </button>
+      {variante === 'menu' ? (
+        <button
+          ref={botonRef}
+          type="button"
+          onClick={abrirAviso}
+          disabled={!control || fase !== 'inactivo'}
+          className="reporte-menu-item"
+          onPointerMove={(e) => e.currentTarget.focus({ preventScroll: true })}
+          title={control ? 'Descargar este dashboard en PDF con el formato del portal' : 'Espera a que cargue el dashboard'}
+        >
+          {descargado ? <CheckCircle2 size={15} color="var(--green-600)" /> : <FileDown size={15} />}
+          <span>{descargado ? 'PDF descargado' : 'Exportar PDF'}</span>
+        </button>
+      ) : (
+        <button
+          ref={botonRef}
+          type="button"
+          onClick={abrirAviso}
+          disabled={!control || fase !== 'inactivo'}
+          className="btn btn-secondary"
+          style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+          title={control ? 'Descargar este dashboard en PDF con el formato del portal' : 'Espera a que cargue el dashboard'}
+        >
+          {descargado ? <CheckCircle2 size={14} color="var(--green-600)" /> : <FileDown size={14} />}
+          <span>{descargado ? 'PDF descargado' : 'Exportar PDF'}</span>
+        </button>
+      )}
       <span role="status" aria-live="polite" className="sr-only">
         {descargado ? 'El PDF del dashboard se descargó.' : ''}
       </span>

@@ -14,8 +14,10 @@ interface ExportarPdfServidorProps {
   descripcion?: string;
   /** Ej. "Control Municipal" */
   modulo?: string;
-  /** "icono": botón chico para la lista de dashboards; "boton": con texto, para la barra del visor */
-  variante?: 'icono' | 'boton';
+  /** "icono": botón chico para la lista; "boton": con texto para barra; "menu": ítem dentro de menú popover */
+  variante?: 'icono' | 'boton' | 'menu';
+  /** Callback ejecutado al hacer clic (ej. cerrar un menú popover padre) */
+  onAccion?: () => void;
   onNotify?: NotifyFn;
 }
 
@@ -29,6 +31,7 @@ export const ExportarPdfServidor: React.FC<ExportarPdfServidorProps> = ({
   descripcion,
   modulo,
   variante = 'icono',
+  onAccion,
   onNotify,
 }) => {
   const { usuario, rol } = useAuth();
@@ -43,6 +46,7 @@ export const ExportarPdfServidor: React.FC<ExportarPdfServidorProps> = ({
 
   const exportar = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    onAccion?.();
     if (generando) return;
     setGenerando(true);
     try {
@@ -69,6 +73,26 @@ export const ExportarPdfServidor: React.FC<ExportarPdfServidorProps> = ({
   const ayuda = generando
     ? 'Generando el PDF...'
     : `Descargar "${titulo}" en PDF (estado guardado del dashboard, sin los filtros de pantalla)`;
+
+  if (variante === 'menu') {
+    return (
+      <button
+        type="button"
+        onClick={exportar}
+        disabled={generando}
+        className="reporte-menu-item"
+        onPointerMove={(e) => e.currentTarget.focus({ preventScroll: true })}
+        title={ayuda}
+      >
+        {generando ? (
+          <RefreshCw size={15} style={{ animation: 'spin 1s linear infinite' }} />
+        ) : (
+          <FileDown size={15} />
+        )}
+        <span>{generando ? 'Generando PDF...' : 'Exportar PDF'}</span>
+      </button>
+    );
+  }
 
   if (variante === 'boton') {
     return (

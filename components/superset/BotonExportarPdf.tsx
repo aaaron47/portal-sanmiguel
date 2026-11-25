@@ -16,6 +16,10 @@ interface BotonExportarPdfProps {
   titulo: string;
   descripcion?: string;
   modulo?: string;
+  /** "boton": botón de barra (por defecto); "menu": ítem dentro de un menú popover */
+  variante?: 'boton' | 'menu';
+  /** Callback ejecutado al pulsar la acción (ej. cerrar un menú popover padre) */
+  onAccion?: () => void;
 }
 
 /**
@@ -31,19 +35,31 @@ export const BotonExportarPdf: React.FC<BotonExportarPdfProps> = ({
   titulo,
   descripcion,
   modulo,
+  variante = 'boton',
+  onAccion,
 }) => {
   // En el servidor (y en el primer render) no hay navegador: se asume que no hay captura.
   const captura = useSyncExternalStore(sinSuscripcion, capturaDePestanaDisponible, () => false);
   if (embebido && captura) {
-    return <ExportarPdfDashboard control={control} titulo={titulo} descripcion={descripcion} modulo={modulo} />;
+    return (
+      <ExportarPdfDashboard
+        control={control}
+        titulo={titulo}
+        descripcion={descripcion}
+        modulo={modulo}
+        variante={variante}
+        onAccion={onAccion}
+      />
+    );
   }
   return (
     <ExportarPdfServidor
-      variante="boton"
+      variante={variante}
       supersetId={supersetId}
       titulo={titulo}
       descripcion={descripcion}
       modulo={modulo}
+      onAccion={onAccion}
     />
   );
 };
