@@ -7,6 +7,7 @@ import {
   Minimize2,
   RefreshCw,
   Download,
+  FileDown,
   FileSpreadsheet,
   Globe,
   Lock,
@@ -126,6 +127,7 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
   const [avanceEmbebido, setAvanceEmbebido] = useState<{ listos: number; total: number } | null>(null);
   const [errorEmbebido, setErrorEmbebido] = useState<string | null>(null);
   const [publicando, setPublicando] = useState(false);
+  const [exportandoPdf, setExportandoPdf] = useState(false);
 
   const sidNumerico =
     dashboardActual.supersetId ??
@@ -210,6 +212,24 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
       );
     } finally {
       setPublicando(false);
+    }
+  };
+
+  const handleExportarPdf = async () => {
+    if (!sidNumerico) return;
+    setExportandoPdf(true);
+    try {
+      const res = await iaDashboardsController.exportarPdfDashboard(sidNumerico);
+      if (res.graficosFallidos > 0) {
+        alert(
+          `El PDF se generó, pero ${res.graficosFallidos === 1 ? '1 gráfico no se pudo dibujar' : `${res.graficosFallidos} gráficos no se pudieron dibujar`}` +
+            ' (aparece un aviso en su lugar).'
+        );
+      }
+    } catch (err) {
+      alert(formatearErrorIaBackend(err, 'No se pudo exportar el dashboard a PDF.'));
+    } finally {
+      setExportandoPdf(false);
     }
   };
 
@@ -472,6 +492,20 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
               title="Retirar embebido de Apache Superset"
             >
               <Share2 size={13} style={{ opacity: 0.7 }} />
+            </button>
+          )}
+
+          {sidNumerico !== null && (
+            <button
+              type="button"
+              onClick={handleExportarPdf}
+              disabled={exportandoPdf}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+              title="Descargar el dashboard en PDF (estado guardado, sin los filtros aplicados en pantalla)"
+            >
+              <FileDown size={14} />
+              <span>{exportandoPdf ? 'Generando PDF...' : 'PDF'}</span>
             </button>
           )}
 
