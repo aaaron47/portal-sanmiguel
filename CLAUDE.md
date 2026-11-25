@@ -191,7 +191,14 @@ pendiente de validación / en evaluación ─declarar improcedente─> improcede
   contenido (`getScrollSize`), se copia por tramos esperando a que cada uno deje de cambiar (spinners y animaciones, máx.
   20 s) y se arma un A4 horizontal con jsPDF: cabecera con logo, título, descripción, módulo, quién lo generó, fecha en
   hora de Perú y filtros aplicados (`getDataMask`); pie con numeración. Los cortes de página buscan el gris entre filas de
-  gráficos. En modo oscuro el dashboard se pasa a claro solo durante la captura. Esc o "Cancelar" detienen todo.
+  gráficos; después ese gris se pinta de blanco (`blanquearFondo`: relleno desde los bordes, no toca el interior de las
+  tarjetas). Sin línea de acento bajo la cabecera. En modo oscuro el dashboard se pasa a claro solo durante la captura.
+  Esc o "Cancelar" detienen todo.
+- **Sin permiso del navegador: PDF del servidor** (`ExportarPdfServidor`). Icono de PDF al lado de cada dashboard de la
+  lista del Centro de Analítica (oficiales y borradores) y botón "PDF" del visor cuando el dashboard no tiene embebido.
+  Llama a `GET /bi/dashboards/{id}/pdf` con `descripcion`, `modulo` y `generadoPor` para la cabecera; el backend lo pide
+  al servicio superset-pdf. Mismo formato que la captura, pero con el estado guardado del dashboard (sin los filtros de
+  pantalla). La captura no puede evitar el aviso: `getDisplayMedia` lo exige en cada llamada.
 - Probado contra Superset 6.1.0 en Docker con los dashboards de ejemplo (largo de 3 páginas, filtros, claro y oscuro,
   visor, cancelar, permiso rechazado) y, el 24/11/2026, contra el **Superset real del grupo** (6.1.0,
   `superset.portalsanmiguel.site`) con `reportes.demo` desde local con el backend real: PDF de 4 páginas en 13 s, sin

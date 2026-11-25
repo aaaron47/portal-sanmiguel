@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import {
   ModuloAnalitico,
+  NOMBRE_MODULO,
   SupersetDashboardInfo,
   SupersetEmbedTokenResponse,
 } from '@/types/superset.types';
@@ -26,16 +27,11 @@ import {
 import { exportarCSV } from '@/utils/csv.utils';
 import { ControlDashboardSuperset, SupersetSdkDashboard } from '@/components/superset/SupersetSdkDashboard';
 import { ExportarPdfDashboard } from '@/components/superset/ExportarPdfDashboard';
+import { ExportarPdfServidor } from '@/components/superset/ExportarPdfServidor';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 
 export const DASHBOARDS_PREDEFINIDOS: SupersetDashboardInfo[] = DASHBOARDS_SUPERSET_CONTROL_MUNICIPAL;
-
-const NOMBRE_MODULO: Record<ModuloAnalitico, string> = {
-  CONTROL_MUNICIPAL: 'Control Municipal',
-  CONTROL_TI: 'Control TI',
-  ADMIN: 'Administración',
-};
 
 function inyectarParametrosTemaUrl(url: string, tema: 'light' | 'dark'): string {
   if (!url) return url;
@@ -484,9 +480,19 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
             </button>
           )}
 
+          {/* Embebido: se captura lo que se ve (con filtros). Sin embebido: PDF generado en el servidor. */}
           {uuidEmbebido && !recargando && (
             <ExportarPdfDashboard
               control={controlSdk}
+              titulo={dashboardActual.titulo}
+              descripcion={dashboardActual.descripcion}
+              modulo={NOMBRE_MODULO[dashboardActual.modulo || modulo]}
+            />
+          )}
+          {!uuidEmbebido && (
+            <ExportarPdfServidor
+              variante="boton"
+              supersetId={sidNumerico}
               titulo={dashboardActual.titulo}
               descripcion={dashboardActual.descripcion}
               modulo={NOMBRE_MODULO[dashboardActual.modulo || modulo]}

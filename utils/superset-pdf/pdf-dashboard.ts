@@ -26,7 +26,6 @@ const FONDO_CONTENIDO = 194;
 const LINEA_PIE = 199;
 
 // Colores (los del logo y los del tema claro del portal)
-const AZUL_MARCA: [number, number, number] = [30, 58, 138];
 const CELESTE_MARCA: [number, number, number] = [61, 184, 232];
 const TEXTO: [number, number, number] = [15, 23, 42];
 const TEXTO_SUAVE: [number, number, number] = [71, 85, 105];
@@ -95,15 +94,7 @@ function cabeceraPrimeraPagina(doc: JsPdf, datos: DatosReportePdf, logo: string 
   doc.text(INSTITUCION, derecha, 17, { align: 'right' });
   doc.text(`${datos.fechaHora} (hora de Perú)`, derecha, 21, { align: 'right' });
 
-  // Línea divisoria con acento del color de la marca
-  doc.setDrawColor(...BORDE);
-  doc.setLineWidth(0.3);
-  doc.line(MARGEN, 26, derecha, 26);
-  doc.setDrawColor(...AZUL_MARCA);
-  doc.setLineWidth(0.9);
-  doc.line(MARGEN, 26, MARGEN + 38, 26);
-
-  let y = 35;
+  let y = 33;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(17);
   doc.setTextColor(...TEXTO);
@@ -216,6 +207,53 @@ function colorFondo(ctx: CanvasRenderingContext2D, ancho: number, alto: number):
 }
 
 /**
+ * Pinta de blanco el fondo gris del tablero (entre y alrededor de los gráficos): rellena desde los bordes de la
+ * imagen todos los píxeles del color de fondo conectados entre sí. El interior de las tarjetas queda intacto aunque
+ * tenga el mismo gris, porque el borde blanco de la tarjeta corta el relleno.
+ * `datos` es RGBA (ImageData.data) de `ancho` x `alto`; se modifica en el lugar.
+ */
+export function blanquearFondo(datos: Uint8ClampedArray, ancho: number, alto: number, fondo: Rgb, tolerancia = 12) {
+  const total = ancho * alto;
+  if (!total) return;
+  const visto = new Uint8Array(total);
+  const pila = new Int32Array(total);
+  let tope = 0;
+  const esFondo = (i: number) => {
+    const p = i * 4;
+    return (
+      Math.abs(datos[p] - fondo[0]) + Math.abs(datos[p + 1] - fondo[1]) + Math.abs(datos[p + 2] - fondo[2]) <=
+      tolerancia
+    );
+  };
+  const agregar = (i: number) => {
+    if (!visto[i] && esFondo(i)) {
+      visto[i] = 1;
+      pila[tope++] = i;
+    }
+  };
+  for (let x = 0; x < ancho; x++) {
+    agregar(x);
+    agregar((alto - 1) * ancho + x);
+  }
+  for (let y = 0; y < alto; y++) {
+    agregar(y * ancho);
+    agregar(y * ancho + ancho - 1);
+  }
+  while (tope > 0) {
+    const i = pila[--tope];
+    const p = i * 4;
+    datos[p] = 255;
+    datos[p + 1] = 255;
+    datos[p + 2] = 255;
+    const x = i % ancho;
+    if (x > 0) agregar(i - 1);
+    if (x < ancho - 1) agregar(i + 1);
+    if (i >= ancho) agregar(i - ancho);
+    if (i < total - ancho) agregar(i + ancho);
+  }
+}
+
+/**
  * Busca dónde cortar la página, de abajo hacia arriba desde el corte ideal:
  * 1. Mejor: una franja del color de fondo que cruza todo el ancho (el espacio entre dos filas de gráficos).
  * 2. Si no hay (un gráfico alto ocupa dos filas): una franja de fondo que cruza buena parte del ancho; el corte
@@ -322,6 +360,10 @@ export async function descargarPdfDashboard(
     ctxRecorte.fillStyle = '#ffffff';
     ctxRecorte.fillRect(0, 0, recorte.width, recorte.height);
     ctxRecorte.drawImage(imagen, 0, yImagen, imagen.width, altoPx, 0, 0, imagen.width, altoPx);
+    // Sin el gris del tablero: los gráficos quedan sobre blanco, como el resto de la hoja
+    const pixeles = ctxRecorte.getImageData(0, 0, recorte.width, recorte.height);
+    blanquearFondo(pixeles.data, recorte.width, recorte.height, fondo);
+    ctxRecorte.putImageData(pixeles, 0, 0);
 
     const altoMm = altoPx * mmPorPx;
     doc.addImage(recorte.toDataURL('image/jpeg', 0.92), 'JPEG', MARGEN, tope, ANCHO_UTIL, altoMm, undefined, 'FAST');

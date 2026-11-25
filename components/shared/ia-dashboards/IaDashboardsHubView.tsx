@@ -10,11 +10,33 @@ import {
   UploadCloud,
   RefreshCw,
 } from 'lucide-react';
-import { ModuloAnalitico } from '@/types/superset.types';
+import { ModuloAnalitico, NOMBRE_MODULO, SupersetDashboardInfo } from '@/types/superset.types';
 import { NotifyFn } from '@/types/ui.types';
+import { ExportarPdfServidor } from '@/components/superset/ExportarPdfServidor';
 import { SupersetEmbedViewer } from '@/components/roles/control-municipal/superset/SupersetEmbedViewer';
 import { SupersetChatAssistant } from '@/components/roles/control-municipal/superset/SupersetChatAssistant';
 import { useIaDashboards } from './useIaDashboards';
+
+/** Lista de dashboards: preferencia guardada; sin preferencia, empieza plegada si la pantalla es angosta. */
+const CLAVE_LISTA_ABIERTA = 'sanmi.analitica.lista';
+const ANCHO_MINIMO_LISTA_ABIERTA = 1280;
+
+function listaAbiertaInicial(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    const guardado = window.localStorage.getItem(CLAVE_LISTA_ABIERTA);
+    if (guardado === '1' || guardado === '0') return guardado === '1';
+  } catch {
+    /* almacenamiento no disponible: se decide por el ancho */
+  }
+  return window.innerWidth >= ANCHO_MINIMO_LISTA_ABIERTA;
+}
+
+/** Id numérico del dashboard en Superset (el mismo criterio que el visor); null si no lo tiene. */
+function idSuperset(d: SupersetDashboardInfo): number | null {
+  if (d.supersetId !== undefined && d.supersetId !== null) return d.supersetId;
+  return Number.isInteger(Number(d.id)) ? Number(d.id) : null;
+}
 
 interface IaDashboardsHubViewProps {
   modulo?: ModuloAnalitico;
@@ -26,7 +48,21 @@ export const IaDashboardsHubView: React.FC<IaDashboardsHubViewProps> = ({
   onNotify,
 }) => {
   const h = useIaDashboards(modulo, onNotify);
-  const [sidebarAbierto, setSidebarAbierto] = useState<boolean>(true);
+  const [sidebarAbierto, setSidebarAbiertoEstado] = useState<boolean>(listaAbiertaInicial);
+  const setSidebarAbierto = (abierto: boolean) => {
+    setSidebarAbiertoEstado(abierto);
+    try {
+      window.localStorage.setItem(CLAVE_LISTA_ABIERTA, abierto ? '1' : '0');
+    } catch {
+      /* sin almacenamiento: solo dura esta sesión */
+    }
+  };
+  // Chat flotante (abajo a la derecha): bajado deja solo su barra; nunca quita espacio al dashboard.
+  const [chatMinimizado, setChatMinimizado] = useState<boolean>(false);
+  const abrirAsistente = () => {
+    h.abrirChat({ modo: 'GENERAR_DASHBOARD' });
+    setChatMinimizado(false);
+  };
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [confirmandoEliminarId, setConfirmandoEliminarId] = useState<string | null>(null);
   const [subiendoId, setSubiendoId] = useState<string | null>(null);
@@ -46,10 +82,10 @@ export const IaDashboardsHubView: React.FC<IaDashboardsHubViewProps> = ({
   const isAiPanelOpen = h.chatAbierto;
   const dashboardMostrado = h.dashboardActivo || h.todosLosDashboards[0];
 
+  // El chat ya no es una columna: flota abajo a la derecha. El dashboard ocupa todo el ancho restante.
   const columnasGrid = [
     sidebarAbierto ? '240px' : '',
     'minmax(0, 1fr)',
-    isAiPanelOpen ? '360px' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -128,7 +164,7 @@ export const IaDashboardsHubView: React.FC<IaDashboardsHubViewProps> = ({
                   if (isAiPanelOpen) {
                     h.cerrarChat();
                   } else {
-                    h.abrirChat({ modo: 'GENERAR_DASHBOARD' });
+                    abrirAsistente();
                   }
                 }}
                 className="btn btn-secondary"
@@ -250,32 +286,52 @@ export const IaDashboardsHubView: React.FC<IaDashboardsHubViewProps> = ({
                   {h.supersetFiltrados.map((d) => {
                     const activo = dashboardMostrado?.id === d.id;
                     return (
-                      <button
+                      <div
                         key={d.id}
-                        type="button"
-                        onClick={() => h.setDashboardActivo(d)}
-                        title={d.titulo}
-                        className="truncate overflow-hidden whitespace-nowrap text-ellipsis"
+                        className="group dashboard-sidebar-item"
                         style={{
-                          width: '100%',
-                          textAlign: 'left',
-                          padding: '0.48rem 0.65rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          padding: '0.48rem 0.55rem 0.48rem 0.65rem',
                           borderRadius: '8px',
                           border: '1px solid',
                           borderColor: activo ? 'var(--sky-600)' : 'transparent',
                           background: activo ? 'var(--sky-50)' : 'transparent',
-                          color: activo ? 'var(--sky-700)' : 'var(--text-main)',
-                          fontSize: '0.78rem',
-                          fontWeight: activo ? 700 : 500,
-                          cursor: 'pointer',
-                          display: 'block',
-                          overflow: 'hidden',
-                          whiteSpace: 'nowrap',
-                          textOverflow: 'ellipsis',
+                          minWidth: 0,
                         }}
                       >
-                        {d.titulo}
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => h.setDashboardActivo(d)}
+                          title={d.titulo}
+                          className="truncate overflow-hidden whitespace-nowrap text-ellipsis"
+                          style={{
+                            flex: 1,
+                            minWidth: 0,
+                            textAlign: 'left',
+                            border: 'none',
+                            background: 'transparent',
+                            padding: 0,
+                            color: activo ? 'var(--sky-700)' : 'var(--text-main)',
+                            fontSize: '0.78rem',
+                            fontWeight: activo ? 700 : 500,
+                            cursor: 'pointer',
+                            overflow: 'hidden',
+                            whiteSpace: 'nowrap',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {d.titulo}
+                        </button>
+                        <ExportarPdfServidor
+                          supersetId={idSuperset(d)}
+                          titulo={d.titulo}
+                          descripcion={d.descripcion}
+                          modulo={NOMBRE_MODULO[d.modulo || modulo]}
+                          onNotify={onNotify}
+                        />
+                      </div>
                     );
                   })}
                   {h.supersetFiltrados.length === 0 && (
@@ -369,6 +425,15 @@ export const IaDashboardsHubView: React.FC<IaDashboardsHubViewProps> = ({
                           </button>
 
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', flexShrink: 0 }}>
+                            {!pidiendoConfirmacion && (
+                              <ExportarPdfServidor
+                                supersetId={idSuperset(d)}
+                                titulo={d.titulo}
+                                descripcion={d.descripcion}
+                                modulo={NOMBRE_MODULO[d.modulo || modulo]}
+                                onNotify={onNotify}
+                              />
+                            )}
                             {/* Opción de pasar de borrador a oficial */}
                             {!pidiendoConfirmacion && (
                               <button
@@ -509,27 +574,67 @@ export const IaDashboardsHubView: React.FC<IaDashboardsHubViewProps> = ({
           )}
         </div>
 
-        {/* 3. Side Drawer Derecho del Asistente IA (se cierra únicamente desde su botón "X") */}
-        {isAiPanelOpen && (
-          <div style={{ minWidth: 0 }}>
-            <SupersetChatAssistant
-              key={h.chatSessionKey}
-              modulo={modulo}
-              dashboardsDisponibles={h.todosLosDashboards}
-              modoInicial={h.modoChatInicial}
-              modeloInicial={h.modeloChatInicial}
-              dashboardContextoInicialId={h.dashboardContextoChatId}
-              isFullscreen={isFullscreen}
-              onVisualizarDashboard={h.seleccionarDashboardPorId}
-              onDashboardGenerado={(nuevo) => {
-                h.agregarDashboardGenerado(nuevo);
-                h.setDashboardActivo(nuevo);
-              }}
-              onCerrar={h.cerrarChat}
-            />
-          </div>
-        )}
       </div>
+
+      {/* 3. Asistente IA flotante (estilo mensajería): abajo a la derecha, también en pantalla completa.
+          Cerrado: un botón para abrirlo. Abierto: la cabecera lo levanta o lo baja. */}
+      {isAiPanelOpen ? (
+        <div
+          style={{
+            position: 'fixed',
+            right: '1.25rem',
+            bottom: 0,
+            width: 'min(380px, calc(100vw - 2.5rem))',
+            height: chatMinimizado ? 'auto' : 'min(560px, calc(100vh - 5rem))',
+            zIndex: isFullscreen ? 10000 : 60,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <SupersetChatAssistant
+            key={h.chatSessionKey}
+            modulo={modulo}
+            dashboardsDisponibles={h.todosLosDashboards}
+            modoInicial={h.modoChatInicial}
+            modeloInicial={h.modeloChatInicial}
+            dashboardContextoInicialId={h.dashboardContextoChatId}
+            isFullscreen={isFullscreen}
+            flotante
+            minimizado={chatMinimizado}
+            onAlternarMinimizado={() => setChatMinimizado((prev) => !prev)}
+            onVisualizarDashboard={h.seleccionarDashboardPorId}
+            onDashboardGenerado={(nuevo) => {
+              h.agregarDashboardGenerado(nuevo);
+              h.setDashboardActivo(nuevo);
+            }}
+            onCerrar={h.cerrarChat}
+          />
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={abrirAsistente}
+          className="btn btn-primary"
+          style={{
+            position: 'fixed',
+            right: '1.25rem',
+            bottom: '1.25rem',
+            zIndex: isFullscreen ? 10000 : 60,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.45rem',
+            padding: '0.6rem 0.95rem',
+            borderRadius: '999px',
+            fontSize: '0.82rem',
+            boxShadow: 'var(--shadow-lg)',
+          }}
+          title="Abrir el asistente de IA"
+          aria-label="Abrir el asistente de IA"
+        >
+          <Sparkles size={15} />
+          Asistente
+        </button>
+      )}
     </div>
   );
 };
