@@ -1,5 +1,18 @@
 export type ModuloAnalitico = 'CONTROL_MUNICIPAL' | 'CONTROL_TI' | 'ADMIN';
 
+/** Nombre de cada módulo tal como se muestra (p. ej. en la cabecera del PDF). */
+export const NOMBRE_MODULO: Record<ModuloAnalitico, string> = {
+  CONTROL_MUNICIPAL: 'Control Municipal',
+  CONTROL_TI: 'Control TI',
+  ADMIN: 'Administración',
+};
+
+/** Id numérico del dashboard en Superset: `supersetId`, o el `id` si es un número; null si no lo tiene. */
+export function idSupersetDe(d: { id: string; supersetId?: number | null }): number | null {
+  if (d.supersetId !== undefined && d.supersetId !== null) return d.supersetId;
+  return Number.isInteger(Number(d.id)) ? Number(d.id) : null;
+}
+
 export type OrigenDashboard = 'SUPERSET' | 'IA';
 
 export type ProveedorModeloIA = 'LOCAL' | 'API';

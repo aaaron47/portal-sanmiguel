@@ -6,7 +6,6 @@ import {
   MoreHorizontal,
   RefreshCw,
   Download,
-  FileDown,
   FileSpreadsheet,
   Globe,
   Lock,
@@ -14,6 +13,7 @@ import {
 } from 'lucide-react';
 import {
   ModuloAnalitico,
+  NOMBRE_MODULO,
   SupersetDashboardInfo,
   SupersetEmbedTokenResponse,
 } from '@/types/superset.types';
@@ -24,7 +24,8 @@ import {
   iaDashboardsController,
 } from '@/controllers/ia-dashboards.controller';
 import { exportarCSV } from '@/utils/csv.utils';
-import { SupersetSdkDashboard } from '@/components/superset/SupersetSdkDashboard';
+import { ControlDashboardSuperset, SupersetSdkDashboard } from '@/components/superset/SupersetSdkDashboard';
+import { BotonExportarPdf } from '@/components/superset/BotonExportarPdf';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -86,6 +87,8 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
   const [recargando, setRecargando] = useState(false);
   const [embedConfig, setEmbedConfig] = useState<SupersetEmbedTokenResponse | null>(null);
   const [iframeRefreshKey, setIframeRefreshKey] = useState(0);
+  /** Dashboard del SDK ya montado (para exportarlo a PDF) */
+  const [controlSdk, setControlSdk] = useState<ControlDashboardSuperset | null>(null);
 
   const esControladoPorPadre = typeof onToggleFullscreen === 'function';
   const isFullscreen = Boolean(externalFullscreen);
@@ -107,7 +110,6 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
   const [avanceEmbebido, setAvanceEmbebido] = useState<{ listos: number; total: number } | null>(null);
   const [errorEmbebido, setErrorEmbebido] = useState<string | null>(null);
   const [publicando, setPublicando] = useState(false);
-  const [exportandoPdf, setExportandoPdf] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
   const triggerId = useId();
   const menuId = useId();
@@ -202,25 +204,6 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
     }
   };
 
-  const handleExportarPdf = async () => {
-    menuPopoverRef.current?.hidePopover?.();
-    if (!sidNumerico) return;
-    setExportandoPdf(true);
-    try {
-      const res = await iaDashboardsController.exportarPdfDashboard(sidNumerico);
-      if (res.graficosFallidos > 0) {
-        alert(
-          `El PDF se generó, pero ${res.graficosFallidos === 1 ? '1 gráfico no se pudo dibujar' : `${res.graficosFallidos} gráficos no se pudieron dibujar`}` +
-            ' (aparece un aviso en su lugar).'
-        );
-      }
-    } catch (err) {
-      alert(formatearErrorIaBackend(err, 'No se pudo exportar el dashboard a PDF.'));
-    } finally {
-      setExportandoPdf(false);
-    }
-  };
-
   const handleRetirarEmbebido = async () => {
     menuPopoverRef.current?.hidePopover?.();
     if (!sidNumerico) return;
@@ -296,8 +279,10 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
     exportarCSV(`Plantilla_${rep.codigo}_${rep.nombre.replace(/\s+/g, '_')}`, rep.cabeceras, []);
   };
 
-  const tieneAccionesMenu = sidNumerico !== null || Boolean(onPublicarDashboard);
-  const ocupadoMenu = exportandoPdf || publicando || habilitandoEmbebido;
+  const tieneAccionesMenu =
+    Boolean(onPublicarDashboard) ||
+    sidNumerico !== null;
+  const ocupadoMenu = publicando || habilitandoEmbebido;
 
   useEffect(() => {
     const popoverEl = menuPopoverRef.current;
@@ -511,6 +496,17 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           {controlDerechoCabecera}
 
+          {!(uuidEmbebido && recargando) && (
+            <BotonExportarPdf
+              embebido={!!uuidEmbebido}
+              control={controlSdk}
+              supersetId={sidNumerico}
+              titulo={dashboardActual.titulo}
+              descripcion={dashboardActual.descripcion}
+              modulo={NOMBRE_MODULO[dashboardActual.modulo || modulo]}
+            />
+          )}
+
           <button
             type="button"
             onClick={handleRecargar}
@@ -594,19 +590,6 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
                   aria-labelledby={triggerId}
                   {...({ focusgroup: 'menu nomemory' } as Record<string, string>)}
                 >
-                  {sidNumerico !== null && (
-                    <button
-                      type="button"
-                      className="reporte-menu-item"
-                      disabled={exportandoPdf}
-                      onPointerMove={(e) => e.currentTarget.focus({ preventScroll: true })}
-                      onClick={handleExportarPdf}
-                    >
-                      <FileDown size={15} />
-                      <span>{exportandoPdf ? 'Generando PDF...' : 'Descargar PDF'}</span>
-                    </button>
-                  )}
-
                   {(sidNumerico !== null || onPublicarDashboard) && (
                     <button
                       type="button"
@@ -748,6 +731,7 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
             hideTab={false}
             hideChartControls={false}
             theme={theme}
+            onControl={setControlSdk}
           />
         ) : sidNumerico === null && embedConfig?.embedUrl ? (
           /* Fallback con URL directa si existiese */

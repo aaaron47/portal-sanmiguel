@@ -1230,10 +1230,19 @@ export class IaDashboardsController {
    * Exporta un dashboard a PDF y lo descarga en el navegador (sección 3.5 de la guía del backend).
    * Usa el estado guardado del dashboard; tarda unos segundos. Devuelve el nombre del archivo y cuántos
    * gráficos no se pudieron dibujar (el PDF sale igual, con un aviso en su lugar).
-   * Endpoint backend: `GET /api/v1/admin/bi/dashboards/{id}/pdf`
+   * `cabecera` (opcional) solo se muestra en el PDF: descripción, módulo y quién lo generó.
+   * Endpoint backend: `GET /api/v1/admin/bi/dashboards/{id}/pdf?descripcion=&modulo=&generadoPor=`
    */
-  async exportarPdfDashboard(id: number): Promise<{ nombreArchivo: string; graficosFallidos: number }> {
-    const archivo = await apiClientArchivoConMeta(`${RUTA_BI}/dashboards/${id}/pdf`);
+  async exportarPdfDashboard(
+    id: number,
+    cabecera: { descripcion?: string; modulo?: string; generadoPor?: string } = {}
+  ): Promise<{ nombreArchivo: string; graficosFallidos: number }> {
+    const params = new URLSearchParams();
+    Object.entries(cabecera).forEach(([clave, valor]) => {
+      if (valor && valor.trim()) params.set(clave, valor.trim());
+    });
+    const consulta = params.toString();
+    const archivo = await apiClientArchivoConMeta(`${RUTA_BI}/dashboards/${id}/pdf${consulta ? `?${consulta}` : ''}`);
     const nombre = archivo.nombreArchivo || `dashboard-${id}.pdf`;
     descargarBlobArchivo(archivo.blob, nombre);
     return { nombreArchivo: nombre, graficosFallidos: Math.max(0, archivo.graficosFallidos) };
