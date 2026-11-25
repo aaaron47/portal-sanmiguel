@@ -26,8 +26,7 @@ import {
 } from '@/controllers/ia-dashboards.controller';
 import { exportarCSV } from '@/utils/csv.utils';
 import { ControlDashboardSuperset, SupersetSdkDashboard } from '@/components/superset/SupersetSdkDashboard';
-import { ExportarPdfDashboard } from '@/components/superset/ExportarPdfDashboard';
-import { ExportarPdfServidor } from '@/components/superset/ExportarPdfServidor';
+import { BotonExportarPdf } from '@/components/superset/BotonExportarPdf';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -480,18 +479,10 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
             </button>
           )}
 
-          {/* Embebido: se captura lo que se ve (con filtros). Sin embebido: PDF generado en el servidor. */}
-          {uuidEmbebido && !recargando && (
-            <ExportarPdfDashboard
+          {!(uuidEmbebido && recargando) && (
+            <BotonExportarPdf
+              embebido={!!uuidEmbebido}
               control={controlSdk}
-              titulo={dashboardActual.titulo}
-              descripcion={dashboardActual.descripcion}
-              modulo={NOMBRE_MODULO[dashboardActual.modulo || modulo]}
-            />
-          )}
-          {!uuidEmbebido && (
-            <ExportarPdfServidor
-              variante="boton"
               supersetId={sidNumerico}
               titulo={dashboardActual.titulo}
               descripcion={dashboardActual.descripcion}

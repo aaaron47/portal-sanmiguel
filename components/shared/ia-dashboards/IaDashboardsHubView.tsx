@@ -10,7 +10,7 @@ import {
   UploadCloud,
   RefreshCw,
 } from 'lucide-react';
-import { ModuloAnalitico, NOMBRE_MODULO, SupersetDashboardInfo } from '@/types/superset.types';
+import { ModuloAnalitico, NOMBRE_MODULO, idSupersetDe as idSuperset } from '@/types/superset.types';
 import { NotifyFn } from '@/types/ui.types';
 import { ExportarPdfServidor } from '@/components/superset/ExportarPdfServidor';
 import { SupersetEmbedViewer } from '@/components/roles/control-municipal/superset/SupersetEmbedViewer';
@@ -33,11 +33,6 @@ function listaAbiertaInicial(): boolean {
 }
 
 /** Id numérico del dashboard en Superset (el mismo criterio que el visor); null si no lo tiene. */
-function idSuperset(d: SupersetDashboardInfo): number | null {
-  if (d.supersetId !== undefined && d.supersetId !== null) return d.supersetId;
-  return Number.isInteger(Number(d.id)) ? Number(d.id) : null;
-}
-
 interface IaDashboardsHubViewProps {
   modulo?: ModuloAnalitico;
   onNotify?: NotifyFn;

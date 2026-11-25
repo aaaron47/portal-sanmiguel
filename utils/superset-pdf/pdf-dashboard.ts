@@ -85,8 +85,13 @@ function cabeceraPrimeraPagina(doc: JsPdf, datos: DatosReportePdf, logo: string 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(...CELESTE_MARCA);
-  doc.setCharSpace(0.4);
-  doc.text('REPORTE DE DASHBOARD', derecha, 12.5, { align: 'right' });
+  // jsPDF alinea a la derecha sin contar el espaciado entre letras y el texto se corría hacia el margen: se calcula
+  // el ancho real (letras + espacios entre ellas) y se escribe desde la izquierda.
+  const etiqueta = 'REPORTE DE DASHBOARD';
+  const espaciado = 0.4;
+  const anchoEtiqueta = doc.getTextWidth(etiqueta) + espaciado * (etiqueta.length - 1);
+  doc.setCharSpace(espaciado);
+  doc.text(etiqueta, derecha - anchoEtiqueta, 12.5);
   doc.setCharSpace(0);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);

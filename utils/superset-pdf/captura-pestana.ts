@@ -8,6 +8,18 @@
 
 export class ErrorExportacionPdf extends Error {}
 
+/**
+ * La captura solo funciona bien en Chrome y Edge de escritorio (capturan solo esta pestaña con `preferCurrentTab`).
+ * En Firefox o Safari el navegador ofrece la pantalla o ventanas enteras y el PDF sale mal: ahí se usa el PDF del
+ * servidor. Chrome y Edge exponen `navigator.userAgentData` con la marca Chromium; Firefox y Safari no.
+ */
+export function capturaDePestanaDisponible(): boolean {
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getDisplayMedia) return false;
+  const datos = (navigator as Navigator & { userAgentData?: { mobile?: boolean; brands?: { brand: string }[] } })
+    .userAgentData;
+  return !!datos && !datos.mobile && !!datos.brands?.some((m) => /Chromium/i.test(m.brand));
+}
+
 /** Pide permiso para capturar la pestaña. Se llama directamente en el clic (el navegador exige un gesto del usuario). */
 export function pedirCapturaPestana(): Promise<MediaStream> {
   if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getDisplayMedia) {
