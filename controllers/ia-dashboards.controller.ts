@@ -1227,6 +1227,19 @@ export class IaDashboardsController {
   }
 
   /**
+   * Exporta un dashboard a PDF y lo descarga en el navegador (sección 3.5 de la guía del backend).
+   * Usa el estado guardado del dashboard; tarda unos segundos. Devuelve el nombre del archivo y cuántos
+   * gráficos no se pudieron dibujar (el PDF sale igual, con un aviso en su lugar).
+   * Endpoint backend: `GET /api/v1/admin/bi/dashboards/{id}/pdf`
+   */
+  async exportarPdfDashboard(id: number): Promise<{ nombreArchivo: string; graficosFallidos: number }> {
+    const archivo = await apiClientArchivoConMeta(`${RUTA_BI}/dashboards/${id}/pdf`);
+    const nombre = archivo.nombreArchivo || `dashboard-${id}.pdf`;
+    descargarBlobArchivo(archivo.blob, nombre);
+    return { nombreArchivo: nombre, graficosFallidos: Math.max(0, archivo.graficosFallidos) };
+  }
+
+  /**
    * Estado del modelo local y de la API de Claude, y preguntas en cola (sección 5.1).
    * Endpoint backend: `GET /api/v1/admin/bi/ia/estado`
    */

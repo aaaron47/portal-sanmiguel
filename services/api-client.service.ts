@@ -114,6 +114,8 @@ export interface ArchivoDescargado {
   nombreArchivo: string | null;
   tablaIncompleta: boolean;
   tablaFilas: number;
+  /** PDF de un dashboard: gráficos que no se pudieron dibujar (`X-Graficos-Fallidos`); -1 si no vino. */
+  graficosFallidos: number;
 }
 
 /**
@@ -137,6 +139,11 @@ export async function apiClientArchivoConMeta(
     filasHeader !== null && filasHeader.trim() !== '' && !Number.isNaN(Number(filasHeader))
       ? Number(filasHeader)
       : -1;
+  const fallidosHeader = response.headers.get('X-Graficos-Fallidos');
+  const graficosFallidos =
+    fallidosHeader !== null && fallidosHeader.trim() !== '' && !Number.isNaN(Number(fallidosHeader))
+      ? Number(fallidosHeader)
+      : -1;
   const blob = await response.blob();
 
   return {
@@ -144,6 +151,7 @@ export async function apiClientArchivoConMeta(
     nombreArchivo,
     tablaIncompleta,
     tablaFilas,
+    graficosFallidos,
   };
 }
 
