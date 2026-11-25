@@ -7,6 +7,12 @@ export const NOMBRE_MODULO: Record<ModuloAnalitico, string> = {
   ADMIN: 'Administración',
 };
 
+/** Id numérico del dashboard en Superset: `supersetId`, o el `id` si es un número; null si no lo tiene. */
+export function idSupersetDe(d: { id: string; supersetId?: number | null }): number | null {
+  if (d.supersetId !== undefined && d.supersetId !== null) return d.supersetId;
+  return Number.isInteger(Number(d.id)) ? Number(d.id) : null;
+}
+
 export type OrigenDashboard = 'SUPERSET' | 'IA';
 
 export type ProveedorModeloIA = 'LOCAL' | 'API';

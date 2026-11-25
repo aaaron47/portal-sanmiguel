@@ -14,9 +14,9 @@ import { KpisReporte, ReportePorArea } from '@/controllers/reportes.controller';
 import { ControlMunicipalKpis } from '../reportes/parts/ControlMunicipalKpis';
 import { CumplimientoAreasTable } from '../reportes/parts/CumplimientoAreasTable';
 import { ControlDashboardSuperset, SupersetSdkDashboard } from '@/components/superset/SupersetSdkDashboard';
-import { ExportarPdfDashboard } from '@/components/superset/ExportarPdfDashboard';
+import { BotonExportarPdf } from '@/components/superset/BotonExportarPdf';
 import { iaDashboardsController } from '@/controllers/ia-dashboards.controller';
-import { SupersetDashboardInfo } from '@/types/superset.types';
+import { NOMBRE_MODULO, SupersetDashboardInfo, idSupersetDe } from '@/types/superset.types';
 import { mensajeErrorApi } from '@/services/api-client.service';
 
 interface DashboardGeneralControlProps {
@@ -187,11 +187,13 @@ export const DashboardGeneralControl: React.FC<DashboardGeneralControlProps> = (
                   <BarChart3 size={18} color="var(--sky-600)" />
                   {dashboardTributario.titulo}
                 </h3>
-                <ExportarPdfDashboard
+                <BotonExportarPdf
+                  embebido={!!dashboardTributario.embedUuid}
                   control={controlSdk}
+                  supersetId={idSupersetDe(dashboardTributario)}
                   titulo={dashboardTributario.titulo}
                   descripcion={dashboardTributario.descripcion}
-                  modulo="Control Municipal"
+                  modulo={NOMBRE_MODULO.CONTROL_MUNICIPAL}
                 />
               </div>
               <SupersetSdkDashboard dashboardId={dashboardTributario.embedUuid} onControl={setControlSdk} />
