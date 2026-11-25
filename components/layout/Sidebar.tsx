@@ -25,7 +25,9 @@ import {
   ChevronUp,
   KeyRound,
   Sparkles,
-  Table
+  Table,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 import { FaqModal } from '@/components/modals/FaqModal';
 import { CambiarContrasenaModal } from './CambiarContrasenaModal';
@@ -38,7 +40,34 @@ interface SidebarProps {
   onNotify?: NotifyFn;
 }
 
+/** Preferencia guardada del menú plegado; sin preferencia, se pliega solo si la pantalla es angosta. */
+const CLAVE_MENU_PLEGADO = 'sanmi.menu.plegado';
+const ANCHO_MINIMO_MENU_ABIERTO = 1100;
+
+function menuPlegadoInicial(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const guardado = window.localStorage.getItem(CLAVE_MENU_PLEGADO);
+    if (guardado === '1' || guardado === '0') return guardado === '1';
+  } catch {
+    /* almacenamiento no disponible: se decide por el ancho */
+  }
+  return window.innerWidth < ANCHO_MINIMO_MENU_ABIERTO;
+}
+
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNotify }) => {
+  const [plegado, setPlegado] = useState<boolean>(menuPlegadoInicial);
+  const alternarPlegado = () => {
+    setPlegado((prev) => {
+      const nuevo = !prev;
+      try {
+        window.localStorage.setItem(CLAVE_MENU_PLEGADO, nuevo ? '1' : '0');
+      } catch {
+        /* sin almacenamiento: solo dura esta sesión */
+      }
+      return nuevo;
+    });
+  };
   const { usuario, rol, logout, switchRoleDemo } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
@@ -74,17 +103,38 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNot
 
   return (
     <>
-      <aside className="app-sidebar">
-        {/* Cabecera con Logo Institucional */}
+      <aside className={`app-sidebar${plegado ? ' plegado' : ''}`}>
+        {/* Cabecera con Logo Institucional (plegado: solo el ícono) y botón para plegar el menú */}
         <div className="sidebar-header">
-          <Image
-            src={theme === 'dark' ? '/logo-san-miguel-dark.png' : '/logo-san-miguel-light.png'}
-            alt="Municipalidad de San Miguel"
-            width={288}
-            height={104}
-            priority
-            className="sidebar-logo"
-          />
+          {plegado ? (
+            <Image
+              src="/icon.png"
+              alt="Municipalidad de San Miguel"
+              width={36}
+              height={36}
+              priority
+              className="sidebar-logo-icono"
+            />
+          ) : (
+            <Image
+              src={theme === 'dark' ? '/logo-san-miguel-dark.png' : '/logo-san-miguel-light.png'}
+              alt="Municipalidad de San Miguel"
+              width={288}
+              height={104}
+              priority
+              className="sidebar-logo"
+            />
+          )}
+          <button
+            type="button"
+            onClick={alternarPlegado}
+            className="sidebar-plegar-btn"
+            title={plegado ? 'Mostrar el menú' : 'Ocultar el menú (deja solo los íconos)'}
+            aria-label={plegado ? 'Mostrar el menú' : 'Ocultar el menú'}
+            aria-expanded={!plegado}
+          >
+            {plegado ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          </button>
         </div>
 
         {/* Navegación Adaptativa por Rol */}
@@ -96,6 +146,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNot
               <button
                 className={`nav-item ${currentTab === 'admin-usuarios' ? 'active' : ''}`}
                 onClick={() => onTabChange('admin-usuarios')}
+                title="Gestión de Usuarios"
               >
                 <Users size={18} />
                 Gestión de Usuarios
@@ -103,6 +154,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNot
               <button
                 className={`nav-item ${currentTab === 'admin-auditoria' ? 'active' : ''}`}
                 onClick={() => onTabChange('admin-auditoria')}
+                title="Auditoría y Seguridad"
               >
                 <ShieldAlert size={18} />
                 Auditoría y Seguridad
@@ -110,6 +162,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNot
               <button
                 className={`nav-item ${currentTab === 'admin-acceso' ? 'active' : ''}`}
                 onClick={() => onTabChange('admin-acceso')}
+                title="Control de Acceso"
               >
                 <KeyRound size={18} />
                 Control de Acceso
@@ -124,6 +177,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNot
               <button
                 className={`nav-item ${currentTab === 'funcionario-bandeja' ? 'active' : ''}`}
                 onClick={() => onTabChange('funcionario-bandeja')}
+                title="Bandeja de Reclamos"
               >
                 <Inbox size={18} />
                 Bandeja de Reclamos
@@ -131,6 +185,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNot
               <button
                 className={`nav-item ${currentTab === 'funcionario-constancias' ? 'active' : ''}`}
                 onClick={() => onTabChange('funcionario-constancias')}
+                title="Evaluación de Constancias"
               >
                 <FileCheck size={18} />
                 Evaluación de Constancias
@@ -145,6 +200,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNot
               <button
                 className={`nav-item ${currentTab === 'supervisor-panorama' ? 'active' : ''}`}
                 onClick={() => onTabChange('supervisor-panorama')}
+                title="Panorama Integral"
               >
                 <Layers size={18} />
                 Panorama Integral
@@ -152,6 +208,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNot
               <button
                 className={`nav-item ${currentTab === 'supervisor-aprobaciones' ? 'active' : ''}`}
                 onClick={() => onTabChange('supervisor-aprobaciones')}
+                title="Revisión y Aprobación"
               >
                 <CheckCircle2 size={18} />
                 Revisión y Aprobación
@@ -159,6 +216,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNot
               <button
                 className={`nav-item ${currentTab === 'supervisor-reasignaciones' ? 'active' : ''}`}
                 onClick={() => onTabChange('supervisor-reasignaciones')}
+                title="Reasignación de Casos"
               >
                 <Eye size={18} />
                 Reasignación de Casos
@@ -166,6 +224,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNot
               <button
                 className={`nav-item ${currentTab === 'supervisor-constancias' ? 'active' : ''}`}
                 onClick={() => onTabChange('supervisor-constancias')}
+                title="Constancias de No Adeudo"
               >
                 <FileCheck size={18} />
                 Constancias de No Adeudo
@@ -180,6 +239,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNot
               <button
                 className={`nav-item ${currentTab === 'control-dashboard' || currentTab === 'control-reportes' ? 'active' : ''}`}
                 onClick={() => onTabChange('control-dashboard')}
+                title="Dashboard General"
               >
                 <BarChart3 size={18} />
                 Dashboard General
@@ -187,6 +247,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNot
               <button
                 className={`nav-item ${currentTab === 'control-tributarios' ? 'active' : ''}`}
                 onClick={() => onTabChange('control-tributarios')}
+                title="Reportes Tributarios"
               >
                 <Table size={18} />
                 Reportes Tributarios
@@ -194,6 +255,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNot
               <button
                 className={`nav-item ${currentTab === 'control-ia' || currentTab === 'control-superset' ? 'active' : ''}`}
                 onClick={() => onTabChange('control-ia')}
+                title="Centro de Analítica"
               >
                 <Sparkles size={18} />
                 Centro de Analítica
@@ -201,6 +263,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNot
               <button
                 className={`nav-item ${currentTab === 'control-constancias' ? 'active' : ''}`}
                 onClick={() => onTabChange('control-constancias')}
+                title="Constancias de No Adeudo"
               >
                 <FileCheck size={18} />
                 Constancias de No Adeudo
@@ -215,6 +278,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNot
               <button
                 className={`nav-item ${currentTab === 'ti-telemetria' ? 'active' : ''}`}
                 onClick={() => onTabChange('ti-telemetria')}
+                title="Dashboard Telemetría App"
               >
                 <Activity size={18} />
                 Dashboard Telemetría App
@@ -222,6 +286,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onNot
               <button
                 className={`nav-item ${currentTab === 'ti-onboarding' ? 'active' : ''}`}
                 onClick={() => onTabChange('ti-onboarding')}
+                title="Privacidad y Onboarding"
               >
                 <Smartphone size={18} />
                 Privacidad y Onboarding

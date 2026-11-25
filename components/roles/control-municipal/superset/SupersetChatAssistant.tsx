@@ -8,6 +8,8 @@ import {
   Sparkles,
   Layers,
   X,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import {
   ModoConsultaIA,
@@ -36,6 +38,13 @@ interface SupersetChatAssistantProps {
   onVisualizarDashboard?: (dashboardId: string, dashboardObj?: SupersetDashboardInfo) => void;
   onDashboardGenerado?: (nuevoDashboard: SupersetDashboardInfo) => void;
   onCerrar?: () => void;
+  /**
+   * Ventana flotante estilo mensajería (abajo a la derecha): ocupa el alto de su contenedor y su cabecera
+   * levanta o baja el chat. Bajado, solo se ve la cabecera; la conversación se conserva.
+   */
+  flotante?: boolean;
+  minimizado?: boolean;
+  onAlternarMinimizado?: () => void;
 }
 
 let contadorMensajes = 100;
@@ -70,6 +79,9 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
   onVisualizarDashboard,
   onDashboardGenerado,
   onCerrar,
+  flotante = false,
+  minimizado = false,
+  onAlternarMinimizado,
 }) => {
   const [mensajes, setMensajes] = useState<SupersetChatMessage[]>([]);
   const [prompt, setPrompt] = useState('');
@@ -213,36 +225,67 @@ export const SupersetChatAssistant: React.FC<SupersetChatAssistantProps> = ({
 
   return (
     <aside
-      className="card"
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: isFullscreen ? 'calc(100vh - 2rem)' : '100%',
-        minHeight: '540px',
-        maxHeight: isFullscreen ? 'calc(100vh - 2rem)' : '80vh',
-        padding: '0.9rem 1rem',
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border-color)',
-      }}
+      className={`card${flotante && minimizado ? ' chat-minimizado' : ''}`}
+      style={
+        flotante
+          ? {
+              display: 'flex',
+              flexDirection: 'column',
+              height: minimizado ? 'auto' : '100%',
+              padding: minimizado ? '0.55rem 0.8rem' : '0.75rem 0.9rem',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px 12px 0 0',
+              boxShadow: 'var(--shadow-lg)',
+            }
+          : {
+              display: 'flex',
+              flexDirection: 'column',
+              height: isFullscreen ? 'calc(100vh - 2rem)' : '100%',
+              minHeight: '540px',
+              maxHeight: isFullscreen ? 'calc(100vh - 2rem)' : '80vh',
+              padding: '0.9rem 1rem',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+            }
+      }
     >
       {/* 1. Cabecera limpia: solo título y botón de cerrar (sin etiquetas ni switches de modelo) */}
       <div
+        onClick={flotante ? onAlternarMinimizado : undefined}
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '0.5rem',
-          paddingBottom: '0.7rem',
-          marginBottom: '0.7rem',
-          borderBottom: '1px solid var(--border-color)',
+          paddingBottom: flotante && minimizado ? 0 : '0.7rem',
+          marginBottom: flotante && minimizado ? 0 : '0.7rem',
+          borderBottom: flotante && minimizado ? 'none' : '1px solid var(--border-color)',
+          cursor: flotante ? 'pointer' : undefined,
         }}
+        title={flotante ? (minimizado ? 'Levantar el chat' : 'Bajar el chat') : undefined}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+          {flotante && <Sparkles size={15} color="var(--sky-500)" />}
           <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>Asistente San Miguel</strong>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-          {mensajes.length > 0 && (
+        {/* stopPropagation: los botones no deben levantar/bajar el chat al hacer clic en la cabecera */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }} onClick={(e) => e.stopPropagation()}>
+          {flotante && onAlternarMinimizado && (
+            <button
+              type="button"
+              onClick={onAlternarMinimizado}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.7rem', padding: '0.28rem 0.45rem' }}
+              aria-label={minimizado ? 'Levantar el chat' : 'Bajar el chat'}
+              aria-expanded={!minimizado}
+              title={minimizado ? 'Levantar el chat' : 'Bajar el chat'}
+            >
+              {minimizado ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+          )}
+          {mensajes.length > 0 && !(flotante && minimizado) && (
             <button
               type="button"
               onClick={reiniciarConversacion}
