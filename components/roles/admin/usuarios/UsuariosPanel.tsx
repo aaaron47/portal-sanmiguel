@@ -39,6 +39,9 @@ export const UsuariosPanel: React.FC<{ onNotify: NotifyFn }> = ({ onNotify }) =>
         onDesactivar={() => u.cambiarEstadoSeleccion(false)}
         onToggleCrear={() => u.setIsCreating(!u.isCreating)}
         onDescargarCSV={u.descargarCSV}
+        onDescargarExcel={u.descargarExcel}
+        onDescargarPDF={u.descargarPDF}
+        sinRegistros={u.filtrados.length === 0}
       />
 
       <UsuariosTable

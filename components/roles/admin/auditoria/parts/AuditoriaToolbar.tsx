@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, Calendar } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { SearchInput } from '@/components/shared/ui/SearchInput';
 import {
   FilterSelectWrapper,
@@ -7,6 +7,7 @@ import {
   ESTILO_SELECT_FILTRO,
   ESTILO_LABEL_FILTRO,
 } from '@/components/shared/ui/FilterControls';
+import { ReporteExportMenu } from '@/components/shared/ui/ReporteExportMenu';
 
 interface AuditoriaToolbarProps {
   searchQuery: string;
@@ -20,6 +21,9 @@ interface AuditoriaToolbarProps {
   responsablesDisponibles: string[];
   accionesDisponibles: string[];
   onDescargarCSV: () => void;
+  onDescargarExcel: () => void;
+  onDescargarPDF: () => Promise<void>;
+  sinRegistros?: boolean;
   onResetFiltros: () => void;
 }
 
@@ -35,6 +39,9 @@ export const AuditoriaToolbar: React.FC<AuditoriaToolbarProps> = ({
   responsablesDisponibles,
   accionesDisponibles,
   onDescargarCSV,
+  onDescargarExcel,
+  onDescargarPDF,
+  sinRegistros = false,
   onResetFiltros,
 }) => {
   const hayFiltrosActivos = Boolean(
@@ -113,26 +120,16 @@ export const AuditoriaToolbar: React.FC<AuditoriaToolbarProps> = ({
           title="Eliminar filtros de auditoría"
         />
 
-        {/* Botón Descargar CSV */}
+        {/* Menú compacto de exportación (...) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', justifyContent: 'flex-end', marginLeft: 'auto' }}>
           <span style={{ ...ESTILO_LABEL_FILTRO, visibility: 'hidden' }}>&nbsp;</span>
-          <button
-            type="button"
-            onClick={onDescargarCSV}
-            className="btn btn-secondary"
-            style={{
-              height: '38px',
-              padding: '0 0.85rem',
-              fontSize: '0.8rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              boxSizing: 'border-box',
-            }}
-            title="Descargar registro de auditoría en CSV"
-          >
-            <Download size={14} /> Exportar CSV
-          </button>
+          <ReporteExportMenu
+            onExportCsv={onDescargarCSV}
+            onExportExcel={onDescargarExcel}
+            onExportPdf={onDescargarPDF}
+            disabled={sinRegistros}
+            title="Exportar registros de auditoría (CSV, Excel, PDF)"
+          />
         </div>
       </div>
     </div>

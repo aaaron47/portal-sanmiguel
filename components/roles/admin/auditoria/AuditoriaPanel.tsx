@@ -35,6 +35,9 @@ export const AuditoriaPanel: React.FC<{ onNotify: NotifyFn }> = ({ onNotify }) =
         responsablesDisponibles={a.responsablesDisponibles}
         accionesDisponibles={a.accionesDisponibles}
         onDescargarCSV={a.descargarCSV}
+        onDescargarExcel={a.descargarExcel}
+        onDescargarPDF={a.descargarPDF}
+        sinRegistros={a.filtrados.length === 0}
         onResetFiltros={a.resetFiltros}
       />
 

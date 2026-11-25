@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserPlus, Download } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
 import { SearchInput } from '@/components/shared/ui/SearchInput';
 import {
   FilterSelectWrapper,
@@ -7,6 +7,7 @@ import {
   ESTILO_SELECT_FILTRO,
   ESTILO_LABEL_FILTRO,
 } from '@/components/shared/ui/FilterControls';
+import { ReporteExportMenu } from '@/components/shared/ui/ReporteExportMenu';
 import { UserRole, ROLE_LABELS } from '@/types/auth.types';
 import { useAreas } from '@/components/shared/hooks/useAreas';
 
@@ -26,6 +27,9 @@ interface UsuariosToolbarProps {
   onDesactivar: () => void;
   onToggleCrear: () => void;
   onDescargarCSV: () => void;
+  onDescargarExcel: () => void;
+  onDescargarPDF: () => Promise<void>;
+  sinRegistros?: boolean;
 }
 
 export const UsuariosToolbar: React.FC<UsuariosToolbarProps> = ({
@@ -44,6 +48,9 @@ export const UsuariosToolbar: React.FC<UsuariosToolbarProps> = ({
   onDesactivar,
   onToggleCrear,
   onDescargarCSV,
+  onDescargarExcel,
+  onDescargarPDF,
+  sinRegistros = false,
 }) => {
   const { areas } = useAreas();
   const hayFiltrosActivos = Boolean(
@@ -129,26 +136,16 @@ export const UsuariosToolbar: React.FC<UsuariosToolbarProps> = ({
           title="Eliminar filtros de usuarios"
         />
 
-        {/* Botón Descargar CSV */}
+        {/* Menú compacto de exportación (...) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', justifyContent: 'flex-end', marginLeft: 'auto' }}>
           <span style={{ ...ESTILO_LABEL_FILTRO, visibility: 'hidden' }}>&nbsp;</span>
-          <button
-            type="button"
-            onClick={onDescargarCSV}
-            className="btn btn-secondary"
-            style={{
-              height: '38px',
-              padding: '0 0.85rem',
-              fontSize: '0.8rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              boxSizing: 'border-box',
-            }}
-            title="Descargar listado de usuarios en formato CSV"
-          >
-            <Download size={14} /> Exportar CSV
-          </button>
+          <ReporteExportMenu
+            onExportCsv={onDescargarCSV}
+            onExportExcel={onDescargarExcel}
+            onExportPdf={onDescargarPDF}
+            disabled={sinRegistros}
+            title="Exportar listado de usuarios (CSV, Excel, PDF)"
+          />
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { NotifyFn } from '@/types/ui.types';
-import { exportarCSV } from '@/utils/csv.utils';
+import { exportarCSV, exportarExcel } from '@/utils/csv.utils';
+import { exportarReporteTributarioPdf } from '@/components/roles/control-municipal/tributarios/exportarReportePdf';
 import { mensajeErrorApi } from '@/services/api-client.service';
 import { telemetriaController } from '@/controllers/telemetria.controller';
 import { seguridadController } from '@/controllers/seguridad.controller';
@@ -331,11 +332,41 @@ export function useControlAcceso(onNotify: NotifyFn) {
     onNotify('info', 'Valores recomendados cargados en borrador. Presiona "Guardar Configuración" para aplicarlos.');
   };
 
-  const descargarCSV = () => {
+  const construirTablaExportacion = () => {
     const cabeceras = ['Rol', 'Nombre del Rol', 'Alcance Municipal', 'Operaciones Permitidas', 'Nivel de Acceso'];
     const filas = MATRIZ_PERMISOS.map((p) => [p.rol, p.nombreRol, p.alcance, p.operacionesPermitidas, p.nivelAcceso]);
+    return { cabeceras, filas };
+  };
+
+  const descargarCSV = () => {
+    const { cabeceras, filas } = construirTablaExportacion();
     exportarCSV('control_acceso', cabeceras, filas);
     onNotify('success', 'Matriz de control de acceso exportada a CSV');
+  };
+
+  const descargarExcel = () => {
+    const { cabeceras, filas } = construirTablaExportacion();
+    exportarExcel('control_acceso', cabeceras, filas);
+    onNotify('success', 'Matriz de control de acceso exportada a Excel');
+  };
+
+  const descargarPDF = async () => {
+    const { cabeceras, filas } = construirTablaExportacion();
+    const resumenPoliticas = `Políticas vigentes: Inactividad ${variables.sessionTimeoutMinutes} min • Máx. intentos ${variables.maxFailedLogins} • Bloqueo ${variables.lockoutMinutes} min • Contraseña mín. ${variables.minPasswordLength} caracteres • Telemetría ${variables.telemetriaActiva ? 'Activa' : 'En pausa'} (Retención ${variables.mesesRetencionUso} meses)`;
+
+    await exportarReporteTributarioPdf({
+      tabla: {
+        id: 0,
+        nombre: 'Control de Acceso y Matriz de Permisos por Rol',
+        descripcion: resumenPoliticas,
+        certificadoPor: 'Administración del Sistema y Seguridad TI',
+      },
+      cabeceras,
+      filas,
+      busquedaTexto: '',
+      subtituloDocumento: 'Reporte Oficial de Seguridad',
+    });
+    onNotify('success', 'Reporte de control de acceso exportado a PDF');
   };
 
   return {
@@ -362,6 +393,8 @@ export function useControlAcceso(onNotify: NotifyFn) {
     isSaving,
     restablecerValores,
     descargarCSV,
+    descargarExcel,
+    descargarPDF,
   };
 }
 

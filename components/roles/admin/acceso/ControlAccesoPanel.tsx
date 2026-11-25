@@ -50,6 +50,8 @@ export const ControlAccesoPanel: React.FC<{ onNotify: NotifyFn }> = ({ onNotify 
         onDescartar={c.descartarCambios}
         onRestablecer={c.restablecerValores}
         onDescargarCSV={c.descargarCSV}
+        onDescargarExcel={c.descargarExcel}
+        onDescargarPDF={c.descargarPDF}
       />
 
       {/* Si no se pudo leer la configuración del servidor, se dice antes de mostrar los valores */}

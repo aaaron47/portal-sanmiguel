@@ -2,7 +2,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { auditoriaController } from '@/controllers/auditoria.controller';
 import { AuditoriaLog } from '@/types/auditoria.types';
 import { NotifyFn } from '@/types/ui.types';
-import { exportarCSV } from '@/utils/csv.utils';
+import { exportarCSV, exportarExcel } from '@/utils/csv.utils';
+import { exportarReporteTributarioPdf } from '@/components/roles/control-municipal/tributarios/exportarReportePdf';
 import { mensajeErrorApi } from '@/services/api-client.service';
 
 export function useAuditoria(onNotify: NotifyFn) {
@@ -55,7 +56,7 @@ export function useAuditoria(onNotify: NotifyFn) {
     setFiltroAccion('todas');
   };
 
-  const descargarCSV = () => {
+  const construirTablaExportacion = () => {
     const cabeceras = [
       'ID',
       'Fecha y Hora',
@@ -76,8 +77,46 @@ export function useAuditoria(onNotify: NotifyFn) {
       l.ipOrigen,
       l.detalles,
     ]);
+    return { cabeceras, filas };
+  };
+
+  const descargarCSV = () => {
+    const { cabeceras, filas } = construirTablaExportacion();
     exportarCSV('auditoria', cabeceras, filas);
     onNotify('success', `Se exportaron ${filas.length} registros de auditoría a CSV`);
+  };
+
+  const descargarExcel = () => {
+    const { cabeceras, filas } = construirTablaExportacion();
+    exportarExcel('auditoria', cabeceras, filas);
+    onNotify('success', `Se exportaron ${filas.length} registros de auditoría a Excel`);
+  };
+
+  const descargarPDF = async () => {
+    if (filtrados.length === 0) return;
+    const { cabeceras, filas } = construirTablaExportacion();
+    const resumenFiltros = [
+      filtroFecha ? `Fecha: ${filtroFecha}` : '',
+      filtroResponsable !== 'todos' ? `Responsable: ${filtroResponsable}` : '',
+      filtroAccion !== 'todas' ? `Acción: ${filtroAccion.replace(/_/g, ' ')}` : '',
+      query.trim(),
+    ]
+      .filter(Boolean)
+      .join(' | ');
+
+    await exportarReporteTributarioPdf({
+      tabla: {
+        id: 0,
+        nombre: 'Registros de Auditoría y Trazabilidad Administrativa',
+        descripcion: 'Bitácora de eventos de seguridad, sesiones, cambios de configuración y acciones administrativas',
+        certificadoPor: 'Administración del Sistema y Seguridad TI',
+      },
+      cabeceras,
+      filas,
+      busquedaTexto: resumenFiltros,
+      subtituloDocumento: 'Reporte Oficial de Auditoría',
+    });
+    onNotify('success', `Se exportaron ${filas.length} registros de auditoría a PDF`);
   };
 
   return {
@@ -94,5 +133,7 @@ export function useAuditoria(onNotify: NotifyFn) {
     accionesDisponibles,
     resetFiltros,
     descargarCSV,
+    descargarExcel,
+    descargarPDF,
   };
 }

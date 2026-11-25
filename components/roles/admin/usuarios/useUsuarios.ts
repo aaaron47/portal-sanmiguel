@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { usuariosController } from '@/controllers/usuarios.controller';
 import { Usuario, ROLE_LABELS } from '@/types/auth.types';
 import { NotifyFn } from '@/types/ui.types';
-import { exportarCSV } from '@/utils/csv.utils';
+import { exportarCSV, exportarExcel } from '@/utils/csv.utils';
+import { exportarReporteTributarioPdf } from '@/components/roles/control-municipal/tributarios/exportarReportePdf';
 import { mensajeErrorApi } from '@/services/api-client.service';
 import { iaDashboardsController } from '@/controllers/ia-dashboards.controller';
 import { NivelMcp } from '@/types/superset.types';
@@ -95,7 +96,7 @@ export function useUsuarios(onNotify: NotifyFn) {
     }
   };
 
-  const descargarCSV = () => {
+  const construirTablaExportacion = () => {
     const cabeceras = ['ID', 'DNI', 'Nombre Completo', 'Correo Institucional', 'Rol', 'Área Municipal', 'Estado'];
     const filas = filtrados.map((u) => [
       u.id,
@@ -106,8 +107,46 @@ export function useUsuarios(onNotify: NotifyFn) {
       u.area || 'Sin área',
       u.activo ? 'Activo' : 'Inactivo',
     ]);
+    return { cabeceras, filas };
+  };
+
+  const descargarCSV = () => {
+    const { cabeceras, filas } = construirTablaExportacion();
     exportarCSV('usuarios', cabeceras, filas);
     onNotify('success', `Se exportaron ${filas.length} registros a CSV`);
+  };
+
+  const descargarExcel = () => {
+    const { cabeceras, filas } = construirTablaExportacion();
+    exportarExcel('usuarios', cabeceras, filas);
+    onNotify('success', `Se exportaron ${filas.length} registros a Excel`);
+  };
+
+  const descargarPDF = async () => {
+    if (filtrados.length === 0) return;
+    const { cabeceras, filas } = construirTablaExportacion();
+    const resumenFiltros = [
+      filtroRol !== 'todos' ? `Rol: ${ROLE_LABELS[filtroRol as keyof typeof ROLE_LABELS] || filtroRol}` : '',
+      filtroArea !== 'todas' ? `Área: ${filtroArea}` : '',
+      filtroEstado !== 'todos' ? `Estado: ${filtroEstado === 'activo' ? 'Activos' : 'Inactivos'}` : '',
+      searchQuery.trim(),
+    ]
+      .filter(Boolean)
+      .join(' | ');
+
+    await exportarReporteTributarioPdf({
+      tabla: {
+        id: 0,
+        nombre: 'Cuentas de Acceso y Gestión de Personal',
+        descripcion: 'Directorio institucional de cuentas de acceso, roles asignados, áreas municipales y estado operativo',
+        certificadoPor: 'Administración del Sistema y Seguridad TI',
+      },
+      cabeceras,
+      filas,
+      busquedaTexto: resumenFiltros,
+      subtituloDocumento: 'Reporte Oficial Municipal',
+    });
+    onNotify('success', `Se exportaron ${filas.length} registros a PDF`);
   };
 
   const cambiarAccesoMcp = async (usuarioId: string, nuevoNivel: NivelMcp | 'DESHABILITADO') => {
@@ -188,6 +227,8 @@ export function useUsuarios(onNotify: NotifyFn) {
     credencialNueva,
     cerrarCredencialNueva: () => setCredencialNueva(null),
     descargarCSV,
+    descargarExcel,
+    descargarPDF,
     cambiarAccesoMcp,
   };
 }

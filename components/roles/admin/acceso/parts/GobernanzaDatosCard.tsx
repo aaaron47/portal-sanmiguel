@@ -57,14 +57,11 @@ export const GobernanzaDatosCard: React.FC<GobernanzaDatosCardProps> = ({
   const versionActiva = versionesAviso.find((d) => d.activo)?.version ?? versionAvisoVigente;
   return (
     <div style={{ marginTop: '1.5rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <ShieldCheck size={18} color="var(--sky-600)" />
-          <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
-            3. Gobernanza de Datos y Telemetría Móvil (Ley N° 29733)
-          </h4>
-        </div>
-        <span className="badge badge-primary" style={{ fontSize: '0.7rem' }}>Privilegio Exclusivo de Administrador</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+        <ShieldCheck size={18} color="var(--sky-600)" />
+        <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
+          3. Gobernanza de Datos y Telemetría Móvil (Ley N° 29733)
+        </h4>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>

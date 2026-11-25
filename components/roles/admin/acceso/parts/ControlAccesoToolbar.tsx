@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Download, Save, RotateCcw, Undo2 } from 'lucide-react';
+import { Save, RotateCcw, Undo2 } from 'lucide-react';
+import { ReporteExportMenu } from '@/components/shared/ui/ReporteExportMenu';
 
 interface ControlAccesoToolbarProps {
   isSaving: boolean;
@@ -12,6 +13,8 @@ interface ControlAccesoToolbarProps {
   onDescartar: () => void;
   onRestablecer: () => void;
   onDescargarCSV: () => void;
+  onDescargarExcel: () => void;
+  onDescargarPDF: () => Promise<void>;
 }
 
 export const ControlAccesoToolbar: React.FC<ControlAccesoToolbarProps> = ({
@@ -22,6 +25,8 @@ export const ControlAccesoToolbar: React.FC<ControlAccesoToolbarProps> = ({
   onDescartar,
   onRestablecer,
   onDescargarCSV,
+  onDescargarExcel,
+  onDescargarPDF,
 }) => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -79,13 +84,11 @@ export const ControlAccesoToolbar: React.FC<ControlAccesoToolbarProps> = ({
       </button>
     </div>
 
-    <button
-      onClick={onDescargarCSV}
-      className="btn btn-secondary"
-      style={{ fontSize: '0.825rem' }}
-      title="Exportar matriz de permisos en formato CSV"
-    >
-      <Download size={15} /> Exportar CSV
-    </button>
+    <ReporteExportMenu
+      onExportCsv={onDescargarCSV}
+      onExportExcel={onDescargarExcel}
+      onExportPdf={onDescargarPDF}
+      title="Exportar políticas y matriz de permisos (CSV, Excel, PDF)"
+    />
   </div>
 );
