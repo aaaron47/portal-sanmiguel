@@ -1,5 +1,12 @@
 export type ModuloAnalitico = 'CONTROL_MUNICIPAL' | 'CONTROL_TI' | 'ADMIN';
 
+/** Nombre de cada módulo tal como se muestra (p. ej. en la cabecera del PDF). */
+export const NOMBRE_MODULO: Record<ModuloAnalitico, string> = {
+  CONTROL_MUNICIPAL: 'Control Municipal',
+  CONTROL_TI: 'Control TI',
+  ADMIN: 'Administración',
+};
+
 export type OrigenDashboard = 'SUPERSET' | 'IA';
 
 export type ProveedorModeloIA = 'LOCAL' | 'API';

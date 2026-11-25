@@ -7,7 +7,6 @@ import {
   Minimize2,
   RefreshCw,
   Download,
-  FileDown,
   FileSpreadsheet,
   Globe,
   Lock,
@@ -15,6 +14,7 @@ import {
 } from 'lucide-react';
 import {
   ModuloAnalitico,
+  NOMBRE_MODULO,
   SupersetDashboardInfo,
   SupersetEmbedTokenResponse,
 } from '@/types/superset.types';
@@ -25,7 +25,9 @@ import {
   iaDashboardsController,
 } from '@/controllers/ia-dashboards.controller';
 import { exportarCSV } from '@/utils/csv.utils';
-import { SupersetSdkDashboard } from '@/components/superset/SupersetSdkDashboard';
+import { ControlDashboardSuperset, SupersetSdkDashboard } from '@/components/superset/SupersetSdkDashboard';
+import { ExportarPdfDashboard } from '@/components/superset/ExportarPdfDashboard';
+import { ExportarPdfServidor } from '@/components/superset/ExportarPdfServidor';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -88,6 +90,8 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
   const [recargando, setRecargando] = useState(false);
   const [embedConfig, setEmbedConfig] = useState<SupersetEmbedTokenResponse | null>(null);
   const [iframeRefreshKey, setIframeRefreshKey] = useState(0);
+  /** Dashboard del SDK ya montado (para exportarlo a PDF) */
+  const [controlSdk, setControlSdk] = useState<ControlDashboardSuperset | null>(null);
 
   const esControladoPorPadre = typeof onToggleFullscreen === 'function';
   const isFullscreen = esControladoPorPadre ? Boolean(externalFullscreen) : internalFullscreen;
@@ -127,7 +131,6 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
   const [avanceEmbebido, setAvanceEmbebido] = useState<{ listos: number; total: number } | null>(null);
   const [errorEmbebido, setErrorEmbebido] = useState<string | null>(null);
   const [publicando, setPublicando] = useState(false);
-  const [exportandoPdf, setExportandoPdf] = useState(false);
 
   const sidNumerico =
     dashboardActual.supersetId ??
@@ -212,24 +215,6 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
       );
     } finally {
       setPublicando(false);
-    }
-  };
-
-  const handleExportarPdf = async () => {
-    if (!sidNumerico) return;
-    setExportandoPdf(true);
-    try {
-      const res = await iaDashboardsController.exportarPdfDashboard(sidNumerico);
-      if (res.graficosFallidos > 0) {
-        alert(
-          `El PDF se generó, pero ${res.graficosFallidos === 1 ? '1 gráfico no se pudo dibujar' : `${res.graficosFallidos} gráficos no se pudieron dibujar`}` +
-            ' (aparece un aviso en su lugar).'
-        );
-      }
-    } catch (err) {
-      alert(formatearErrorIaBackend(err, 'No se pudo exportar el dashboard a PDF.'));
-    } finally {
-      setExportandoPdf(false);
     }
   };
 
@@ -495,18 +480,23 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
             </button>
           )}
 
-          {sidNumerico !== null && (
-            <button
-              type="button"
-              onClick={handleExportarPdf}
-              disabled={exportandoPdf}
-              className="btn btn-secondary"
-              style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
-              title="Descargar el dashboard en PDF (estado guardado, sin los filtros aplicados en pantalla)"
-            >
-              <FileDown size={14} />
-              <span>{exportandoPdf ? 'Generando PDF...' : 'PDF'}</span>
-            </button>
+          {/* Embebido: se captura lo que se ve (con filtros). Sin embebido: PDF generado en el servidor. */}
+          {uuidEmbebido && !recargando && (
+            <ExportarPdfDashboard
+              control={controlSdk}
+              titulo={dashboardActual.titulo}
+              descripcion={dashboardActual.descripcion}
+              modulo={NOMBRE_MODULO[dashboardActual.modulo || modulo]}
+            />
+          )}
+          {!uuidEmbebido && (
+            <ExportarPdfServidor
+              variante="boton"
+              supersetId={sidNumerico}
+              titulo={dashboardActual.titulo}
+              descripcion={dashboardActual.descripcion}
+              modulo={NOMBRE_MODULO[dashboardActual.modulo || modulo]}
+            />
           )}
 
           <button
@@ -610,6 +600,7 @@ export const SupersetEmbedViewer: React.FC<SupersetEmbedViewerProps> = ({
             hideTab={false}
             hideChartControls={false}
             theme={theme}
+            onControl={setControlSdk}
           />
         ) : sidNumerico === null && embedConfig?.embedUrl ? (
           /* Fallback con URL directa si existiese */

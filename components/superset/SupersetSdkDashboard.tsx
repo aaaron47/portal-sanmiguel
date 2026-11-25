@@ -7,6 +7,12 @@ import { useTheme } from '@/context/ThemeContext';
 import { iaDashboardsController } from '@/controllers/ia-dashboards.controller';
 import { mensajeErrorApi } from '@/services/api-client.service';
 
+/** Lo que necesita quien quiera operar sobre el dashboard ya montado (p. ej. exportarlo a PDF). */
+export interface ControlDashboardSuperset {
+  dashboard: EmbeddedDashboard;
+  iframe: HTMLIFrameElement;
+}
+
 export interface SupersetSdkDashboardProps {
   /** UUID del dashboard obtenido en Superset mediante "Embed dashboard" */
   dashboardId?: string;
@@ -19,6 +25,8 @@ export interface SupersetSdkDashboardProps {
   theme?: 'light' | 'dark';
   className?: string;
   style?: React.CSSProperties;
+  /** Avisa cuando el dashboard terminó de montarse (y `null` cuando se desmonta o falla) */
+  onControl?: (control: ControlDashboardSuperset | null) => void;
 }
 
 export const SupersetSdkDashboard: React.FC<SupersetSdkDashboardProps> = ({
@@ -31,12 +39,14 @@ export const SupersetSdkDashboard: React.FC<SupersetSdkDashboardProps> = ({
   theme: temaProp,
   className,
   style,
+  onControl,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const dashboardInstanceRef = useRef<EmbeddedDashboard | null>(null);
   const { theme: temaContexto } = useTheme();
   const temaActivo = temaProp || temaContexto;
   const temaActivoRef = useRef(temaActivo);
+  const onControlRef = useRef(onControl);
 
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState<boolean>(Boolean(dashboardId));
@@ -50,6 +60,10 @@ export const SupersetSdkDashboard: React.FC<SupersetSdkDashboardProps> = ({
   useEffect(() => {
     temaActivoRef.current = temaActivo;
   }, [temaActivo]);
+
+  useEffect(() => {
+    onControlRef.current = onControl;
+  }, [onControl]);
 
   // Montar el dashboard embebido con la configuración inicial
   useEffect(() => {
@@ -165,6 +179,7 @@ export const SupersetSdkDashboard: React.FC<SupersetSdkDashboardProps> = ({
           iframe.style.border = 'none';
           iframe.style.borderRadius = '8px';
           iframe.style.colorScheme = temaInicial;
+          onControlRef.current?.({ dashboard: embeddedDashboard, iframe });
         }
       } catch (e: unknown) {
         if (cancelado) return;
@@ -177,6 +192,7 @@ export const SupersetSdkDashboard: React.FC<SupersetSdkDashboardProps> = ({
 
     return () => {
       cancelado = true;
+      onControlRef.current?.(null);
       if (dashboardInstanceRef.current) {
         try {
           dashboardInstanceRef.current.unmount();

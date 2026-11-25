@@ -10,8 +10,9 @@ import {
   UploadCloud,
   RefreshCw,
 } from 'lucide-react';
-import { ModuloAnalitico } from '@/types/superset.types';
+import { ModuloAnalitico, NOMBRE_MODULO, SupersetDashboardInfo } from '@/types/superset.types';
 import { NotifyFn } from '@/types/ui.types';
+import { ExportarPdfServidor } from '@/components/superset/ExportarPdfServidor';
 import { SupersetEmbedViewer } from '@/components/roles/control-municipal/superset/SupersetEmbedViewer';
 import { SupersetChatAssistant } from '@/components/roles/control-municipal/superset/SupersetChatAssistant';
 import { useIaDashboards } from './useIaDashboards';
@@ -29,6 +30,12 @@ function listaAbiertaInicial(): boolean {
     /* almacenamiento no disponible: se decide por el ancho */
   }
   return window.innerWidth >= ANCHO_MINIMO_LISTA_ABIERTA;
+}
+
+/** Id numérico del dashboard en Superset (el mismo criterio que el visor); null si no lo tiene. */
+function idSuperset(d: SupersetDashboardInfo): number | null {
+  if (d.supersetId !== undefined && d.supersetId !== null) return d.supersetId;
+  return Number.isInteger(Number(d.id)) ? Number(d.id) : null;
 }
 
 interface IaDashboardsHubViewProps {
@@ -279,32 +286,52 @@ export const IaDashboardsHubView: React.FC<IaDashboardsHubViewProps> = ({
                   {h.supersetFiltrados.map((d) => {
                     const activo = dashboardMostrado?.id === d.id;
                     return (
-                      <button
+                      <div
                         key={d.id}
-                        type="button"
-                        onClick={() => h.setDashboardActivo(d)}
-                        title={d.titulo}
-                        className="truncate overflow-hidden whitespace-nowrap text-ellipsis"
+                        className="group dashboard-sidebar-item"
                         style={{
-                          width: '100%',
-                          textAlign: 'left',
-                          padding: '0.48rem 0.65rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          padding: '0.48rem 0.55rem 0.48rem 0.65rem',
                           borderRadius: '8px',
                           border: '1px solid',
                           borderColor: activo ? 'var(--sky-600)' : 'transparent',
                           background: activo ? 'var(--sky-50)' : 'transparent',
-                          color: activo ? 'var(--sky-700)' : 'var(--text-main)',
-                          fontSize: '0.78rem',
-                          fontWeight: activo ? 700 : 500,
-                          cursor: 'pointer',
-                          display: 'block',
-                          overflow: 'hidden',
-                          whiteSpace: 'nowrap',
-                          textOverflow: 'ellipsis',
+                          minWidth: 0,
                         }}
                       >
-                        {d.titulo}
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => h.setDashboardActivo(d)}
+                          title={d.titulo}
+                          className="truncate overflow-hidden whitespace-nowrap text-ellipsis"
+                          style={{
+                            flex: 1,
+                            minWidth: 0,
+                            textAlign: 'left',
+                            border: 'none',
+                            background: 'transparent',
+                            padding: 0,
+                            color: activo ? 'var(--sky-700)' : 'var(--text-main)',
+                            fontSize: '0.78rem',
+                            fontWeight: activo ? 700 : 500,
+                            cursor: 'pointer',
+                            overflow: 'hidden',
+                            whiteSpace: 'nowrap',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {d.titulo}
+                        </button>
+                        <ExportarPdfServidor
+                          supersetId={idSuperset(d)}
+                          titulo={d.titulo}
+                          descripcion={d.descripcion}
+                          modulo={NOMBRE_MODULO[d.modulo || modulo]}
+                          onNotify={onNotify}
+                        />
+                      </div>
                     );
                   })}
                   {h.supersetFiltrados.length === 0 && (
@@ -398,6 +425,15 @@ export const IaDashboardsHubView: React.FC<IaDashboardsHubViewProps> = ({
                           </button>
 
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', flexShrink: 0 }}>
+                            {!pidiendoConfirmacion && (
+                              <ExportarPdfServidor
+                                supersetId={idSuperset(d)}
+                                titulo={d.titulo}
+                                descripcion={d.descripcion}
+                                modulo={NOMBRE_MODULO[d.modulo || modulo]}
+                                onNotify={onNotify}
+                              />
+                            )}
                             {/* Opción de pasar de borrador a oficial */}
                             {!pidiendoConfirmacion && (
                               <button
